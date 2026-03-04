@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import { prisma } from './db'
+import { getSiteName } from './site'
 import type { BookingResponse } from '@/types'
 import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
 
@@ -83,7 +84,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   const pass = process.env.SMTP_PASS
   if (!host || !user || !pass) throw new Error('No email provider configured')
 
-  const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
+  const siteName = await getSiteName()
   const transporter = nodemailer.createTransport({
     host, port: Number(process.env.SMTP_PORT ?? 587), secure: process.env.SMTP_SECURE === 'true', auth: { user, pass },
   })
@@ -105,7 +106,7 @@ export async function sendBookingNotification(
   if (!setting?.value?.trim()) return
 
   const template = await getTemplate('booking_notification')
-  const { vars, conditions } = buildTemplateContext(booking, vehicleName)
+  const { vars, conditions } = await buildTemplateContext(booking, vehicleName)
   const html = renderTemplate(template, vars, conditions)
   const subject = `New Booking Request ${booking.public_id} — ${vehicleName}`
 
@@ -122,7 +123,7 @@ export async function sendCustomerQuote(
   note?: string
 ): Promise<void> {
   const template = await getTemplate('customer_quote')
-  const { vars, conditions } = buildTemplateContext(booking, vehicleName, note)
+  const { vars, conditions } = await buildTemplateContext(booking, vehicleName, note)
   const html = renderTemplate(template, vars, conditions)
   const subject = `Updated Quote — ${booking.public_id} — ${vehicleName}`
 
@@ -130,7 +131,7 @@ export async function sendCustomerQuote(
 }
 
 export async function sendTestEmail(to: string): Promise<void> {
-  const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
+  const siteName = await getSiteName()
   const subject = `Test Email — ${siteName} Admin`
   const html = `<p>This is a test email from <strong>${siteName}</strong>. Email notifications are working correctly.</p>`
 

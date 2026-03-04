@@ -6,9 +6,10 @@ import { cn } from '@/lib/utils'
 
 interface NavProps {
   logoUrl?: string
+  siteName?: string
 }
 
-export default function Nav({ logoUrl }: NavProps) {
+export default function Nav({ logoUrl, siteName = 'Trakovo' }: NavProps) {
   const path = usePathname()
   const [open, setOpen] = useState(false)
 
@@ -29,7 +30,7 @@ export default function Nav({ logoUrl }: NavProps) {
           ) : (
             <>
               <span className="w-7 h-7 bg-accent rounded-[4px] flex items-center justify-center text-white text-sm font-extrabold">A</span>
-              <span className="hidden sm:inline">{process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'}</span>
+              <span className="hidden sm:inline">{siteName}</span>
             </>
           )}
         </Link>

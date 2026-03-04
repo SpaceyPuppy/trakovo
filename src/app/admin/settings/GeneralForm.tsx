@@ -29,6 +29,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function GeneralForm({ initial }: Props) {
+  const [siteName, setSiteName] = useState(initial.site_name ?? '')
+  const [adminName, setAdminName] = useState(initial.admin_name ?? '')
   const [notifEmail, setNotifEmail] = useState(initial.notification_email ?? '')
   const [businessName, setBusinessName] = useState(initial.business_name ?? '')
   const [contactPhone, setContactPhone] = useState(initial.contact_phone ?? '')
@@ -94,6 +96,32 @@ export default function GeneralForm({ initial }: Props) {
         <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[6px] px-3 py-2">{error}</p>
       )}
 
+      <Card title="Site Branding" description="Controls the name shown on the public site, admin portal, and vendor portal.">
+        <Field label="Public Site Name">
+          <input
+            className={inp}
+            value={siteName}
+            onChange={(e) => setSiteName(e.target.value)}
+            placeholder="Trakovo"
+          />
+        </Field>
+        <Field label="Admin / Partner Portal Name">
+          <input
+            className={inp}
+            value={adminName}
+            onChange={(e) => setAdminName(e.target.value)}
+            placeholder="Hire Manager"
+          />
+        </Field>
+        <p className="text-[12px] text-ink-4">Leave blank to use the defaults set via environment variables.</p>
+        <button
+          onClick={() => saveSettings({ site_name: siteName, admin_name: adminName }, 'brand')}
+          disabled={saving === 'brand'}
+          className="bg-accent text-white font-display font-bold text-[13.5px] px-5 py-2 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50">
+          {saving === 'brand' ? 'Saving…' : 'Save'}
+        </button>
+      </Card>
+
       <Card title="Notification Email" description="All new booking requests will be emailed to this address.">
         <Field label="Email Address">
           <input
@@ -119,7 +147,7 @@ export default function GeneralForm({ initial }: Props) {
             className={inp}
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            placeholder={process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'}
+            placeholder="e.g. Trakovo Transport Services"
           />
         </Field>
         <Field label="Contact Phone">

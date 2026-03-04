@@ -1,4 +1,5 @@
 import { prisma } from './db'
+import { getSiteName } from './site'
 import type { BookingResponse } from '@/types'
 import { TEMPLATE_META, type TemplateType } from './email-template-defaults'
 
@@ -26,13 +27,13 @@ export function renderTemplate(
 
 // ─── Build context maps from booking data ───────────────────────────────────
 
-export function buildTemplateContext(
+export async function buildTemplateContext(
   booking: BookingResponse,
   vehicleName: string,
   note?: string,
-): { vars: Record<string, string>; conditions: Record<string, boolean> } {
+): Promise<{ vars: Record<string, string>; conditions: Record<string, boolean> }> {
   const isChauffeured = booking.hire_type === 'chauffeured'
-  const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
+  const siteName = await getSiteName()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
   return {

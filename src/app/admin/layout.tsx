@@ -1,12 +1,17 @@
 import AdminSidebar from './AdminSidebar'
+import { getAdminName } from '@/lib/site'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: { default: 'Dashboard', template: `%s | ${process.env.NEXT_PUBLIC_ADMIN_NAME ?? 'Hire Manager'}` } }
+export async function generateMetadata(): Promise<Metadata> {
+  const adminName = await getAdminName()
+  return { title: { default: 'Dashboard', template: `%s | ${adminName}` } }
+}
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const adminName = await getAdminName()
   return (
     <div className="flex min-h-screen bg-[#f0efe9]">
-      <AdminSidebar />
+      <AdminSidebar adminName={adminName} />
       <main className="flex-1 overflow-auto">
         {children}
       </main>

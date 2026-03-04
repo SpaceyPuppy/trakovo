@@ -4,6 +4,7 @@ import Link from 'next/link'
 import BookingPanel from '@/components/booking/BookingPanel'
 import { prisma } from '@/lib/db'
 import { getVehicle, getAvailability } from '@/lib/api'
+import { getSiteName } from '@/lib/site'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import type { Metadata } from 'next'
 
@@ -34,7 +35,7 @@ export default async function BookVehiclePage({ params }: Props) {
 
   const img = getVehicleImage(vehicle)
   const isDual = vehicle.meta.hire_modes === 'both'
-  const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
+  const siteName = await getSiteName()
 
   return (
     <div className="flex flex-col min-h-screen">

@@ -1,4 +1,5 @@
 import { getVendorSession } from '@/lib/vendor-auth'
+import { getAdminName } from '@/lib/site'
 import VendorNav from './VendorNav'
 
 // Auth is enforced by middleware for all /vendor/* except /vendor/login.
@@ -14,9 +15,11 @@ export default async function VendorLayout({ children }: { children: React.React
     return <div className="min-h-screen bg-[#f0efe9]">{children}</div>
   }
 
+  const portalName = await getAdminName()
+
   return (
     <div className="min-h-screen bg-[#f0efe9]">
-      <VendorNav vendorName={session.vendorName} />
+      <VendorNav vendorName={session.vendorName} portalName={portalName} />
       <main className="px-4 sm:px-8 md:px-10 py-8 md:py-10 max-w-[1400px]">
         {children}
       </main>

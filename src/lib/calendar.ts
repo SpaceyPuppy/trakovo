@@ -1,4 +1,5 @@
 import { prisma } from './db'
+import { getSiteName } from './site'
 
 const STATUS_COLOR: Record<string, string> = {
   pending: '5',    // Banana (yellow)
@@ -71,7 +72,7 @@ export async function syncBookingToCalendar(bookingId: string): Promise<void> {
 
   const customerName = booking.contact_name ?? booking.driver_name ?? 'Customer'
   const hireLabel = booking.hire_type === 'dry-hire' ? 'Self-Drive' : 'Chauffeured'
-  const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
+  const siteName = await getSiteName()
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
 
   const event = {

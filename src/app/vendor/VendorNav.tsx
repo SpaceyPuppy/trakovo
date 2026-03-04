@@ -10,7 +10,7 @@ const navLinks = [
   { href: '/vendor/support', label: 'Support' },
 ]
 
-export default function VendorNav({ vendorName }: { vendorName: string }) {
+export default function VendorNav({ vendorName, portalName = 'Hire Manager' }: { vendorName: string; portalName?: string }) {
   const path = usePathname()
   const router = useRouter()
 
@@ -26,7 +26,7 @@ export default function VendorNav({ vendorName }: { vendorName: string }) {
         <Link href="/vendor" className="flex items-center gap-2.5 flex-shrink-0 mr-4">
           <span className="w-7 h-7 bg-accent rounded-[4px] flex items-center justify-center text-white text-sm font-extrabold font-display">V</span>
           <span className="font-display font-extrabold text-[15px] text-white tracking-tight hidden sm:block">
-            {process.env.NEXT_PUBLIC_ADMIN_NAME ?? 'Partner Portal'}
+            {portalName}
           </span>
         </Link>
 

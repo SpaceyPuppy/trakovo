@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { getVehicles } from '@/lib/api'
+import { getSiteName } from '@/lib/site'
 import MobileVehicleList from './MobileVehicleList'
 import type { Vehicle } from '@/types'
 import type { Metadata } from 'next'
@@ -20,7 +21,7 @@ export default async function BookPage() {
     if (logo?.value) logoUrl = '/api/logo'
   } catch { /* no logo */ }
 
-  const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
+  const siteName = await getSiteName()
 
   return (
     <div className="flex flex-col min-h-screen">

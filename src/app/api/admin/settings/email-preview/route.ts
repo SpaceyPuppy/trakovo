@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const note = templateType === 'customer_quote' ? SAMPLE_NOTE : undefined
-  const { vars, conditions } = buildTemplateContext(
+  const { vars, conditions } = await buildTemplateContext(
     SAMPLE_BOOKING,
     SAMPLE_VEHICLE_NAME,
     note,

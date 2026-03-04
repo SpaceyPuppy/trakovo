@@ -11,7 +11,7 @@ const nav = [
   { href: '/admin/settings', label: 'Settings', icon: '⚙' },
 ]
 
-export default function AdminSidebar() {
+export default function AdminSidebar({ adminName }: { adminName: string }) {
   const path = usePathname()
   const router = useRouter()
 
@@ -25,7 +25,7 @@ export default function AdminSidebar() {
       <div className="px-5 py-6 border-b border-white/10">
         <div className="flex items-center gap-2.5">
           <span className="w-7 h-7 bg-accent rounded-[4px] flex items-center justify-center text-white text-sm font-extrabold font-display">A</span>
-          <span className="font-display font-extrabold text-[15px] text-white tracking-tight">{process.env.NEXT_PUBLIC_ADMIN_NAME ?? 'Hire Manager'}</span>
+          <span className="font-display font-extrabold text-[15px] text-white tracking-tight">{adminName}</span>
         </div>
       </div>
 

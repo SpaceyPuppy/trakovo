@@ -1,9 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -12,7 +13,7 @@ model Vehicle {
   public_id       String          @unique
   slug            String          @unique
   name            String
-  description     String          @default("")
+  description     String          @default("") @db.Text
   price           Int             @default(0)
   chauffeur_price Int             @default(0)
   currency        String          @default("AUD")
@@ -60,7 +61,7 @@ model Booking {
   agreement_accepted    Boolean       @default(false)
   id_document_path      String?
   licence_document_path String?
-  trip_details          String?
+  trip_details          String?       @db.Text
   is_enquiry            Boolean       @default(false)
   google_event_id       String?
   vendor_id             String?
@@ -76,20 +77,20 @@ model BookingNote {
   id         String   @id @default(cuid())
   booking_id String
   booking    Booking  @relation(fields: [booking_id], references: [id], onDelete: Cascade)
-  text       String
+  text       String   @db.Text
   author     String   @default("Staff")
   created_at DateTime @default(now())
 }
 
 model Setting {
   key        String   @id
-  value      String
+  value      String   @db.Text
   updated_at DateTime @updatedAt
 }
 
 model PushSubscription {
   id         Int      @id @default(autoincrement())
-  endpoint   String   @unique
+  endpoint   String   @unique @db.VarChar(500)
   p256dh     String
   auth       String
   created_at DateTime @default(now())
@@ -135,7 +136,7 @@ model VendorClient {
   email      String    @default("")
   phone      String    @default("")
   reference  String    @default("")
-  notes      String    @default("")
+  notes      String    @default("") @db.Text
   is_active  Boolean   @default(true)
   bookings   Booking[]
   created_at DateTime  @default(now())
@@ -148,11 +149,11 @@ model VendorEnquiry {
   vendor_id   String
   vendor      Vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
   subject     String
-  message     String
+  message     String   @db.Text
   booking_id  String?
   client_id   String?
   status      String   @default("open")
-  staff_reply String?
+  staff_reply String?  @db.Text
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 }

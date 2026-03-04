@@ -1,13 +1,17 @@
 import type { Metadata, Viewport } from 'next'
+import { getSiteName } from '@/lib/site'
 
-export const metadata: Metadata = {
-  title: { default: 'Book a Vehicle', template: '%s | Book' },
-  description: 'Browse and book premium vehicles from your phone.',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName()
+  return {
+    title: { default: 'Book a Vehicle', template: '%s | Book' },
+    description: 'Browse and book premium vehicles from your phone.',
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: siteName,
+    },
+  }
 }
 
 export const viewport: Viewport = {

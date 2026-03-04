@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from 'next'
+import { getSiteName } from '@/lib/site'
 import './globals.css'
 
-export const metadata: Metadata = {
-  title: { default: process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo', template: `%s | ${process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'}` },
-  description: 'Professional vehicle hire — chauffeured and self-drive options available.',
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName()
+  return {
+    title: { default: siteName, template: `%s | ${siteName}` },
+    description: 'Professional vehicle hire — chauffeured and self-drive options available.',
+  }
 }
 
 export const viewport: Viewport = {
