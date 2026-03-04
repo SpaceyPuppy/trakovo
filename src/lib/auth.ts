@@ -69,7 +69,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
 export function setSessionCookie(token: string): void {
   cookies().set(COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.COOKIE_SECURE !== 'false',
     sameSite: 'lax',
     maxAge: 60 * 60 * 8,
     path: '/',
