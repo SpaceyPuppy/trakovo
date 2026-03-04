@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Vehicle {
+  id              String          @id @default(cuid())
+  public_id       String          @unique
+  slug            String          @unique
+  name            String
+  description     String          @default("")
+  price           Int             @default(0)
+  chauffeur_price Int             @default(0)
+  currency        String          @default("AUD")
+  hire_modes      String          @default("chauffeured_only")
+  passengers      String          @default("")
+  transmission    String          @default("Automatic")
+  fuel            String          @default("Petrol")
+  is_available    Boolean         @default(true)
+  media           VehicleMedia[]
+  bookings        Booking[]
+  vendor_access   VendorVehicle[]
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
+}
+
+model VehicleMedia {
+  id           String   @id @default(cuid())
+  vehicle_id   String
+  vehicle      Vehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+  url          String
+  content_type String   @default("image/jpeg")
+  sort_order   Int      @default(0)
+}
+
+model Booking {
+  id                    String        @id @default(cuid())
+  public_id             String        @unique
+  vehicle_id            String?
+  vehicle               Vehicle?      @relation(fields: [vehicle_id], references: [id])
+  hire_type             String
+  service_type          String        @default("vehicle")
+  status                String        @default("pending")
+  start_date            String
+  end_date              String
+  total_days            Int
+  daily_rate            Int
+  total_cost            Int
+  contact_name          String?
+  contact_email         String
+  contact_phone         String
+  driver_name           String?
+  driver_dob            String?
+  driver_licence_number String?
+  driver_licence_expiry String?
+  agreement_accepted    Boolean       @default(false)
+  id_document_path      String?
+  licence_document_path String?
+  trip_details          String?
+  is_enquiry            Boolean       @default(false)
+  google_event_id       String?
+  vendor_id             String?
+  vendor                Vendor?       @relation(fields: [vendor_id], references: [id])
+  vendor_client_id      String?
+  vendor_client         VendorClient? @relation(fields: [vendor_client_id], references: [id])
+  notes                 BookingNote[]
+  created_at            DateTime      @default(now())
+  updated_at            DateTime      @updatedAt
+}
+
+model BookingNote {
+  id         String   @id @default(cuid())
+  booking_id String
+  booking    Booking  @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+  text       String
+  author     String   @default("Staff")
+  created_at DateTime @default(now())
+}
+
+model Setting {
+  key        String   @id
+  value      String
+  updated_at DateTime @updatedAt
+}
+
+model PushSubscription {
+  id         Int      @id @default(autoincrement())
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  created_at DateTime @default(now())
+}
+
+// ─── B2B Vendor Portal ────────────────────────────────────────────────────────
+
+model Vendor {
+  id            String          @id @default(cuid())
+  public_id     String          @unique
+  name          String
+  username      String          @unique
+  password_hash String
+  contact_email String          @default("")
+  contact_phone String          @default("")
+  is_active     Boolean         @default(true)
+  vehicles      VendorVehicle[]
+  clients       VendorClient[]
+  bookings      Booking[]
+  enquiries     VendorEnquiry[]
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+}
+
+model VendorVehicle {
+  id         Int      @id @default(autoincrement())
+  vendor_id  String
+  vendor     Vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+  vehicle_id String
+  vehicle    Vehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+  is_enabled Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  @@unique([vendor_id, vehicle_id])
+}
+
+model VendorClient {
+  id         String    @id @default(cuid())
+  public_id  String    @unique
+  vendor_id  String
+  vendor     Vendor    @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+  name       String
+  email      String    @default("")
+  phone      String    @default("")
+  reference  String    @default("")
+  notes      String    @default("")
+  is_active  Boolean   @default(true)
+  bookings   Booking[]
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+}
+
+model VendorEnquiry {
+  id          String   @id @default(cuid())
+  public_id   String   @unique
+  vendor_id   String
+  vendor      Vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+  subject     String
+  message     String
+  booking_id  String?
+  client_id   String?
+  status      String   @default("open")
+  staff_reply String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+}

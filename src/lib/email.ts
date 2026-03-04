@@ -1,0 +1,138 @@
+import nodemailer from 'nodemailer'
+import { prisma } from './db'
+import type { BookingResponse } from '@/types'
+import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
+
+// ─── Microsoft Graph API helpers ─────────────────────────────────────────────
+
+async function getMsAccessToken(): Promise<string | null> {
+  const [tokenRow, expiryRow, refreshRow] = await Promise.all([
+    prisma.setting.findUnique({ where: { key: 'ms_access_token' } }),
+    prisma.setting.findUnique({ where: { key: 'ms_token_expiry' } }),
+    prisma.setting.findUnique({ where: { key: 'ms_refresh_token' } }),
+  ])
+  if (!tokenRow?.value || !refreshRow?.value) return null
+
+  const expiry = expiryRow?.value ? new Date(expiryRow.value) : new Date(0)
+  const needsRefresh = Date.now() > expiry.getTime() - 5 * 60 * 1000
+
+  if (!needsRefresh) return tokenRow.value
+
+  try {
+    const res = await fetch(
+      `https://login.microsoftonline.com/${process.env.MS_TENANT_ID ?? 'common'}/oauth2/v2.0/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: process.env.MS_CLIENT_ID!,
+          client_secret: process.env.MS_CLIENT_SECRET!,
+          refresh_token: refreshRow.value,
+          scope: 'Mail.Send User.Read offline_access',
+        }),
+      }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    const newExpiry = new Date(Date.now() + data.expires_in * 1000).toISOString()
+
+    await Promise.all([
+      prisma.setting.upsert({ where: { key: 'ms_access_token' }, create: { key: 'ms_access_token', value: data.access_token }, update: { value: data.access_token } }),
+      prisma.setting.upsert({ where: { key: 'ms_token_expiry' }, create: { key: 'ms_token_expiry', value: newExpiry }, update: { value: newExpiry } }),
+      ...(data.refresh_token ? [prisma.setting.upsert({ where: { key: 'ms_refresh_token' }, create: { key: 'ms_refresh_token', value: data.refresh_token }, update: { value: data.refresh_token } })] : []),
+    ])
+    return data.access_token
+  } catch {
+    return null
+  }
+}
+
+async function sendViaGraph(token: string, to: string, subject: string, html: string): Promise<void> {
+  const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: {
+        subject,
+        body: { contentType: 'HTML', content: html },
+        toRecipients: [{ emailAddress: { address: to } }],
+      },
+      saveToSentItems: true,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Graph API error ${res.status}: ${err}`)
+  }
+}
+
+// ─── Send helper ─────────────────────────────────────────────────────────────
+
+export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  // Try Microsoft 365 first
+  const msToken = await getMsAccessToken()
+  if (msToken) {
+    await sendViaGraph(msToken, to, subject, html)
+    return
+  }
+
+  // Fall back to SMTP
+  const host = process.env.SMTP_HOST
+  const user = process.env.SMTP_USER
+  const pass = process.env.SMTP_PASS
+  if (!host || !user || !pass) throw new Error('No email provider configured')
+
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
+  const transporter = nodemailer.createTransport({
+    host, port: Number(process.env.SMTP_PORT ?? 587), secure: process.env.SMTP_SECURE === 'true', auth: { user, pass },
+  })
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM ?? `"${siteName}" <${user}>`,
+    to,
+    subject,
+    html,
+  })
+}
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+export async function sendBookingNotification(
+  booking: BookingResponse,
+  vehicleName: string
+): Promise<void> {
+  const setting = await prisma.setting.findUnique({ where: { key: 'notification_email' } })
+  if (!setting?.value?.trim()) return
+
+  const template = await getTemplate('booking_notification')
+  const { vars, conditions } = buildTemplateContext(booking, vehicleName)
+  const html = renderTemplate(template, vars, conditions)
+  const subject = `New Booking Request ${booking.public_id} — ${vehicleName}`
+
+  try {
+    await sendEmail(setting.value.trim(), subject, html)
+  } catch (err) {
+    console.error('[email] Notification not sent for', booking.public_id, err)
+  }
+}
+
+export async function sendCustomerQuote(
+  booking: BookingResponse,
+  vehicleName: string,
+  note?: string
+): Promise<void> {
+  const template = await getTemplate('customer_quote')
+  const { vars, conditions } = buildTemplateContext(booking, vehicleName, note)
+  const html = renderTemplate(template, vars, conditions)
+  const subject = `Updated Quote — ${booking.public_id} — ${vehicleName}`
+
+  await sendEmail(booking.contact_email, subject, html)
+}
+
+export async function sendTestEmail(to: string): Promise<void> {
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
+  const subject = `Test Email — ${siteName} Admin`
+  const html = `<p>This is a test email from <strong>${siteName}</strong>. Email notifications are working correctly.</p>`
+
+  await sendEmail(to, subject, html)
+}

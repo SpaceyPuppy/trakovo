@@ -1,0 +1,13 @@
+# Dependencies (reinstall with: npm install)
+node_modules/
+
+# Next.js build output (regenerate with: npm run build)
+.next/
+out/
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
