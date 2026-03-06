@@ -25,11 +25,29 @@ export async function applyUpdate(zipPath: string): Promise<UpdateResult> {
   fs.mkdirSync(extractDir, { recursive: true })
 
   try {
-    // Extract zip to temp — do not touch production files yet
+    // Extract zip to temp — do not touch production files yet.
+    // Try unzip first, then python3, then python as fallbacks.
+    let extracted = false
     try {
       execSync(`unzip -o "${zipPath}" -d "${extractDir}"`, { stdio: 'pipe' })
-    } catch {
-      throw new Error('Failed to extract zip. Ensure unzip is installed on the server.')
+      extracted = true
+    } catch { /* try next method */ }
+
+    if (!extracted) {
+      for (const py of ['python3', 'python']) {
+        try {
+          execSync(
+            `${py} -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "${zipPath}" "${extractDir}"`,
+            { stdio: 'pipe' }
+          )
+          extracted = true
+          break
+        } catch { /* try next */ }
+      }
+    }
+
+    if (!extracted) {
+      throw new Error('Could not extract zip — unzip and python3 are both unavailable on this server.')
     }
 
     // Zip must contain a .next folder with BUILD_ID
@@ -41,6 +59,12 @@ export async function applyUpdate(zipPath: string): Promise<UpdateResult> {
       )
     }
     const newBuildId = fs.readFileSync(buildIdPath, 'utf-8').trim()
+
+    // Copy package.json from bundle if present — keeps on-disk version in sync
+    const bundlePackageJson = path.join(extractDir, 'package.json')
+    if (fs.existsSync(bundlePackageJson)) {
+      fs.copyFileSync(bundlePackageJson, path.join(APP_ROOT, 'package.json'))
+    }
 
     // Remove any existing backup, then back up current .next
     if (fs.existsSync(BACKUP_DIR)) {

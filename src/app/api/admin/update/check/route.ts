@@ -10,7 +10,8 @@ export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Read current installed version from package.json
+  // Read current installed version from package.json on disk.
+  // The bundle swap also replaces package.json, so this stays current.
   let currentVersion = 'unknown'
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'))

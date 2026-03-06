@@ -42,9 +42,10 @@ $existing = $releaseFiles | Where-Object { Test-Path $_ }
 Compress-Archive -Path $existing -DestinationPath $releaseZip
 Write-Host "  Created $releaseZip  ($([Math]::Round((Get-Item $releaseZip).Length / 1MB, 1)) MB)"
 
-# --- Update bundle zip (just .next) ---
+# --- Update bundle zip (.next + package.json) ---
+# package.json is included so the on-disk version number updates after a bundle swap
 Remove-Item $bundleZip -ErrorAction SilentlyContinue
-Compress-Archive -Path ".next" -DestinationPath $bundleZip
+Compress-Archive -Path ".next", "package.json" -DestinationPath $bundleZip
 Write-Host "  Created $bundleZip  ($([Math]::Round((Get-Item $bundleZip).Length / 1MB, 1)) MB)"
 
 Write-Host ""

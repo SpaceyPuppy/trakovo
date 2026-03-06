@@ -23,7 +23,7 @@ export default function UpdatesPage() {
     } catch { /* ignore */ }
   }
 
-  // Read version from package.json
+  // Read version from package.json — the bundle swap also updates this file
   let version = 'unknown'
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(APP_ROOT, 'package.json'), 'utf-8'))
