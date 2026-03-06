@@ -28,6 +28,7 @@ export default async function BookingDetailPage({ params }: Props) {
       driver_dob: string | null; driver_licence_number: string | null;
       driver_licence_expiry: string | null; id_document_path: string | null;
       licence_document_path: string | null; driver_id: string | null;
+      trip_details: string | null;
       created_at: Date; vehicle_name: string | null;
     }>(
       'SELECT b.*, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.id = ? LIMIT 1',
@@ -155,6 +156,40 @@ export default async function BookingDetailPage({ params }: Props) {
             </div>
           )}
         </section>
+
+        {/* Chauffeured trip details */}
+        {!isDryHire && booking.trip_details && (() => {
+          let parsed: { legs?: { date: string; pickup: string; dropoff: string; pickupTime: string; dropoffTime: string }[]; passengerCount?: string; tripPurpose?: string } | null = null
+          try { parsed = JSON.parse(booking.trip_details) } catch { /* ignore */ }
+          if (!parsed) return null
+          const legs = parsed.legs ?? []
+          return (
+            <section className="bg-white border border-border rounded-xl overflow-hidden">
+              <div className="px-5 py-3.5 bg-bg border-b border-border">
+                <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider">Trip Schedule</p>
+              </div>
+              <div className="px-5 py-5 space-y-4">
+                {legs.length > 0 ? legs.map((leg, i) => (
+                  <div key={i} className="border border-border rounded-[8px] px-4 py-3.5 space-y-2">
+                    <p className="text-[10.5px] font-bold text-ink-4 uppercase tracking-wider">Leg {i + 1}{leg.date ? ` — ${leg.date}` : ''}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {leg.pickup && <Info label="Pickup" value={leg.pickup} />}
+                      {leg.dropoff && <Info label="Dropoff" value={leg.dropoff} />}
+                      {leg.pickupTime && <Info label="Pickup Time" value={leg.pickupTime} />}
+                      {leg.dropoffTime && <Info label="Arrival By" value={leg.dropoffTime} />}
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-[13px] text-ink-3">No trip legs provided.</p>
+                )}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-5 pt-1">
+                  {parsed.passengerCount && <Info label="Passengers" value={parsed.passengerCount} />}
+                  {parsed.tripPurpose && <Info label="Purpose" value={parsed.tripPurpose.charAt(0).toUpperCase() + parsed.tripPurpose.slice(1)} />}
+                </div>
+              </div>
+            </section>
+          )
+        })()}
 
         {/* Driver assignment */}
         <section className="bg-white border border-border rounded-xl overflow-hidden">

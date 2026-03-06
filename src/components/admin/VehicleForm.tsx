@@ -95,13 +95,15 @@ export default function VehicleForm({ initial, vehicleId, mode }: Props) {
             ))}
           </div>
         </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Self-Drive Daily Rate (AUD)" required>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-[13px]">$</span>
-              <input className={cn(inp, 'pl-7')} type="number" min="0" step="1" required value={form.price || ''} onChange={e => up({ price: Number(e.target.value) })} placeholder="0" />
-            </div>
-          </Field>
+        <div className={cn('grid gap-4', form.hire_modes === 'both' ? 'grid-cols-2' : 'grid-cols-1 max-w-[50%]')}>
+          {form.hire_modes === 'both' && (
+            <Field label="Self-Drive Daily Rate (AUD)" required>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-[13px]">$</span>
+                <input className={cn(inp, 'pl-7')} type="number" min="0" step="1" required value={form.price || ''} onChange={e => up({ price: Number(e.target.value) })} placeholder="0" />
+              </div>
+            </Field>
+          )}
           <Field label="Chauffeured Daily Rate (AUD)" required>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-[13px]">$</span>

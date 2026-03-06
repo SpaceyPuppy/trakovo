@@ -47,7 +47,7 @@ export default async function VehicleDetailPage({ params }: Props) {
               )}
               <div className="absolute bottom-5 left-5 bg-black/45 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2.5 text-white">
                 <p className="font-display font-bold text-[16px]">{vehicle.name}</p>
-                <p className="text-[12px] text-white/60 mt-0.5">{vehicle.category?.name ?? 'Vehicle'} · From {formatCurrency(vehicle.price)}/day</p>
+                <p className="text-[12px] text-white/60 mt-0.5">{vehicle.category?.name ?? 'Vehicle'} · From {formatCurrency(isDual ? vehicle.price : vehicle.chauffeur_price)}/day</p>
               </div>
             </div>
 

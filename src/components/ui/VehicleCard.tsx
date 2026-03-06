@@ -39,7 +39,7 @@ export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
         {/* Footer */}
         <div className="flex items-center justify-between pt-3.5 border-t border-border">
           <div className="font-display font-bold text-[20px]">
-            {formatCurrency(vehicle.price)}
+            {formatCurrency(isChauffeured ? vehicle.chauffeur_price : vehicle.price)}
             <sub className="font-body font-normal text-[12px] text-ink-4">/day</sub>
           </div>
           <span className="bg-ink text-white text-[13px] font-semibold px-4 py-2 rounded-[6px] group-hover:bg-slate transition-colors">

@@ -33,10 +33,10 @@ export default async function VendorBookingDetailPage({ params }: { params: { id
     start_date: string; end_date: string; total_days: number
     daily_rate: number; total_cost: number; vehicle_id?: string | null
     service_type?: string; contact_name?: string; contact_email?: string; contact_phone?: string
-    vehicle_name?: string
+    vehicle_name?: string; hire_type?: string; trip_details?: string | null
     vc_id?: string; vc_name?: string; vc_email?: string; vc_phone?: string; vc_reference?: string
   }>(
-    'SELECT b.id, b.public_id, b.status, b.created_at, b.start_date, b.end_date, b.total_days, b.daily_rate, b.total_cost, b.vehicle_id, b.service_type, b.contact_name, b.contact_email, b.contact_phone, b.vendor_client_id, v.name as vehicle_name, vc.id as vc_id, vc.name as vc_name, vc.email as vc_email, vc.phone as vc_phone, vc.reference as vc_reference FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.id = ? AND b.vendor_id = ? LIMIT 1',
+    'SELECT b.id, b.public_id, b.status, b.created_at, b.start_date, b.end_date, b.total_days, b.daily_rate, b.total_cost, b.vehicle_id, b.service_type, b.hire_type, b.trip_details, b.contact_name, b.contact_email, b.contact_phone, b.vendor_client_id, v.name as vehicle_name, vc.id as vc_id, vc.name as vc_name, vc.email as vc_email, vc.phone as vc_phone, vc.reference as vc_reference FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.id = ? AND b.vendor_id = ? LIMIT 1',
     [params.id, session.vendorId]
   )
 
@@ -98,6 +98,31 @@ export default async function VendorBookingDetailPage({ params }: { params: { id
             {row('End date', booking.end_date)}
             {row('Duration', `${booking.total_days} day${booking.total_days !== 1 ? 's' : ''}`)}
           </div>
+
+          {/* Trip schedule — chauffeured only */}
+          {booking.hire_type === 'chauffeured' && booking.trip_details && (() => {
+            let parsed: { legs?: { date: string; pickup: string; dropoff: string; pickupTime: string; dropoffTime: string }[]; passengerCount?: string; tripPurpose?: string } | null = null
+            try { parsed = JSON.parse(booking.trip_details) } catch { return null }
+            if (!parsed) return null
+            const legs = parsed.legs ?? []
+            if (!legs.length && !parsed.passengerCount && !parsed.tripPurpose) return null
+            return (
+              <div className="bg-white border border-border rounded-xl p-5">
+                <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-3">Trip Schedule</p>
+                {legs.map((leg, i) => (
+                  <div key={i} className="border border-border rounded-[6px] px-3 py-3 mb-3 space-y-1.5">
+                    <p className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Leg {i + 1}{leg.date ? ` — ${leg.date}` : ''}</p>
+                    {row('Pickup', leg.pickup)}
+                    {row('Dropoff', leg.dropoff)}
+                    {leg.pickupTime && row('Pickup time', leg.pickupTime)}
+                    {leg.dropoffTime && row('Arrival by', leg.dropoffTime)}
+                  </div>
+                ))}
+                {parsed.passengerCount && row('Passengers', parsed.passengerCount)}
+                {parsed.tripPurpose && row('Purpose', parsed.tripPurpose.charAt(0).toUpperCase() + parsed.tripPurpose.slice(1))}
+              </div>
+            )
+          })()}
 
           {/* Passenger */}
           <div className="bg-white border border-border rounded-xl p-5">
