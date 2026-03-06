@@ -1,5 +1,5 @@
 import { getDriverSession } from '@/lib/driver-auth'
-import { getAdminName } from '@/lib/site'
+import { getDriverName } from '@/lib/site'
 import DriverNav from './DriverNav'
 
 // Auth is enforced by middleware for all /driver/* except /driver/login.
@@ -12,7 +12,7 @@ export default async function DriverLayout({ children }: { children: React.React
     return <div className="min-h-screen bg-[#f0efe9]">{children}</div>
   }
 
-  const portalName = await getAdminName()
+  const portalName = await getDriverName()
 
   return (
     <div className="min-h-screen bg-[#f0efe9]">

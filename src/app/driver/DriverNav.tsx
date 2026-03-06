@@ -24,7 +24,7 @@ export default function DriverNav({ driverName, portalName = 'DriveMaster' }: { 
         <Link href="/driver" className="flex items-center gap-2.5 flex-shrink-0 mr-4">
           <span className="w-7 h-7 bg-accent rounded-[4px] flex items-center justify-center text-white text-sm font-extrabold font-display">D</span>
           <span className="font-display font-extrabold text-[15px] text-white tracking-tight hidden sm:block">
-            DriveMaster
+            {portalName}
           </span>
         </Link>
 

@@ -31,6 +31,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export default function GeneralForm({ initial }: Props) {
   const [siteName, setSiteName] = useState(initial.site_name ?? '')
   const [adminName, setAdminName] = useState(initial.admin_name ?? '')
+  const [driverName, setDriverName] = useState(initial.driver_name ?? '')
   const [notifEmail, setNotifEmail] = useState(initial.notification_email ?? '')
   const [businessName, setBusinessName] = useState(initial.business_name ?? '')
   const [contactPhone, setContactPhone] = useState(initial.contact_phone ?? '')
@@ -96,7 +97,7 @@ export default function GeneralForm({ initial }: Props) {
         <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[6px] px-3 py-2">{error}</p>
       )}
 
-      <Card title="Site Branding" description="Controls the name shown on the public site, admin portal, and vendor portal.">
+      <Card title="Site Branding" description="Controls the name shown on the public site, admin portal, and driver portal.">
         <Field label="Public Site Name">
           <input
             className={inp}
@@ -113,9 +114,17 @@ export default function GeneralForm({ initial }: Props) {
             placeholder="Hire Manager"
           />
         </Field>
-        <p className="text-[12px] text-ink-4">Leave blank to use the defaults set via environment variables.</p>
+        <Field label="Driver Portal Name">
+          <input
+            className={inp}
+            value={driverName}
+            onChange={(e) => setDriverName(e.target.value)}
+            placeholder="DriveMaster"
+          />
+        </Field>
+        <p className="text-[12px] text-ink-4">Leave blank to use the defaults.</p>
         <button
-          onClick={() => saveSettings({ site_name: siteName, admin_name: adminName }, 'brand')}
+          onClick={() => saveSettings({ site_name: siteName, admin_name: adminName, driver_name: driverName }, 'brand')}
           disabled={saving === 'brand'}
           className="bg-accent text-white font-display font-bold text-[13.5px] px-5 py-2 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50">
           {saving === 'brand' ? 'Saving…' : 'Save'}
