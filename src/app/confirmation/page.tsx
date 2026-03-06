@@ -7,6 +7,7 @@ import type { Metadata } from 'next'
 
 const ConfirmationUploadCard = dynamic(() => import('@/components/booking/ConfirmationUploadCard'))
 
+export const revalidate = 0
 export const metadata: Metadata = { title: 'Booking Confirmed' }
 
 interface Props { searchParams: Record<string, string> }

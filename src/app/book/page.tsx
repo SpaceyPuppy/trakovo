@@ -6,7 +6,7 @@ import type { Vehicle } from '@/types'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Browse Fleet' }
-export const revalidate = 60
+export const revalidate = 0
 
 export default async function BookPage() {
   let vehicles: Vehicle[] = []

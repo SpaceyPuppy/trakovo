@@ -5,7 +5,7 @@ import VehicleCard from '@/components/ui/VehicleCard'
 import { getVehicles } from '@/lib/api'
 import type { Vehicle } from '@/types'
 
-export const revalidate = 60 // ISR — revalidate every 60s
+export const revalidate = 0 // ISR — revalidate every 60s
 
 export default async function HomePage() {
   let vehicles: Vehicle[] = []

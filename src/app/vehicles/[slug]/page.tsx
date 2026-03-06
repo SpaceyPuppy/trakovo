@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   } catch { return { title: 'Vehicle' } }
 }
 
-export const revalidate = 60
+export const revalidate = 0
 
 export default async function VehicleDetailPage({ params }: Props) {
   let vehicle, availability
