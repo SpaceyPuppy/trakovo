@@ -3,6 +3,8 @@ import { queryOne } from '@/lib/db'
 import fs from 'fs/promises'
 import path from 'path'
 
+export const dynamic = 'force-dynamic'
+
 function getUploadDir(): string {
   return process.env.UPLOAD_DIR?.trim()
     ? process.env.UPLOAD_DIR.trim()
