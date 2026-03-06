@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { queryOne, execute } from '@/lib/db'
 import { saveUpload } from '@/lib/uploads'
 
 export async function POST(req: NextRequest) {
@@ -11,15 +11,12 @@ export async function POST(req: NextRequest) {
     if (!ref) return NextResponse.json({ error: 'Missing booking reference' }, { status: 400 })
     if (!idFile || idFile.size === 0) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-    const booking = await prisma.booking.findUnique({ where: { public_id: ref } })
+    const booking = await queryOne('SELECT id FROM Booking WHERE public_id = ? LIMIT 1', [ref])
     if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
 
     const id_document_path = await saveUpload(idFile, `bookings/${ref}`, 'id_document')
 
-    await prisma.booking.update({
-      where: { public_id: ref },
-      data: { id_document_path },
-    })
+    await execute('UPDATE Booking SET id_document_path = ? WHERE public_id = ?', [id_document_path, ref])
 
     return NextResponse.json({ ok: true })
   } catch (err) {

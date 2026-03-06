@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { queryOne, execute } from '@/lib/db'
 import fs from 'fs/promises'
 import path from 'path'
 
@@ -44,11 +44,10 @@ export async function POST(req: NextRequest) {
 
     const logoPath = `logo/${filename}`
 
-    await prisma.setting.upsert({
-      where: { key: 'logo_path' },
-      create: { key: 'logo_path', value: logoPath },
-      update: { value: logoPath },
-    })
+    await execute(
+      'INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()',
+      ['logo_path', logoPath]
+    )
 
     return NextResponse.json({ ok: true, logo_path: logoPath })
   } catch (e: unknown) {
@@ -61,13 +60,13 @@ export async function DELETE() {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
   try {
-    const setting = await prisma.setting.findUnique({ where: { key: 'logo_path' } })
+    const setting = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])
     if (setting?.value) {
       const fullPath = path.join(getUploadDir(), setting.value)
       await fs.unlink(fullPath).catch(() => {})
     }
 
-    await prisma.setting.delete({ where: { key: 'logo_path' } }).catch(() => {})
+    await execute('DELETE FROM Setting WHERE `key` = ?', ['logo_path']).catch(() => {})
 
     return NextResponse.json({ ok: true })
   } catch (e: unknown) {

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getDriverSession } from '@/lib/driver-auth'
-import { prisma } from '@/lib/db'
+import { query, queryOne } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
@@ -20,17 +20,18 @@ export default async function DriverDashboard() {
 
   const today = new Date().toISOString().slice(0, 10)
 
-  const [upcomingCount, totalCount, openMessages, recentBookings] = await Promise.all([
-    prisma.booking.count({ where: { driver_id: session.driverId, start_date: { gte: today }, status: { not: 'cancelled' } } }),
-    prisma.booking.count({ where: { driver_id: session.driverId } }),
-    prisma.driverMessage.count({ where: { driver_id: session.driverId, status: 'open' } }),
-    prisma.booking.findMany({
-      where: { driver_id: session.driverId },
-      orderBy: { start_date: 'asc' },
-      take: 5,
-      include: { vehicle: { select: { name: true } } },
-    }),
+  const [upcomingRow, totalRow, openMsgRow, recentBookings] = await Promise.all([
+    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE driver_id = ? AND start_date >= ? AND status != ?', [session.driverId, today, 'cancelled']),
+    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE driver_id = ?', [session.driverId]),
+    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM DriverMessage WHERE driver_id = ? AND status = ?', [session.driverId, 'open']),
+    query<{ id: string; public_id: string; status: string; start_date: string; end_date: string; vehicle_name?: string }>(
+      'SELECT b.id, b.public_id, b.status, b.start_date, b.end_date, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.driver_id = ? ORDER BY b.start_date ASC LIMIT 5',
+      [session.driverId]
+    ),
   ])
+  const upcomingCount = upcomingRow?.count ?? 0
+  const totalCount = totalRow?.count ?? 0
+  const openMessages = openMsgRow?.count ?? 0
 
   return (
     <div>
@@ -74,7 +75,7 @@ export default async function DriverDashboard() {
                   <td className="px-6 py-3">
                     <Link href={`/driver/bookings/${b.id}`} className="font-mono text-[12.5px] font-bold text-accent hover:underline">{b.public_id}</Link>
                   </td>
-                  <td className="px-6 py-3 text-ink-3">{b.vehicle?.name ?? '—'}</td>
+                  <td className="px-6 py-3 text-ink-3">{b.vehicle_name ?? '—'}</td>
                   <td className="px-6 py-3 text-ink-3">{b.start_date}</td>
                   <td className="px-6 py-3 text-ink-3">{b.end_date}</td>
                   <td className="px-6 py-3">

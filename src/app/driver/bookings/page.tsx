@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getDriverSession } from '@/lib/driver-auth'
-import { prisma } from '@/lib/db'
+import { query } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
@@ -18,11 +18,10 @@ export default async function DriverBookingsPage() {
   const session = await getDriverSession()
   if (!session) redirect('/driver/login')
 
-  const bookings = await prisma.booking.findMany({
-    where: { driver_id: session.driverId },
-    orderBy: { start_date: 'asc' },
-    include: { vehicle: { select: { name: true } } },
-  })
+  const bookings = await query<{ id: string; public_id: string; status: string; start_date: string; end_date: string; vehicle_name?: string }>(
+    'SELECT b.id, b.public_id, b.status, b.start_date, b.end_date, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.driver_id = ? ORDER BY b.start_date ASC',
+    [session.driverId]
+  )
 
   return (
     <div>
@@ -46,7 +45,7 @@ export default async function DriverBookingsPage() {
               {bookings.map(b => (
                 <tr key={b.id} className="border-t border-border hover:bg-bg/50 transition-colors">
                   <td className="px-6 py-4 font-mono text-[12.5px] font-bold text-accent">{b.public_id}</td>
-                  <td className="px-6 py-4 text-ink-3">{b.vehicle?.name ?? '—'}</td>
+                  <td className="px-6 py-4 text-ink-3">{b.vehicle_name ?? '—'}</td>
                   <td className="px-6 py-4 text-ink-3">{b.start_date}</td>
                   <td className="px-6 py-4 text-ink-3">{b.end_date}</td>
                   <td className="px-6 py-4">

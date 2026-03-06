@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db'
+import { queryOne } from '@/lib/db'
 import { getSiteName } from '@/lib/site'
 import Nav from './Nav'
 
@@ -7,7 +7,7 @@ export default async function NavWrapper() {
   const siteName = await getSiteName()
 
   try {
-    const setting = await prisma.setting.findUnique({ where: { key: 'logo_path' } })
+    const setting = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])
     if (setting?.value) logoUrl = '/api/logo'
   } catch {
     // DB not ready or no logo set — fall back to default

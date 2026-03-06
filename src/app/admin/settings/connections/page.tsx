@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db'
+import { query } from '@/lib/db'
 import ConnectionsForm from './ConnectionsForm'
 import PushCard from './PushCard'
 import type { Metadata } from 'next'
@@ -7,9 +7,10 @@ export const metadata: Metadata = { title: 'Connections' }
 export const revalidate = 0
 
 export default async function ConnectionsPage() {
-  const rows = await prisma.setting.findMany({
-    where: { key: { in: ['ms_connected_email', 'gc_connected_email'] } },
-  })
+  const rows = await query<{ key: string; value: string }>(
+    'SELECT `key`, value FROM Setting WHERE `key` IN (?, ?)',
+    ['ms_connected_email', 'gc_connected_email']
+  )
   const settings: Record<string, string> = {}
   for (const row of rows) settings[row.key] = row.value
 

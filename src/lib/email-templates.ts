@@ -1,4 +1,4 @@
-import { prisma } from './db'
+import { queryOne } from './db'
 import { getSiteName } from './site'
 import type { BookingResponse } from '@/types'
 import { TEMPLATE_META, type TemplateType } from './email-template-defaults'
@@ -73,7 +73,7 @@ export async function buildTemplateContext(
 
 export async function getTemplate(type: TemplateType): Promise<string> {
   const meta = TEMPLATE_META[type]
-  const row = await prisma.setting.findUnique({ where: { key: meta.key } })
+  const row = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', [meta.key])
   if (row?.value?.trim()) return row.value
   return meta.default
 }

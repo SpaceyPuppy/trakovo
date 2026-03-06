@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getVendorSession } from '@/lib/vendor-auth'
-import { prisma } from '@/lib/db'
+import { query, queryOne } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
@@ -19,19 +19,20 @@ export default async function VendorDashboard() {
   if (!session) redirect('/vendor/login')
 
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
 
-  const [bookingsThisMonth, pendingCount, clientCount, recentBookings] = await Promise.all([
-    prisma.booking.count({ where: { vendor_id: session.vendorId, created_at: { gte: new Date(startOfMonth) } } }),
-    prisma.booking.count({ where: { vendor_id: session.vendorId, status: 'pending' } }),
-    prisma.vendorClient.count({ where: { vendor_id: session.vendorId, is_active: true } }),
-    prisma.booking.findMany({
-      where: { vendor_id: session.vendorId },
-      orderBy: { created_at: 'desc' },
-      take: 5,
-      include: { vehicle: { select: { name: true } }, vendor_client: { select: { name: true } } },
-    }),
+  const [bookingsThisMonthRow, pendingCountRow, clientCountRow, recentBookings] = await Promise.all([
+    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE vendor_id = ? AND created_at >= ?', [session.vendorId, startOfMonth]),
+    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE vendor_id = ? AND status = ?', [session.vendorId, 'pending']),
+    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM VendorClient WHERE vendor_id = ? AND is_active = 1', [session.vendorId]),
+    query(
+      'SELECT b.*, v.name as vehicle_name, vc.name as vendor_client_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.vendor_id = ? ORDER BY b.created_at DESC LIMIT 5',
+      [session.vendorId]
+    ),
   ])
+  const bookingsThisMonth = bookingsThisMonthRow?.count ?? 0
+  const pendingCount = pendingCountRow?.count ?? 0
+  const clientCount = clientCountRow?.count ?? 0
 
   return (
     <div>
@@ -88,9 +89,9 @@ export default async function VendorDashboard() {
                     <Link href={`/vendor/bookings/${b.id}`} className="font-mono text-[12.5px] font-bold text-accent hover:underline">{b.public_id}</Link>
                   </td>
                   <td className="px-6 py-3 text-ink-3">
-                    {b.vehicle?.name ?? ((b as { service_type?: string }).service_type === 'taxi' ? 'Taxi' : (b as { service_type?: string }).service_type === 'cpv' ? 'CPV' : '—')}
+                    {(b as { vehicle_name?: string }).vehicle_name ?? ((b as { service_type?: string }).service_type === 'taxi' ? 'Taxi' : (b as { service_type?: string }).service_type === 'cpv' ? 'CPV' : '—')}
                   </td>
-                  <td className="px-6 py-3 text-ink-3">{b.vendor_client?.name ?? b.contact_name ?? '—'}</td>
+                  <td className="px-6 py-3 text-ink-3">{(b as { vendor_client_name?: string }).vendor_client_name ?? (b as { contact_name?: string }).contact_name ?? '—'}</td>
                   <td className="px-6 py-3 text-ink-3 text-[12px]">{b.start_date} → {b.end_date}</td>
                   <td className="px-6 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${STATUS_COLORS[b.status] ?? 'bg-bg text-ink-3 border-border'}`}>

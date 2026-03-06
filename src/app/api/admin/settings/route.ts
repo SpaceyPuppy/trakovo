@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { query, execute } from '@/lib/db'
 
 export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const rows = await prisma.setting.findMany()
+  const rows = await query<{ key: string; value: string }>('SELECT `key`, value FROM Setting')
   const settings: Record<string, string> = {}
   for (const row of rows) settings[row.key] = row.value
 
@@ -23,15 +23,14 @@ export async function PUT(req: NextRequest) {
 
     await Promise.all(
       updates.map(([key, value]) =>
-        prisma.setting.upsert({
-          where: { key },
-          create: { key, value },
-          update: { value },
-        })
+        execute(
+          'INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()',
+          [key, value]
+        )
       )
     )
 
-    const rows = await prisma.setting.findMany()
+    const rows = await query<{ key: string; value: string }>('SELECT `key`, value FROM Setting')
     const settings: Record<string, string> = {}
     for (const row of rows) settings[row.key] = row.value
 

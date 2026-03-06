@@ -1,5 +1,5 @@
 import { getVendorSession } from '@/lib/vendor-auth'
-import { prisma } from '@/lib/db'
+import { queryOne } from '@/lib/db'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -28,15 +28,24 @@ export default async function VendorBookingDetailPage({ params }: { params: { id
   const session = await getVendorSession()
   if (!session) redirect('/vendor/login')
 
-  const booking = await prisma.booking.findFirst({
-    where: { id: params.id, vendor_id: session.vendorId },
-    include: {
-      vehicle: { select: { name: true } },
-      vendor_client: true,
-    },
-  })
+  const booking = await queryOne<{
+    id: string; public_id: string; status: string; created_at: Date | string
+    start_date: string; end_date: string; total_days: number
+    daily_rate: number; total_cost: number; vehicle_id?: string | null
+    service_type?: string; contact_name?: string; contact_email?: string; contact_phone?: string
+    vehicle_name?: string
+    vc_id?: string; vc_name?: string; vc_email?: string; vc_phone?: string; vc_reference?: string
+  }>(
+    'SELECT b.id, b.public_id, b.status, b.created_at, b.start_date, b.end_date, b.total_days, b.daily_rate, b.total_cost, b.vehicle_id, b.service_type, b.contact_name, b.contact_email, b.contact_phone, b.vendor_client_id, v.name as vehicle_name, vc.id as vc_id, vc.name as vc_name, vc.email as vc_email, vc.phone as vc_phone, vc.reference as vc_reference FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.id = ? AND b.vendor_id = ? LIMIT 1',
+    [params.id, session.vendorId]
+  )
 
   if (!booking) notFound()
+
+  const vendor_client = booking.vc_id ? {
+    id: booking.vc_id, name: booking.vc_name, email: booking.vc_email,
+    phone: booking.vc_phone, reference: booking.vc_reference,
+  } : null
 
   const row = (label: string, value: string | null | undefined) => (
     <div className="flex justify-between py-2.5 border-b border-border last:border-0 text-[13.5px]">
@@ -81,9 +90,9 @@ export default async function VendorBookingDetailPage({ params }: { params: { id
           <div className="bg-white border border-border rounded-xl p-5">
             <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-3">Trip</p>
             {row('Service',
-              (booking as { service_type?: string }).service_type === 'taxi' ? 'Taxi (metered)' :
-              (booking as { service_type?: string }).service_type === 'cpv'  ? 'CPV (pre-agreed rate)' :
-              booking.vehicle ? booking.vehicle.name : 'Vehicle'
+              booking.service_type === 'taxi' ? 'Taxi (metered)' :
+              booking.service_type === 'cpv'  ? 'CPV (pre-agreed rate)' :
+              booking.vehicle_name ?? 'Vehicle'
             )}
             {row('Start date', booking.start_date)}
             {row('End date', booking.end_date)}
@@ -93,14 +102,14 @@ export default async function VendorBookingDetailPage({ params }: { params: { id
           {/* Passenger */}
           <div className="bg-white border border-border rounded-xl p-5">
             <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-3">Passenger</p>
-            {booking.vendor_client ? (
+            {vendor_client ? (
               <>
-                {row('Name', booking.vendor_client.name)}
-                {row('Email', booking.vendor_client.email)}
-                {row('Phone', booking.vendor_client.phone)}
-                {row('Reference', booking.vendor_client.reference)}
+                {row('Name', vendor_client.name)}
+                {row('Email', vendor_client.email)}
+                {row('Phone', vendor_client.phone)}
+                {row('Reference', vendor_client.reference)}
                 <div className="pt-2">
-                  <Link href={`/vendor/clients/${booking.vendor_client.id}`}
+                  <Link href={`/vendor/clients/${vendor_client.id}`}
                     className="text-[12.5px] text-accent hover:underline font-medium">
                     View client record →
                   </Link>
@@ -121,7 +130,7 @@ export default async function VendorBookingDetailPage({ params }: { params: { id
           {/* Cost */}
           <div className="bg-white border border-border rounded-xl p-5">
             <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-3">Cost</p>
-            {booking.daily_rate === 0 && !booking.vehicle ? (
+            {booking.daily_rate === 0 && !booking.vehicle_id ? (
               <p className="text-[13.5px] text-ink-3">Cost to be advised — our team will confirm the rate for this trip.</p>
             ) : (
               <div className="space-y-2 text-[13.5px]">

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { queryOne } from '@/lib/db'
 import { createVendorToken, setVendorSessionCookie } from '@/lib/vendor-auth'
 import { verifyPassword } from '@/lib/password'
 
@@ -9,7 +9,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Username and password required' }, { status: 400 })
   }
 
-  const vendor = await prisma.vendor.findUnique({ where: { username } })
+  const vendor = await queryOne<{ id: string; name: string; password_hash: string; is_active: number }>(
+    'SELECT id, name, password_hash, is_active FROM Vendor WHERE username = ? LIMIT 1',
+    [username]
+  )
   if (!vendor || !vendor.is_active) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
   }

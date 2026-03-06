@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import BookingPanel from '@/components/booking/BookingPanel'
-import { prisma } from '@/lib/db'
+import { queryOne } from '@/lib/db'
 import { getVehicle, getAvailability } from '@/lib/api'
 import { getSiteName } from '@/lib/site'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
@@ -29,7 +29,7 @@ export default async function BookVehiclePage({ params }: Props) {
   } catch { notFound() }
 
   try {
-    const logo = await prisma.setting.findUnique({ where: { key: 'logo_path' } })
+    const logo = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])
     if (logo?.value) logoUrl = '/api/logo'
   } catch { /* no logo */ }
 

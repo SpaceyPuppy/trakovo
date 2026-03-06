@@ -3,7 +3,7 @@
  * Returns vehicles with no conflicting pending/confirmed bookings in the date range.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { query } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
@@ -16,26 +16,33 @@ export async function GET(req: NextRequest) {
   }
 
   // Find vehicle IDs that have a conflicting booking
-  const conflicting = await prisma.booking.findMany({
-    where: {
-      status: { in: ['pending', 'confirmed'] },
-      // Overlap: booking.start <= end AND booking.end >= start
-      start_date: { lte: end },
-      end_date: { gte: start },
-    },
-    select: { vehicle_id: true },
-  })
-  const blockedIds = Array.from(new Set(conflicting.map((b) => b.vehicle_id)))
+  const conflicting = await query<{ vehicle_id: string | null }>(
+    "SELECT vehicle_id FROM Booking WHERE status IN ('pending','confirmed') AND start_date <= ? AND end_date >= ?",
+    [end, start]
+  )
+  const blockedIds = Array.from(new Set(conflicting.map((b) => b.vehicle_id).filter(Boolean))) as string[]
+  if (exclude) blockedIds.push(exclude)
 
-  const vehicles = await prisma.vehicle.findMany({
-    where: {
-      is_available: true,
-      id: { notIn: [...blockedIds, exclude].filter((id): id is string => Boolean(id)) },
-    },
-    include: { media: { orderBy: { sort_order: 'asc' }, take: 1 } },
-    orderBy: { created_at: 'desc' },
-    take: 4,
-  })
+  let vehicles: { id: string; slug: string; name: string; price: number; chauffeur_price: number; hire_modes: string }[]
+  if (blockedIds.length > 0) {
+    vehicles = await query(
+      'SELECT id, slug, name, price, chauffeur_price, hire_modes FROM Vehicle WHERE is_available = 1 AND id NOT IN (?) ORDER BY created_at DESC LIMIT 4',
+      [blockedIds]
+    )
+  } else {
+    vehicles = await query(
+      'SELECT id, slug, name, price, chauffeur_price, hire_modes FROM Vehicle WHERE is_available = 1 ORDER BY created_at DESC LIMIT 4'
+    )
+  }
+
+  const vehicleIds = vehicles.map((v) => v.id)
+  let firstMedia: { vehicle_id: string; url: string }[] = []
+  if (vehicleIds.length > 0) {
+    firstMedia = await query<{ vehicle_id: string; url: string }>(
+      'SELECT vehicle_id, url FROM VehicleMedia WHERE vehicle_id IN (?) AND sort_order = 0',
+      [vehicleIds]
+    )
+  }
 
   return NextResponse.json(
     vehicles.map((v) => ({
@@ -45,7 +52,7 @@ export async function GET(req: NextRequest) {
       price: v.price / 100,
       chauffeur_price: v.chauffeur_price / 100,
       hire_modes: v.hire_modes,
-      image: v.media[0]?.url ?? null,
+      image: firstMedia.find((m) => m.vehicle_id === v.id)?.url ?? null,
     }))
   )
 }

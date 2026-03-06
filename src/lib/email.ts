@@ -1,16 +1,23 @@
 import nodemailer from 'nodemailer'
-import { prisma } from './db'
+import { queryOne, execute } from './db'
 import { getSiteName } from './site'
 import type { BookingResponse } from '@/types'
 import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
 
 // ─── Microsoft Graph API helpers ─────────────────────────────────────────────
 
+async function upsertSetting(key: string, value: string) {
+  await execute(
+    'INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()',
+    [key, value]
+  )
+}
+
 async function getMsAccessToken(): Promise<string | null> {
   const [tokenRow, expiryRow, refreshRow] = await Promise.all([
-    prisma.setting.findUnique({ where: { key: 'ms_access_token' } }),
-    prisma.setting.findUnique({ where: { key: 'ms_token_expiry' } }),
-    prisma.setting.findUnique({ where: { key: 'ms_refresh_token' } }),
+    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_access_token']),
+    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_token_expiry']),
+    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_refresh_token']),
   ])
   if (!tokenRow?.value || !refreshRow?.value) return null
 
@@ -38,11 +45,12 @@ async function getMsAccessToken(): Promise<string | null> {
     const data = await res.json()
     const newExpiry = new Date(Date.now() + data.expires_in * 1000).toISOString()
 
-    await Promise.all([
-      prisma.setting.upsert({ where: { key: 'ms_access_token' }, create: { key: 'ms_access_token', value: data.access_token }, update: { value: data.access_token } }),
-      prisma.setting.upsert({ where: { key: 'ms_token_expiry' }, create: { key: 'ms_token_expiry', value: newExpiry }, update: { value: newExpiry } }),
-      ...(data.refresh_token ? [prisma.setting.upsert({ where: { key: 'ms_refresh_token' }, create: { key: 'ms_refresh_token', value: data.refresh_token }, update: { value: data.refresh_token } })] : []),
-    ])
+    const ops = [
+      upsertSetting('ms_access_token', data.access_token),
+      upsertSetting('ms_token_expiry', newExpiry),
+    ]
+    if (data.refresh_token) ops.push(upsertSetting('ms_refresh_token', data.refresh_token))
+    await Promise.all(ops)
     return data.access_token
   } catch {
     return null
@@ -102,7 +110,7 @@ export async function sendBookingNotification(
   booking: BookingResponse,
   vehicleName: string
 ): Promise<void> {
-  const setting = await prisma.setting.findUnique({ where: { key: 'notification_email' } })
+  const setting = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['notification_email'])
   if (!setting?.value?.trim()) return
 
   const template = await getTemplate('booking_notification')

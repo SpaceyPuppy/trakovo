@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { execute } from '@/lib/db'
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getAdminSession()
@@ -9,6 +9,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  await prisma.adminUser.delete({ where: { id: params.id } })
+  await execute('DELETE FROM AdminUser WHERE id = ?', [params.id])
   return NextResponse.json({ ok: true })
 }

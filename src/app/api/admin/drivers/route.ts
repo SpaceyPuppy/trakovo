@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma, generatePublicId } from '@/lib/db'
+import { query, queryOne, execute, newId, generatePublicId } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 
 export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const drivers = await prisma.driver.findMany({
-    orderBy: { name: 'asc' },
-    include: { _count: { select: { bookings: true } } },
-  })
-  return NextResponse.json(drivers)
+  const drivers = await query<{ id: string; name: string; username: string; email: string; phone: string; is_active: number; created_at: Date }>(
+    'SELECT id, name, username, email, phone, is_active, created_at FROM Driver ORDER BY name ASC'
+  )
+  const result = await Promise.all(drivers.map(async (d) => {
+    const count = await queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE driver_id = ?', [d.id])
+    return { ...d, is_active: Boolean(d.is_active), _count: { bookings: count?.count ?? 0 } }
+  }))
+  return NextResponse.json(result)
 }
 
 export async function POST(req: NextRequest) {
@@ -23,19 +26,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Name, username and password required' }, { status: 400 })
   }
 
-  const existing = await prisma.driver.findUnique({ where: { username } })
+  const existing = await queryOne('SELECT id FROM Driver WHERE username = ? LIMIT 1', [username])
   if (existing) return NextResponse.json({ error: 'Username already exists' }, { status: 409 })
 
   const password_hash = await hashPassword(password)
-  const driver = await prisma.driver.create({
-    data: {
-      public_id: await generatePublicId('DRV'),
-      name,
-      username,
-      password_hash,
-      email: email ?? '',
-      phone: phone ?? '',
-    },
-  })
-  return NextResponse.json(driver, { status: 201 })
+  const id = newId()
+  const public_id = await generatePublicId('DRV')
+  await execute(
+    'INSERT INTO Driver (id, public_id, name, username, password_hash, email, phone, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())',
+    [id, public_id, name, username, password_hash, email ?? '', phone ?? '']
+  )
+  const driver = await queryOne('SELECT id, public_id, name, username, email, phone, is_active, created_at FROM Driver WHERE id = ? LIMIT 1', [id])
+  return NextResponse.json({ ...driver, is_active: Boolean((driver as { is_active: number }).is_active) }, { status: 201 })
 }

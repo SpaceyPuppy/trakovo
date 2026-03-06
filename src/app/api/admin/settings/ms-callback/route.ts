@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { queryOne, execute } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Verify state to prevent CSRF
-  const storedState = await prisma.setting.findUnique({ where: { key: 'ms_oauth_state' } })
+  const storedState = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_oauth_state'])
   if (!storedState || storedState.value !== state) {
     return NextResponse.redirect(`${origin}/admin/settings?error=state_mismatch`)
   }
@@ -65,13 +65,16 @@ export async function GET(req: NextRequest) {
 
   const expiryIso = new Date(Date.now() + expires_in * 1000).toISOString()
 
+  const upsert = (key: string, value: string) =>
+    execute('INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()', [key, value])
+
   // Save tokens and clear state
   await Promise.all([
-    prisma.setting.upsert({ where: { key: 'ms_access_token' }, create: { key: 'ms_access_token', value: access_token }, update: { value: access_token } }),
-    prisma.setting.upsert({ where: { key: 'ms_refresh_token' }, create: { key: 'ms_refresh_token', value: refresh_token }, update: { value: refresh_token } }),
-    prisma.setting.upsert({ where: { key: 'ms_token_expiry' }, create: { key: 'ms_token_expiry', value: expiryIso }, update: { value: expiryIso } }),
-    prisma.setting.upsert({ where: { key: 'ms_connected_email' }, create: { key: 'ms_connected_email', value: connectedEmail }, update: { value: connectedEmail } }),
-    prisma.setting.delete({ where: { key: 'ms_oauth_state' } }).catch(() => null),
+    upsert('ms_access_token', access_token),
+    upsert('ms_refresh_token', refresh_token),
+    upsert('ms_token_expiry', expiryIso),
+    upsert('ms_connected_email', connectedEmail),
+    execute('DELETE FROM Setting WHERE `key` = ?', ['ms_oauth_state']).catch(() => null),
   ])
 
   return NextResponse.redirect(`${origin}/admin/settings?ms=connected`)

@@ -1,29 +1,24 @@
 import { NextResponse } from 'next/server'
 import { getVendorSession } from '@/lib/vendor-auth'
-import { prisma } from '@/lib/db'
+import { query, queryOne, execute } from '@/lib/db'
 
 async function getOwnedClient(clientId: string, vendorId: string) {
-  return prisma.vendorClient.findFirst({
-    where: { id: clientId, vendor_id: vendorId, is_active: true },
-  })
+  return queryOne('SELECT * FROM VendorClient WHERE id = ? AND vendor_id = ? AND is_active = 1 LIMIT 1', [clientId, vendorId])
 }
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await getVendorSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const client = await prisma.vendorClient.findFirst({
-    where: { id: params.id, vendor_id: session.vendorId },
-    include: {
-      bookings: {
-        orderBy: { created_at: 'desc' },
-        include: { vehicle: { select: { name: true } } },
-      },
-    },
-  })
-
+  const client = await queryOne('SELECT * FROM VendorClient WHERE id = ? AND vendor_id = ? LIMIT 1', [params.id, session.vendorId])
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json({ client })
+
+  const bookings = await query(
+    'SELECT b.*, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.vendor_client_id = ? ORDER BY b.created_at DESC',
+    [params.id]
+  )
+
+  return NextResponse.json({ client: { ...client, is_active: Boolean((client as { is_active: number }).is_active), bookings } })
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
@@ -35,13 +30,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const body = await req.json()
   const allowed = ['name', 'email', 'phone', 'reference', 'notes']
-  const data: Record<string, unknown> = {}
+  const setClauses: string[] = []
+  const values: unknown[] = []
   for (const key of allowed) {
-    if (key in body) data[key] = body[key]
+    if (key in body) { setClauses.push(`${key} = ?`); values.push(body[key]) }
   }
+  if (setClauses.length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  values.push(params.id)
 
-  const client = await prisma.vendorClient.update({ where: { id: params.id }, data })
-  return NextResponse.json({ client })
+  await execute(`UPDATE VendorClient SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = ?`, values)
+  const client = await queryOne('SELECT * FROM VendorClient WHERE id = ? LIMIT 1', [params.id])
+  return NextResponse.json({ client: { ...client, is_active: Boolean((client as { is_active: number }).is_active) } })
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
@@ -52,6 +51,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!owned) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Soft delete — preserve booking history
-  await prisma.vendorClient.update({ where: { id: params.id }, data: { is_active: false } })
+  await execute('UPDATE VendorClient SET is_active = 0, updated_at = NOW() WHERE id = ?', [params.id])
   return NextResponse.json({ ok: true })
 }

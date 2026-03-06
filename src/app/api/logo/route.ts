@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { queryOne } from '@/lib/db'
 import fs from 'fs/promises'
 import path from 'path'
 
@@ -20,7 +20,7 @@ const MIME_TYPES: Record<string, string> = {
 
 export async function GET() {
   try {
-    const setting = await prisma.setting.findUnique({ where: { key: 'logo_path' } })
+    const setting = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])
     if (!setting?.value) {
       return new NextResponse(null, { status: 404 })
     }

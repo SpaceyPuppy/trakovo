@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { execute } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const session = await getAdminSession()
@@ -17,11 +17,10 @@ export async function GET(req: NextRequest) {
   const origin = new URL(req.url).origin
 
   const state = crypto.randomUUID()
-  await prisma.setting.upsert({
-    where: { key: 'gc_oauth_state' },
-    create: { key: 'gc_oauth_state', value: state },
-    update: { value: state },
-  })
+  await execute(
+    'INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()',
+    ['gc_oauth_state', state]
+  )
 
   const params = new URLSearchParams({
     client_id: clientId,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { execute, queryOne } from '@/lib/db'
 import { syncBookingToCalendar, deleteCalendarEvent } from '@/lib/calendar'
 
 interface Context { params: { id: string } }
@@ -15,10 +15,8 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     if (!VALID_STATUSES.includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
-    const booking = await prisma.booking.update({
-      where: { id: params.id },
-      data: { status },
-    })
+    await execute('UPDATE Booking SET status = ? WHERE id = ?', [status, params.id])
+    const booking = await queryOne('SELECT * FROM Booking WHERE id = ? LIMIT 1', [params.id])
 
     if (status === 'cancelled') {
       deleteCalendarEvent(params.id).catch(err => console.error('[calendar]', err))

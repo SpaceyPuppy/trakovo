@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { execute } from '@/lib/db'
 
 // PUT /api/admin/vendors/[id]/vehicles
 // Body: { assignments: { vehicle_id: string, is_enabled: boolean }[] }
@@ -17,11 +17,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 
   for (const { vehicle_id, is_enabled } of assignments) {
-    await prisma.vendorVehicle.upsert({
-      where: { vendor_id_vehicle_id: { vendor_id: params.id, vehicle_id } },
-      create: { vendor_id: params.id, vehicle_id, is_enabled },
-      update: { is_enabled },
-    })
+    await execute(
+      'INSERT INTO VendorVehicle (vendor_id, vehicle_id, is_enabled) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled)',
+      [params.id, vehicle_id, is_enabled ? 1 : 0]
+    )
   }
 
   return NextResponse.json({ ok: true })

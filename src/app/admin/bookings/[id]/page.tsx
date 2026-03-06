@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/db'
+import { queryOne, query } from '@/lib/db'
 import { formatCurrency } from '@/lib/utils'
 import BookingStatusUpdater from '../BookingStatusUpdater'
 import BookingDetailEditor from './BookingDetailEditor'
@@ -14,30 +14,37 @@ export const revalidate = 0
 interface Props { params: { id: string } }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const booking = await prisma.booking.findUnique({ where: { id: params.id } })
+  const booking = await queryOne<{ public_id: string }>('SELECT public_id FROM Booking WHERE id = ? LIMIT 1', [params.id])
   return { title: booking ? `Booking ${booking.public_id}` : 'Booking' }
 }
 
 export default async function BookingDetailPage({ params }: Props) {
-  const [booking, activeDrivers] = await Promise.all([
-    prisma.booking.findUnique({
-      where: { id: params.id },
-      include: {
-        vehicle: true,
-        notes: { orderBy: { created_at: 'asc' } },
-        driver: { select: { id: true, name: true } },
-      },
-    }),
-    prisma.driver.findMany({
-      where: { is_active: true },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
-    }),
+  const [booking, activeDrivers, notes] = await Promise.all([
+    queryOne<{
+      id: string; public_id: string; status: string; hire_type: string;
+      is_enquiry: number; start_date: string; end_date: string; total_days: number;
+      daily_rate: number; total_cost: number; contact_name: string | null;
+      contact_email: string; contact_phone: string; driver_name: string | null;
+      driver_dob: string | null; driver_licence_number: string | null;
+      driver_licence_expiry: string | null; id_document_path: string | null;
+      licence_document_path: string | null; driver_id: string | null;
+      created_at: Date; vehicle_name: string | null;
+    }>(
+      'SELECT b.*, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.id = ? LIMIT 1',
+      [params.id]
+    ),
+    query<{ id: string; name: string }>(
+      'SELECT id, name FROM Driver WHERE is_active = 1 ORDER BY name ASC'
+    ),
+    query<{ id: string; text: string; author: string; created_at: Date }>(
+      'SELECT id, text, author, created_at FROM BookingNote WHERE booking_id = ? ORDER BY created_at ASC',
+      [params.id]
+    ),
   ])
   if (!booking) notFound()
 
   const isDryHire = booking.hire_type === 'dry-hire'
-  const isEnquiry = booking.is_enquiry
+  const isEnquiry = Boolean(booking.is_enquiry)
   const customerName = booking.contact_name ?? booking.driver_name ?? '—'
 
   const idDocUrl = booking.id_document_path ? `/api/uploads/${booking.id_document_path}` : null
@@ -61,9 +68,9 @@ export default async function BookingDetailPage({ params }: Props) {
               </span>
             )}
           </div>
-          <h1 className="font-display font-bold text-[26px] tracking-tight">{booking.vehicle?.name ?? '—'}</h1>
+          <h1 className="font-display font-bold text-[26px] tracking-tight">{booking.vehicle_name ?? '—'}</h1>
           <p className="text-[13px] text-ink-3 mt-0.5 capitalize">
-            {booking.hire_type.replace('-', ' ')} · Submitted {new Date(booking.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {booking.hire_type.replace('-', ' ')} · Submitted {new Date(booking.created_at instanceof Date ? booking.created_at : String(booking.created_at)).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -167,7 +174,7 @@ export default async function BookingDetailPage({ params }: Props) {
         <BookingDetailEditor
           bookingId={booking.id}
           publicId={booking.public_id}
-          vehicleName={booking.vehicle?.name ?? '—'}
+          vehicleName={booking.vehicle_name ?? '—'}
           totalDays={booking.total_days}
           currentDailyRate={booking.daily_rate / 100}
           currentTotalCost={booking.total_cost / 100}
@@ -178,11 +185,11 @@ export default async function BookingDetailPage({ params }: Props) {
         {/* Internal notes */}
         <BookingNotes
           bookingId={booking.id}
-          initialNotes={booking.notes.map(n => ({
+          initialNotes={notes.map(n => ({
             id: n.id,
             text: n.text,
             author: n.author,
-            created_at: n.created_at.toISOString(),
+            created_at: n.created_at instanceof Date ? n.created_at.toISOString() : String(n.created_at),
           }))}
         />
       </div>

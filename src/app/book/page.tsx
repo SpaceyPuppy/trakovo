@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db'
+import { queryOne } from '@/lib/db'
 import { getVehicles } from '@/lib/api'
 import { getSiteName } from '@/lib/site'
 import MobileVehicleList from './MobileVehicleList'
@@ -17,7 +17,7 @@ export default async function BookPage() {
   } catch { /* show empty state */ }
 
   try {
-    const logo = await prisma.setting.findUnique({ where: { key: 'logo_path' } })
+    const logo = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])
     if (logo?.value) logoUrl = '/api/logo'
   } catch { /* no logo */ }
 

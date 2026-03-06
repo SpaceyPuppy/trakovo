@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { execute, queryOne } from '@/lib/db'
 import { syncBookingToCalendar, deleteCalendarEvent } from '@/lib/calendar'
 
 interface Context { params: { id: string } }
@@ -11,7 +11,7 @@ export async function DELETE(_req: NextRequest, { params }: Context) {
 
   try {
     await deleteCalendarEvent(params.id).catch(err => console.error('[calendar]', err))
-    await prisma.booking.delete({ where: { id: params.id } })
+    await execute('DELETE FROM Booking WHERE id = ?', [params.id])
     return NextResponse.json({ ok: true })
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
@@ -30,15 +30,15 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }
 
-    const data: Record<string, number | string | null> = {}
-    if (daily_rate !== undefined) data.daily_rate = Math.round(parseFloat(daily_rate) * 100)
-    if (total_cost !== undefined) data.total_cost = Math.round(parseFloat(total_cost) * 100)
-    if (driver_id !== undefined) data.driver_id = driver_id || null
+    const setClauses: string[] = []
+    const values: unknown[] = []
+    if (daily_rate !== undefined) { setClauses.push('daily_rate = ?'); values.push(Math.round(parseFloat(daily_rate) * 100)) }
+    if (total_cost !== undefined) { setClauses.push('total_cost = ?'); values.push(Math.round(parseFloat(total_cost) * 100)) }
+    if (driver_id !== undefined) { setClauses.push('driver_id = ?'); values.push(driver_id || null) }
+    values.push(params.id)
 
-    const booking = await prisma.booking.update({
-      where: { id: params.id },
-      data,
-    })
+    await execute(`UPDATE Booking SET ${setClauses.join(', ')} WHERE id = ?`, values)
+    const booking = await queryOne('SELECT * FROM Booking WHERE id = ? LIMIT 1', [params.id])
 
     syncBookingToCalendar(params.id).catch(err => console.error('[calendar]', err))
     return NextResponse.json({ ok: true, booking })

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createToken, COOKIE_NAME } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { queryOne } from '@/lib/db'
 import { verifyPassword } from '@/lib/password'
 
 const COOKIE_OPTS = {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Fall back to DB admin users
-  const user = await prisma.adminUser.findUnique({ where: { username } })
+  const user = await queryOne<{ password_hash: string }>('SELECT password_hash FROM AdminUser WHERE username = ? LIMIT 1', [username])
   if (!user) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
   }

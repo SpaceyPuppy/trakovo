@@ -1,5 +1,5 @@
 import webpush from 'web-push'
-import { prisma } from './db'
+import { query, execute } from './db'
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -17,7 +17,9 @@ export async function sendPushNotification(payload: {
 }) {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return
 
-  const subs = await prisma.pushSubscription.findMany()
+  const subs = await query<{ endpoint: string; p256dh: string; auth: string }>(
+    'SELECT endpoint, p256dh, auth FROM PushSubscription'
+  )
   if (subs.length === 0) return
 
   await Promise.allSettled(
@@ -30,7 +32,7 @@ export async function sendPushNotification(payload: {
         .catch(async (err: { statusCode?: number }) => {
           // Remove expired or invalid subscriptions
           if (err.statusCode === 410 || err.statusCode === 404) {
-            await prisma.pushSubscription.delete({ where: { endpoint: sub.endpoint } }).catch(() => {})
+            await execute('DELETE FROM PushSubscription WHERE endpoint = ?', [sub.endpoint]).catch(() => {})
           }
         })
     )

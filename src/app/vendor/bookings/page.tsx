@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getVendorSession } from '@/lib/vendor-auth'
-import { prisma } from '@/lib/db'
+import { query } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import VendorBookingsList from './VendorBookingsList'
 import type { Metadata } from 'next'
@@ -12,14 +12,18 @@ export default async function VendorBookingsPage() {
   const session = await getVendorSession()
   if (!session) redirect('/vendor/login')
 
-  const bookings = await prisma.booking.findMany({
-    where: { vendor_id: session.vendorId },
-    orderBy: { created_at: 'desc' },
-    include: {
-      vehicle: { select: { name: true } },
-      vendor_client: { select: { name: true } },
-    },
-  })
+  const rows = await query<{
+    vehicle_name?: string; vendor_client_name?: string;
+    [k: string]: unknown
+  }>(
+    'SELECT b.*, v.name as vehicle_name, vc.name as vendor_client_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.vendor_id = ? ORDER BY b.created_at DESC',
+    [session.vendorId]
+  )
+  const bookings = rows.map(b => ({
+    ...b,
+    vehicle: b.vehicle_name ? { name: b.vehicle_name } : null,
+    vendor_client: b.vendor_client_name ? { name: b.vendor_client_name } : null,
+  }))
 
   return (
     <div>

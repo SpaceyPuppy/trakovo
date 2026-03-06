@@ -1,15 +1,18 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/db'
+import { query, queryOne } from '@/lib/db'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Drivers' }
 export const revalidate = 0
 
 export default async function AdminDriversPage() {
-  const drivers = await prisma.driver.findMany({
-    orderBy: { name: 'asc' },
-    include: { _count: { select: { bookings: true } } },
-  })
+  const rawDrivers = await query<{ id: string; name: string; username: string; email: string; phone: string; is_active: number }>(
+    'SELECT id, name, username, email, phone, is_active FROM Driver ORDER BY name ASC'
+  )
+  const drivers = await Promise.all(rawDrivers.map(async (d) => {
+    const count = await queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE driver_id = ?', [d.id])
+    return { ...d, is_active: Boolean(d.is_active), _count: { bookings: count?.count ?? 0 } }
+  }))
 
   return (
     <div className="px-10 py-10">

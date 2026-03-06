@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { execute } from '@/lib/db'
 
 export async function POST(req: Request) {
   const session = await getAdminSession()
@@ -11,11 +11,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  await prisma.pushSubscription.upsert({
-    where: { endpoint },
-    create: { endpoint, p256dh, auth },
-    update: { p256dh, auth },
-  })
+  await execute(
+    'INSERT INTO PushSubscription (endpoint, p256dh, auth) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE p256dh = VALUES(p256dh), auth = VALUES(auth)',
+    [endpoint, p256dh, auth]
+  )
 
   return NextResponse.json({ ok: true })
 }
@@ -27,7 +26,7 @@ export async function DELETE(req: Request) {
   const { endpoint } = await req.json()
   if (!endpoint) return NextResponse.json({ error: 'Missing endpoint' }, { status: 400 })
 
-  await prisma.pushSubscription.deleteMany({ where: { endpoint } })
+  await execute('DELETE FROM PushSubscription WHERE endpoint = ?', [endpoint])
 
   return NextResponse.json({ ok: true })
 }

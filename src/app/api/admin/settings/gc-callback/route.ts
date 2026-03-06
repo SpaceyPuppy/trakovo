@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { queryOne, execute } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}/admin/settings?error=gc_invalid_callback`)
   }
 
-  const storedState = await prisma.setting.findUnique({ where: { key: 'gc_oauth_state' } })
+  const storedState = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['gc_oauth_state'])
   if (!storedState || storedState.value !== state) {
     return NextResponse.redirect(`${origin}/admin/settings?error=gc_state_mismatch`)
   }
@@ -53,12 +53,15 @@ export async function GET(req: NextRequest) {
   const connectedEmail = (user.email ?? '').toLowerCase()
   const expiryIso = new Date(Date.now() + expires_in * 1000).toISOString()
 
+  const upsert = (key: string, value: string) =>
+    execute('INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()', [key, value])
+
   await Promise.all([
-    prisma.setting.upsert({ where: { key: 'gc_access_token' }, create: { key: 'gc_access_token', value: access_token }, update: { value: access_token } }),
-    prisma.setting.upsert({ where: { key: 'gc_refresh_token' }, create: { key: 'gc_refresh_token', value: refresh_token }, update: { value: refresh_token } }),
-    prisma.setting.upsert({ where: { key: 'gc_token_expiry' }, create: { key: 'gc_token_expiry', value: expiryIso }, update: { value: expiryIso } }),
-    prisma.setting.upsert({ where: { key: 'gc_connected_email' }, create: { key: 'gc_connected_email', value: connectedEmail }, update: { value: connectedEmail } }),
-    prisma.setting.delete({ where: { key: 'gc_oauth_state' } }).catch(() => null),
+    upsert('gc_access_token', access_token),
+    upsert('gc_refresh_token', refresh_token),
+    upsert('gc_token_expiry', expiryIso),
+    upsert('gc_connected_email', connectedEmail),
+    execute('DELETE FROM Setting WHERE `key` = ?', ['gc_oauth_state']).catch(() => null),
   ])
 
   return NextResponse.redirect(`${origin}/admin/settings?gc=connected`)

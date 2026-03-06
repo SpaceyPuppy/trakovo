@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { execute } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
@@ -13,7 +13,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const password_hash = await hashPassword(new_password)
-  await prisma.vendor.update({ where: { id: params.id }, data: { password_hash } })
+  await execute('UPDATE Vendor SET password_hash = ?, updated_at = NOW() WHERE id = ?', [password_hash, params.id])
 
   return NextResponse.json({ ok: true })
 }

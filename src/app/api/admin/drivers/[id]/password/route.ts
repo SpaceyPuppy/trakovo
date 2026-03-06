@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { execute } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -11,6 +11,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!password) return NextResponse.json({ error: 'Password required' }, { status: 400 })
 
   const password_hash = await hashPassword(password)
-  await prisma.driver.update({ where: { id: params.id }, data: { password_hash } })
+  await execute('UPDATE Driver SET password_hash = ?, updated_at = NOW() WHERE id = ?', [password_hash, params.id])
   return NextResponse.json({ ok: true })
 }

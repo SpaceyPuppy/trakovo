@@ -1,26 +1,50 @@
-import { PrismaClient } from '@prisma/client'
+import mysql from 'mysql2/promise'
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Row = Record<string, any>
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
-  })
+export const pool = mysql.createPool({
+  host: process.env.DB_HOST ?? 'localhost',
+  port: Number(process.env.DB_PORT ?? 3306),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 5,
+  charset: 'utf8mb4',
+})
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+export async function query<T = Row>(sql: string, params?: unknown[]): Promise<T[]> {
+  const [rows] = await pool.query(sql, params)
+  return rows as T[]
+}
+
+export async function queryOne<T = Row>(sql: string, params?: unknown[]): Promise<T | null> {
+  const rows = await query<T>(sql, params)
+  return rows[0] ?? null
+}
+
+export async function execute(sql: string, params?: unknown[]): Promise<void> {
+  await pool.query(sql, params)
+}
+
+export function newId(): string {
+  return crypto.randomUUID()
+}
 
 export async function generatePublicId(
   prefix: 'VHB' | 'VHC' | 'VND' | 'VNC' | 'VNE' | 'DRV'
 ): Promise<string> {
-  return prisma.$transaction(async (tx) => {
-    let count: number
-    if (prefix === 'VHB') count = await tx.booking.count()
-    else if (prefix === 'VHC') count = await tx.vehicle.count()
-    else if (prefix === 'VND') count = await tx.vendor.count()
-    else if (prefix === 'VNC') count = await tx.vendorClient.count()
-    else if (prefix === 'DRV') count = await tx.driver.count()
-    else count = await tx.vendorEnquiry.count()
-    return `${prefix}-${String(count + 1).padStart(4, '0')}`
-  })
+  const tableMap: Record<string, string> = {
+    VHB: 'Booking',
+    VHC: 'Vehicle',
+    VND: 'Vendor',
+    VNC: 'VendorClient',
+    VNE: 'VendorEnquiry',
+    DRV: 'Driver',
+  }
+  const table = tableMap[prefix]
+  const row = await queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM \`${table}\``)
+  const count = row?.count ?? 0
+  return `${prefix}-${String(count + 1).padStart(4, '0')}`
 }
