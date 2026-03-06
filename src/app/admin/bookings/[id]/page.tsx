@@ -6,6 +6,7 @@ import BookingStatusUpdater from '../BookingStatusUpdater'
 import BookingDetailEditor from './BookingDetailEditor'
 import BookingNotes from './BookingNotes'
 import BookingDeleteButton from './BookingDeleteButton'
+import DriverAssigner from './DriverAssigner'
 import type { Metadata } from 'next'
 
 export const revalidate = 0
@@ -18,13 +19,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function BookingDetailPage({ params }: Props) {
-  const booking = await prisma.booking.findUnique({
-    where: { id: params.id },
-    include: {
-      vehicle: true,
-      notes: { orderBy: { created_at: 'asc' } },
-    },
-  })
+  const [booking, activeDrivers] = await Promise.all([
+    prisma.booking.findUnique({
+      where: { id: params.id },
+      include: {
+        vehicle: true,
+        notes: { orderBy: { created_at: 'asc' } },
+        driver: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.driver.findMany({
+      where: { is_active: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+  ])
   if (!booking) notFound()
 
   const isDryHire = booking.hire_type === 'dry-hire'
@@ -138,6 +147,20 @@ export default async function BookingDetailPage({ params }: Props) {
               )}
             </div>
           )}
+        </section>
+
+        {/* Driver assignment */}
+        <section className="bg-white border border-border rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 bg-bg border-b border-border">
+            <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider">Assigned Driver</p>
+          </div>
+          <div className="px-5 py-4">
+            <DriverAssigner
+              bookingId={booking.id}
+              drivers={activeDrivers}
+              currentDriverId={booking.driver_id ?? null}
+            />
+          </div>
         </section>
 
         {/* Pricing editor + customer email */}

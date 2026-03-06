@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth'
 import { verifyVendorToken, VENDOR_COOKIE_NAME } from '@/lib/vendor-auth'
+import { verifyDriverToken, DRIVER_COOKIE_NAME } from '@/lib/driver-auth'
 
 const MAINTENANCE_BYPASS_COOKIE = 'maintenance_bypass'
 
@@ -46,6 +47,18 @@ export async function middleware(req: NextRequest) {
     const session = await verifyVendorToken(token)
     if (!session) {
       return NextResponse.redirect(new URL('/vendor/login', req.url))
+    }
+  }
+
+  // ── Driver auth ───────────────────────────────────────────────────────────
+  if (pathname.startsWith('/driver') && !pathname.startsWith('/driver/login')) {
+    const token = req.cookies.get(DRIVER_COOKIE_NAME)?.value
+    if (!token) {
+      return NextResponse.redirect(new URL('/driver/login', req.url))
+    }
+    const session = await verifyDriverToken(token)
+    if (!session) {
+      return NextResponse.redirect(new URL('/driver/login', req.url))
     }
   }
 

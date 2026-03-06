@@ -8,6 +8,8 @@ const nav = [
   { href: '/admin/vehicles', label: 'Vehicles', icon: '🚗' },
   { href: '/admin/bookings', label: 'Bookings', icon: '📋' },
   { href: '/admin/vendors', label: 'Vendors', icon: '🏢' },
+  { href: '/admin/drivers', label: 'Drivers', icon: '🚘' },
+  { href: '/admin/users', label: 'Users', icon: '👤' },
   { href: '/admin/settings', label: 'Settings', icon: '⚙' },
 ]
 

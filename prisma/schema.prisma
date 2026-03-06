@@ -68,6 +68,8 @@ model Booking {
   vendor                Vendor?       @relation(fields: [vendor_id], references: [id])
   vendor_client_id      String?
   vendor_client         VendorClient? @relation(fields: [vendor_client_id], references: [id])
+  driver_id             String?
+  driver                Driver?       @relation(fields: [driver_id], references: [id])
   notes                 BookingNote[]
   created_at            DateTime      @default(now())
   updated_at            DateTime      @updatedAt
@@ -141,6 +143,41 @@ model VendorClient {
   bookings   Booking[]
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
+}
+
+model AdminUser {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  password_hash String
+  created_at    DateTime @default(now())
+}
+
+model Driver {
+  id            String          @id @default(cuid())
+  public_id     String          @unique
+  name          String
+  username      String          @unique
+  password_hash String
+  email         String          @default("")
+  phone         String          @default("")
+  is_active     Boolean         @default(true)
+  bookings      Booking[]
+  messages      DriverMessage[]
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+}
+
+model DriverMessage {
+  id          String   @id @default(cuid())
+  driver_id   String
+  driver      Driver   @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+  subject     String
+  message     String   @db.Text
+  booking_id  String?
+  status      String   @default("open")
+  staff_reply String?  @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 }
 
 model VendorEnquiry {

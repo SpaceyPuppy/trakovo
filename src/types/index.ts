@@ -110,6 +110,12 @@ export interface AdminSession {
   exp: number
 }
 
+export interface DriverSession {
+  driverId: string
+  driverName: string
+  exp: number
+}
+
 export interface VehicleFormData {
   name: string
   description: string

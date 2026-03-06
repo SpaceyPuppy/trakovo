@@ -24,15 +24,16 @@ export async function PATCH(req: NextRequest, { params }: Context) {
 
   try {
     const body = await req.json()
-    const { daily_rate, total_cost } = body
+    const { daily_rate, total_cost, driver_id } = body
 
-    if (daily_rate === undefined && total_cost === undefined) {
+    if (daily_rate === undefined && total_cost === undefined && driver_id === undefined) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }
 
-    const data: Record<string, number> = {}
+    const data: Record<string, number | string | null> = {}
     if (daily_rate !== undefined) data.daily_rate = Math.round(parseFloat(daily_rate) * 100)
     if (total_cost !== undefined) data.total_cost = Math.round(parseFloat(total_cost) * 100)
+    if (driver_id !== undefined) data.driver_id = driver_id || null
 
     const booking = await prisma.booking.update({
       where: { id: params.id },
