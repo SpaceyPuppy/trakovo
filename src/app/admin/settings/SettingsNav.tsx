@@ -8,6 +8,7 @@ const nav = [
   { href: '/admin/settings/templates', label: 'Email Templates', icon: '✉' },
   { href: '/admin/settings/connections', label: 'Connections', icon: '🔗' },
   { href: '/admin/settings/booking-app', label: 'Booking App', icon: '📱' },
+  { href: '/admin/settings/updates', label: 'Updates', icon: '↑' },
 ]
 
 export default function SettingsNav() {
