@@ -12,9 +12,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'GC_CLIENT_ID must be set' }, { status: 500 })
   }
 
-  // Derive redirect URI from the request origin so it works on both
-  // localhost (dev) and the live domain without any config change.
-  const origin = new URL(req.url).origin
+  // NEXT_PUBLIC_SITE_URL overrides req.url origin — needed on cPanel/Passenger
+  // where the internal request URL shows localhost:3000 instead of the real domain.
+  const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? new URL(req.url).origin
 
   const state = crypto.randomUUID()
   await execute(

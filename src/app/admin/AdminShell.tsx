@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import AdminSidebar from './AdminSidebar'
 
-export default function AdminShell({ adminName, children }: { adminName: string; children: React.ReactNode }) {
+export default function AdminShell({ adminName, logoUrl, children }: { adminName: string; logoUrl?: string; children: React.ReactNode }) {
   const [expanded, setExpanded] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -10,6 +10,7 @@ export default function AdminShell({ adminName, children }: { adminName: string;
     <div className="flex min-h-screen bg-[#f0efe9]">
       <AdminSidebar
         adminName={adminName}
+        logoUrl={logoUrl}
         expanded={expanded}
         mobileOpen={mobileOpen}
         onToggle={() => setExpanded(e => !e)}

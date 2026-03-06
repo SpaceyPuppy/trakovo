@@ -74,27 +74,22 @@ export async function applyUpdate(zipPath: string): Promise<UpdateResult> {
       fs.renameSync(NEXT_DIR, BACKUP_DIR)
     }
 
-    // Move new .next into place
+    // Fix permissions before moving — ensures production never sees bad permissions
     try {
-      fs.renameSync(candidateNext, NEXT_DIR)
-    } catch {
-      // Cross-device rename — fall back to cp
-      try {
-        execSync(`cp -r "${candidateNext}" "${NEXT_DIR}"`, { stdio: 'pipe' })
-      } catch {
-        // Restore backup and bail
-        if (fs.existsSync(BACKUP_DIR)) {
-          try { fs.renameSync(BACKUP_DIR, NEXT_DIR) } catch { /* best effort */ }
-        }
-        throw new Error('Failed to move new build into place. Previous build restored.')
-      }
-    }
-
-    // Fix permissions
-    try {
-      execSync(`find "${NEXT_DIR}" -type d -exec chmod 755 {} \\;`, { stdio: 'pipe' })
-      execSync(`find "${NEXT_DIR}" -type f -exec chmod 644 {} \\;`, { stdio: 'pipe' })
+      execSync(`find "${candidateNext}" -type d -exec chmod 755 {} +`, { stdio: 'pipe' })
+      execSync(`find "${candidateNext}" -type f -exec chmod 644 {} +`, { stdio: 'pipe' })
     } catch { /* non-fatal */ }
+
+    // Move new .next into place (mv handles cross-device moves automatically)
+    try {
+      execSync(`mv "${candidateNext}" "${NEXT_DIR}"`, { stdio: 'pipe' })
+    } catch {
+      // Restore backup and bail
+      if (fs.existsSync(BACKUP_DIR)) {
+        try { fs.renameSync(BACKUP_DIR, NEXT_DIR) } catch { /* best effort */ }
+      }
+      throw new Error('Failed to move new build into place. Previous build restored.')
+    }
 
     // Restart Passenger
     const tmpDir = path.join(APP_ROOT, 'tmp')

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
+
 import NavWrapper from '@/components/ui/NavWrapper'
 import Footer from '@/components/ui/Footer'
 import BookingPanel from '@/components/booking/BookingPanel'
@@ -40,7 +40,8 @@ export default async function VehicleDetailPage({ params }: Props) {
             {/* Image */}
             <div className="w-full aspect-video bg-gradient-to-br from-slate to-slate-2 rounded-xl mb-7 relative overflow-hidden flex items-center justify-center">
               {img ? (
-                <Image src={img} alt={vehicle.name} fill className="object-cover" />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={img} alt={vehicle.name} className="absolute inset-0 w-full h-full object-cover" />
               ) : (
                 <span className="text-[100px] opacity-30">🚗</span>
               )}

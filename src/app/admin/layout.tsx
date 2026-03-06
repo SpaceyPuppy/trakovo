@@ -1,5 +1,5 @@
 import AdminShell from './AdminShell'
-import { getAdminName } from '@/lib/site'
+import { getAdminName, getLogoUrl } from '@/lib/site'
 import type { Metadata } from 'next'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -8,6 +8,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const adminName = await getAdminName()
-  return <AdminShell adminName={adminName}>{children}</AdminShell>
+  const [adminName, logoUrl] = await Promise.all([getAdminName(), getLogoUrl()])
+  return <AdminShell adminName={adminName} logoUrl={logoUrl}>{children}</AdminShell>
 }

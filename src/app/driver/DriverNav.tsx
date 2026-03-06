@@ -6,10 +6,11 @@ import { cn } from '@/lib/utils'
 const navLinks = [
   { href: '/driver', label: 'Dashboard', exact: true },
   { href: '/driver/bookings', label: 'Bookings' },
+  { href: '/driver/calendar', label: 'Calendar' },
   { href: '/driver/messages', label: 'Messages' },
 ]
 
-export default function DriverNav({ driverName, portalName = 'DriveMaster' }: { driverName: string; portalName?: string }) {
+export default function DriverNav({ driverName, portalName = 'DriveMaster', logoUrl }: { driverName: string; portalName?: string; logoUrl?: string }) {
   const path = usePathname()
   const router = useRouter()
 
@@ -22,7 +23,10 @@ export default function DriverNav({ driverName, portalName = 'DriveMaster' }: { 
     <header className="bg-slate border-b border-white/10 sticky top-0 z-30">
       <div className="px-4 sm:px-8 md:px-10 max-w-[1400px] flex items-center gap-4 h-14">
         <Link href="/driver" className="flex items-center gap-2.5 flex-shrink-0 mr-4">
-          <span className="w-7 h-7 bg-accent rounded-[4px] flex items-center justify-center text-white text-sm font-extrabold font-display">D</span>
+          {logoUrl
+            ? <img src={logoUrl} alt={portalName} className="h-7 w-auto max-w-[80px] object-contain" />
+            : <span className="w-7 h-7 bg-accent rounded-[4px] flex items-center justify-center text-white text-sm font-extrabold font-display">D</span>
+          }
           <span className="font-display font-extrabold text-[15px] text-white tracking-tight hidden sm:block">
             {portalName}
           </span>

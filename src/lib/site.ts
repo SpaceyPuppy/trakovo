@@ -23,3 +23,10 @@ export async function getDriverName(): Promise<string> {
   } catch { /* DB not ready */ }
   return 'DriveMaster'
 }
+
+export async function getLogoUrl(): Promise<string | undefined> {
+  try {
+    const row = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])
+    if (row?.value) return '/api/logo'
+  } catch { /* DB not ready */ }
+}

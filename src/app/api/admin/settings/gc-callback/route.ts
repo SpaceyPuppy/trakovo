@@ -7,8 +7,9 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get('state')
   const error = searchParams.get('error')
 
-  // Use the request origin so this works on both localhost and production.
-  const origin = new URL(req.url).origin
+  // NEXT_PUBLIC_SITE_URL overrides req.url origin — needed on cPanel/Passenger
+  // where the internal request URL shows localhost:3000 instead of the real domain.
+  const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? new URL(req.url).origin
 
   if (error) {
     console.error('[gc-callback] OAuth error:', error)

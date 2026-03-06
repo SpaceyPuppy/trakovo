@@ -16,6 +16,7 @@ const NAV = [
   { href: '/admin', label: 'Dashboard', icon: '⊞', exact: true, children: undefined },
   { href: '/admin/vehicles', label: 'Vehicles', icon: '🚗', exact: false, children: undefined },
   { href: '/admin/bookings', label: 'Bookings', icon: '📋', exact: false, children: undefined },
+  { href: '/admin/calendar', label: 'Calendar', icon: '📅', exact: false, children: undefined },
   { href: '/admin/vendors', label: 'Vendors', icon: '🏢', exact: false, children: undefined },
   { href: '/admin/drivers', label: 'Drivers', icon: '🚘', exact: false, children: undefined },
   { href: '/admin/users', label: 'Users', icon: '👤', exact: false, children: undefined },
@@ -24,6 +25,7 @@ const NAV = [
 
 interface Props {
   adminName: string
+  logoUrl?: string
   expanded: boolean
   mobileOpen: boolean
   onToggle: () => void
@@ -63,7 +65,7 @@ function IconX() {
   )
 }
 
-export default function AdminSidebar({ adminName, expanded, mobileOpen, onToggle, onClose }: Props) {
+export default function AdminSidebar({ adminName, logoUrl, expanded, mobileOpen, onToggle, onClose }: Props) {
   const path = usePathname()
   const router = useRouter()
   const inSettings = path.startsWith('/admin/settings')
@@ -86,7 +88,10 @@ export default function AdminSidebar({ adminName, expanded, mobileOpen, onToggle
         <div className={cn('h-14 flex items-center border-b border-white/10 flex-shrink-0', exp ? 'px-3 gap-2' : 'px-2 justify-center')}>
           {exp ? (
             <>
-              <span className="w-7 h-7 bg-accent rounded-[4px] flex items-center justify-center text-white text-sm font-extrabold font-display flex-shrink-0">A</span>
+              {logoUrl
+                ? <img src={logoUrl} alt={adminName} className="h-7 w-auto max-w-[80px] object-contain flex-shrink-0" />
+                : <span className="w-7 h-7 bg-accent rounded-[4px] flex items-center justify-center text-white text-sm font-extrabold font-display flex-shrink-0">A</span>
+              }
               <span className="font-display font-extrabold text-[15px] text-white tracking-tight flex-1 truncate min-w-0">{adminName}</span>
               <button
                 onClick={isMobile ? onClose : onToggle}

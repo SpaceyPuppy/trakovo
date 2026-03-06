@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import Image from 'next/image'
+
 import { adminGetVehicles } from '@/lib/api'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import type { Metadata } from 'next'
@@ -48,7 +48,7 @@ export default async function AdminVehiclesPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-9 bg-slate rounded-[4px] overflow-hidden flex-shrink-0 flex items-center justify-center relative">
-                          {img ? <Image src={img} alt={v.name} fill className="object-cover" /> : <span className="text-lg opacity-40">🚗</span>}
+                          {img ? <img src={img} alt={v.name} className="absolute inset-0 w-full h-full object-cover" /> : <span className="text-lg opacity-40">🚗</span>}
                         </div>
                         <div>
                           <p className="font-semibold text-ink">{v.name}</p>

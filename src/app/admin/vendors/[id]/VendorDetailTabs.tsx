@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import Image from 'next/image'
+
 import Link from 'next/link'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import type { Vehicle } from '@/types'
@@ -261,7 +261,7 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
                   return (
                     <div key={v.id} className="px-6 py-4 flex items-center gap-4">
                       <div className="w-14 h-10 bg-slate rounded-[4px] overflow-hidden flex-shrink-0 relative flex items-center justify-center">
-                        {img ? <Image src={img} alt={v.name} fill className="object-cover" /> : <span className="text-xl opacity-30">🚗</span>}
+                        {img ? <img src={img} alt={v.name} className="absolute inset-0 w-full h-full object-cover" /> : <span className="text-xl opacity-30">🚗</span>}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-[13.5px]">{v.name}</p>

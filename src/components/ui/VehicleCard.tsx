@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import Image from 'next/image'
+
 import type { Vehicle } from '@/types'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 
@@ -12,7 +12,8 @@ export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
       {/* Image */}
       <div className="h-[190px] bg-slate relative overflow-hidden flex items-center justify-center">
         {img ? (
-          <Image src={img} alt={vehicle.name} fill className="object-cover" />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={img} alt={vehicle.name} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <span className="text-6xl opacity-40">🚗</span>
         )}

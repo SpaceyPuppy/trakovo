@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
+
 import type { Vehicle } from '@/types'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -66,7 +66,8 @@ function MobileVehicleCard({ vehicle }: { vehicle: Vehicle }) {
       {/* Image */}
       <div className="w-[110px] flex-shrink-0 bg-slate relative overflow-hidden flex items-center justify-center">
         {img ? (
-          <Image src={img} alt={vehicle.name} fill className="object-cover" />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={img} alt={vehicle.name} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <span className="text-4xl opacity-30">🚗</span>
         )}

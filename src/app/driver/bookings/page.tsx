@@ -18,8 +18,8 @@ export default async function DriverBookingsPage() {
   const session = await getDriverSession()
   if (!session) redirect('/driver/login')
 
-  const bookings = await query<{ id: string; public_id: string; status: string; start_date: string; end_date: string; vehicle_name?: string }>(
-    'SELECT b.id, b.public_id, b.status, b.start_date, b.end_date, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.driver_id = ? ORDER BY b.start_date ASC',
+  const bookings = await query<{ id: string; public_id: string; status: string; start_date: string; end_date: string; vehicle_name?: string; contact_name?: string }>(
+    'SELECT b.id, b.public_id, b.status, b.start_date, b.end_date, b.contact_name, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.driver_id = ? ORDER BY b.start_date ASC',
     [session.driverId]
   )
 
@@ -39,12 +39,13 @@ export default async function DriverBookingsPage() {
         <div className="bg-white border border-border rounded-xl overflow-hidden">
           <table className="w-full text-[13.5px]">
             <thead className="bg-bg text-ink-4 text-[11px] font-semibold uppercase tracking-wider">
-              <tr>{['Reference', 'Vehicle', 'Start', 'End', 'Status', ''].map(h => <th key={h} className="text-left px-6 py-3">{h}</th>)}</tr>
+              <tr>{['Reference', 'Passenger', 'Vehicle', 'Start', 'End', 'Status', ''].map(h => <th key={h} className="text-left px-6 py-3">{h}</th>)}</tr>
             </thead>
             <tbody>
               {bookings.map(b => (
                 <tr key={b.id} className="border-t border-border hover:bg-bg/50 transition-colors">
                   <td className="px-6 py-4 font-mono text-[12.5px] font-bold text-accent">{b.public_id}</td>
+                  <td className="px-6 py-4 font-medium">{b.contact_name ?? '—'}</td>
                   <td className="px-6 py-4 text-ink-3">{b.vehicle_name ?? '—'}</td>
                   <td className="px-6 py-4 text-ink-3">{b.start_date}</td>
                   <td className="px-6 py-4 text-ink-3">{b.end_date}</td>

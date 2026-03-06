@@ -11,10 +11,12 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 type Note = { id: string; text: string; author: string; created_at: string }
+type TripLeg = { date: string; pickup: string; dropoff: string; pickupTime: string; dropoffTime: string }
 type Booking = {
   id: string; public_id: string; status: string; start_date: string; end_date: string
-  total_days: number; contact_name: string | null; contact_email: string; contact_phone: string
-  vehicle: { name: string } | null; notes: Note[]
+  total_days: number; hire_type: string; contact_name: string | null; contact_email: string; contact_phone: string
+  trip_details: string | null
+  vehicle_name: string | null; notes: Note[]
 }
 
 export default function DriverBookingDetailPage() {
@@ -48,10 +50,15 @@ export default function DriverBookingDetailPage() {
 
   if (!booking) return <div className="px-10 py-10 text-ink-3 text-[14px]">Loading…</div>
 
+  const tripLegs: TripLeg[] = (() => {
+    try { return booking.trip_details ? JSON.parse(booking.trip_details) : [] }
+    catch { return [] }
+  })()
+
   const row = (label: string, value: string | null | undefined) => (
     <div className="flex justify-between py-2.5 border-b border-border last:border-0 text-[13.5px]">
       <span className="text-ink-3">{label}</span>
-      <span className="font-medium text-ink">{value || '—'}</span>
+      <span className="font-medium text-ink text-right max-w-[60%]">{value || '—'}</span>
     </div>
   )
 
@@ -70,10 +77,11 @@ export default function DriverBookingDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white border border-border rounded-xl p-5">
           <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-3">Trip Details</p>
-          {row('Vehicle', booking.vehicle?.name)}
+          {row('Vehicle', booking.vehicle_name)}
           {row('Start Date', booking.start_date)}
           {row('End Date', booking.end_date)}
           {row('Duration', `${booking.total_days} day${booking.total_days !== 1 ? 's' : ''}`)}
+          {row('Type', booking.hire_type === 'chauffeured' ? 'Chauffeured' : 'Self-Drive')}
         </div>
         <div className="bg-white border border-border rounded-xl p-5">
           <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-3">Passenger</p>
@@ -82,6 +90,34 @@ export default function DriverBookingDetailPage() {
           {row('Phone', booking.contact_phone)}
         </div>
       </div>
+
+      {/* Trip schedule (chauffeured bookings) */}
+      {tripLegs.length > 0 && (
+        <div className="bg-white border border-border rounded-xl overflow-hidden mb-6">
+          <div className="px-5 py-3.5 bg-bg border-b border-border">
+            <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider">Schedule</p>
+          </div>
+          <div className="divide-y divide-border">
+            {tripLegs.map((leg, i) => (
+              <div key={i} className="px-5 py-4 text-[13.5px]">
+                <p className="font-semibold text-ink mb-2">{leg.date || `Leg ${i + 1}`}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-ink-3">
+                  <div>
+                    <span className="text-[11px] font-semibold text-ink-4 uppercase tracking-wider block mb-0.5">Pickup</span>
+                    <span className="font-medium text-ink">{leg.pickup || '—'}</span>
+                    {leg.pickupTime && <span className="text-ink-3 ml-2 text-[12px]">@ {leg.pickupTime}</span>}
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-semibold text-ink-4 uppercase tracking-wider block mb-0.5">Dropoff</span>
+                    <span className="font-medium text-ink">{leg.dropoff || '—'}</span>
+                    {leg.dropoffTime && <span className="text-ink-3 ml-2 text-[12px]">@ {leg.dropoffTime}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Internal notes */}
       <div className="bg-white border border-border rounded-xl overflow-hidden">

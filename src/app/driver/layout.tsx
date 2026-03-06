@@ -1,5 +1,5 @@
 import { getDriverSession } from '@/lib/driver-auth'
-import { getDriverName } from '@/lib/site'
+import { getDriverName, getLogoUrl } from '@/lib/site'
 import DriverNav from './DriverNav'
 
 // Auth is enforced by middleware for all /driver/* except /driver/login.
@@ -12,11 +12,11 @@ export default async function DriverLayout({ children }: { children: React.React
     return <div className="min-h-screen bg-[#f0efe9]">{children}</div>
   }
 
-  const portalName = await getDriverName()
+  const [portalName, logoUrl] = await Promise.all([getDriverName(), getLogoUrl()])
 
   return (
     <div className="min-h-screen bg-[#f0efe9]">
-      <DriverNav driverName={session.driverName} portalName={portalName} />
+      <DriverNav driverName={session.driverName} portalName={portalName} logoUrl={logoUrl} />
       <main className="px-4 sm:px-8 md:px-10 py-8 md:py-10 max-w-[1400px]">
         {children}
       </main>

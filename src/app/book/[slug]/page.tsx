@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
+
 import Link from 'next/link'
 import BookingPanel from '@/components/booking/BookingPanel'
 import { queryOne } from '@/lib/db'
@@ -59,7 +59,8 @@ export default async function BookVehiclePage({ params }: Props) {
       {/* Vehicle image */}
       <div className="w-full aspect-[16/9] bg-slate relative overflow-hidden flex items-center justify-center flex-shrink-0">
         {img ? (
-          <Image src={img} alt={vehicle.name} fill className="object-cover" />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={img} alt={vehicle.name} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <span className="text-[80px] opacity-30">🚗</span>
         )}
