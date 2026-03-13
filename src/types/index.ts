@@ -1,6 +1,15 @@
 // ─── Core types ───────────────────────────────────────────────────────────────
 
 export type HireMode = 'chauffeured_only' | 'both'
+
+export interface DayRate {
+  days_from: number
+  days_to: number | null   // null = open-ended (no upper limit)
+  price: number            // in dollars in form/API, cents in DB
+  price_poa: boolean
+  chauffeur_price: number
+  chauffeur_price_poa: boolean
+}
 export type HireType = 'chauffeured' | 'dry-hire'
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
 
@@ -16,8 +25,11 @@ export interface Vehicle {
   slug: string
   name: string
   description: string
-  price: number          // dry-hire daily rate (in cents from Fleetbase, converted on load)
+  price: number          // dry-hire daily rate (dollars)
+  price_poa: boolean
   chauffeur_price: number
+  chauffeur_price_poa: boolean
+  day_rates: DayRate[]
   currency: string
   category?: { id: string; name: string; slug: string }
   media: VehicleMedia[]
@@ -120,7 +132,10 @@ export interface VehicleFormData {
   name: string
   description: string
   price: number
+  price_poa: boolean
   chauffeur_price: number
+  chauffeur_price_poa: boolean
+  day_rates: DayRate[]
   hire_modes: HireMode
   passengers: string
   transmission: string

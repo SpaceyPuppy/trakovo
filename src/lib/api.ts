@@ -19,7 +19,15 @@ function dbVehicleToVehicle(row: Row, media: Row[]): Vehicle {
     name: row.name,
     description: row.description,
     price: row.price / 100,
+    price_poa: Boolean(row.price_poa),
     chauffeur_price: row.chauffeur_price / 100,
+    chauffeur_price_poa: Boolean(row.chauffeur_price_poa),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    day_rates: row.day_rates ? (JSON.parse(row.day_rates) as any[]).map((r) => ({
+      ...r,
+      price: r.price / 100,
+      chauffeur_price: r.chauffeur_price / 100,
+    })) : [],
     currency: row.currency,
     category: undefined,
     media: media

@@ -7,6 +7,10 @@ export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
   const img = getVehicleImage(vehicle)
   const isChauffeured = vehicle.meta.hire_modes === 'chauffeured_only'
 
+  // Display price: use chauffeur_price for chauffeur-only, otherwise self-drive
+  const displayPrice = isChauffeured ? vehicle.chauffeur_price : vehicle.price
+  const displayPoa = isChauffeured ? vehicle.chauffeur_price_poa : vehicle.price_poa
+
   return (
     <Link href={`/vehicles/${vehicle.slug}`} className="group block bg-white border border-border rounded-xl overflow-hidden shadow-card hover:shadow-card-lg hover:-translate-y-1 transition-all duration-200">
       {/* Image */}
@@ -39,8 +43,14 @@ export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
         {/* Footer */}
         <div className="flex items-center justify-between pt-3.5 border-t border-border">
           <div className="font-display font-bold text-[20px]">
-            {formatCurrency(vehicle.price)}
-            <sub className="font-body font-normal text-[12px] text-ink-4">/day</sub>
+            {displayPoa ? (
+              <span className="text-amber-600">POA</span>
+            ) : (
+              <>
+                {formatCurrency(displayPrice)}
+                <sub className="font-body font-normal text-[12px] text-ink-4">/day</sub>
+              </>
+            )}
           </div>
           <span className="bg-ink text-white text-[13px] font-semibold px-4 py-2 rounded-[6px] group-hover:bg-slate transition-colors">
             Book Now

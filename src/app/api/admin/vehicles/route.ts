@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {
     const body = await req.json()
-    const { name, description, price, is_available, images, meta } = body
+    const { name, description, price, is_available, images, meta, public_id: customPublicId } = body
 
     if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 
@@ -33,17 +33,29 @@ export async function POST(req: NextRequest) {
     const existing = await queryOne('SELECT id FROM Vehicle WHERE slug = ? LIMIT 1', [slug])
     if (existing) slug = `${slug}-${Date.now()}`
 
-    const public_id = await generatePublicId('VHC')
+    let public_id: string
+    if (customPublicId && typeof customPublicId === 'string' && customPublicId.trim()) {
+      public_id = customPublicId.trim()
+      const taken = await queryOne('SELECT id FROM Vehicle WHERE public_id = ? LIMIT 1', [public_id])
+      if (taken) return NextResponse.json({ error: `ID "${public_id}" is already in use` }, { status: 400 })
+    } else {
+      public_id = await generatePublicId('VHC')
+    }
     const id = newId()
 
+    const dayRates = Array.isArray(meta?.day_rates) ? JSON.stringify(meta.day_rates) : null
+
     await execute(
-      `INSERT INTO Vehicle (id, public_id, slug, name, description, price, chauffeur_price, currency, hire_modes, passengers, transmission, fuel, is_available, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      `INSERT INTO Vehicle (id, public_id, slug, name, description, price, chauffeur_price, price_poa, chauffeur_price_poa, day_rates, currency, hire_modes, passengers, transmission, fuel, is_available, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         id, public_id, slug, name as string,
         (description as string) ?? '',
         typeof price === 'number' ? price : 0,
         typeof meta?.chauffeur_price === 'number' ? meta.chauffeur_price : 0,
+        Boolean(meta?.price_poa) ? 1 : 0,
+        Boolean(meta?.chauffeur_price_poa) ? 1 : 0,
+        dayRates,
         'AUD',
         (meta?.hire_modes as string) ?? 'chauffeured_only',
         (meta?.passengers as string) ?? '',

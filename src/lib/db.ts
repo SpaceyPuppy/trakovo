@@ -44,7 +44,9 @@ export async function generatePublicId(
     DRV: 'Driver',
   }
   const table = tableMap[prefix]
-  const row = await queryOne<{ count: number }>(`SELECT COUNT(*) as count FROM \`${table}\``)
-  const count = row?.count ?? 0
-  return `${prefix}-${String(count + 1).padStart(4, '0')}`
+  const row = await queryOne<{ max_num: number | null }>(
+    `SELECT MAX(CAST(SUBSTRING(public_id, 5) AS UNSIGNED)) as max_num FROM \`${table}\` WHERE public_id LIKE '${prefix}-%'`
+  )
+  const next = (row?.max_num ?? 0) + 1
+  return `${prefix}-${String(next).padStart(4, '0')}`
 }

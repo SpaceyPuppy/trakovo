@@ -1,44 +1,84 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Vehicle, VehicleFormData } from '@/types'
+import type { VehicleFormData, DayRate } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface Props {
   initial?: Partial<VehicleFormData>
   vehicleId?: string
+  publicIdDisplay?: string   // shown read-only in edit mode
   mode: 'create' | 'edit'
 }
 
 const empty: VehicleFormData = {
-  name: '', description: '', price: 0, chauffeur_price: 0,
+  name: '', description: '', price: 0, price_poa: false,
+  chauffeur_price: 0, chauffeur_price_poa: false, day_rates: [],
   hire_modes: 'chauffeured_only', passengers: '', transmission: 'Automatic', fuel: 'Petrol',
   is_available: true, images: [],
 }
 
-export default function VehicleForm({ initial, vehicleId, mode }: Props) {
+export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode }: Props) {
   const router = useRouter()
   const [form, setForm] = useState<VehicleFormData>({ ...empty, ...initial })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Vehicle ID state (create mode only)
+  const [publicId, setPublicId] = useState('')
+  const [publicIdDirty, setPublicIdDirty] = useState(false)
+  const [publicIdLoading, setPublicIdLoading] = useState(mode === 'create')
+
+  useEffect(() => {
+    if (mode !== 'create') return
+    fetch('/api/admin/vehicles/next-id')
+      .then(r => r.json())
+      .then(d => { if (d.public_id) setPublicId(d.public_id) })
+      .catch(() => {})
+      .finally(() => setPublicIdLoading(false))
+  }, [mode])
+
   const up = (patch: Partial<VehicleFormData>) => setForm(f => ({ ...f, ...patch }))
+  const chauffeurOnly = form.hire_modes === 'chauffeured_only'
+
+  // Day-rate helpers
+  function addRate() {
+    const last = form.day_rates[form.day_rates.length - 1]
+    const days_from = last ? (last.days_to ?? last.days_from) + 1 : 1
+    up({ day_rates: [...form.day_rates, { days_from, days_to: null, price: 0, price_poa: false, chauffeur_price: 0, chauffeur_price_poa: false }] })
+  }
+  function removeRate(i: number) {
+    up({ day_rates: form.day_rates.filter((_, idx) => idx !== i) })
+  }
+  function updateRate(i: number, patch: Partial<DayRate>) {
+    up({ day_rates: form.day_rates.map((r, idx) => idx === i ? { ...r, ...patch } : r) })
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true); setError(null)
     const payload = {
-      name: form.name, description: form.description,
-      price: Math.round(form.price * 100),   // store in cents
+      name: form.name,
+      description: form.description,
+      price: chauffeurOnly ? 0 : Math.round(form.price * 100),
       is_available: form.is_available,
       images: form.images,
+      // only send custom public_id if user explicitly edited it
+      ...(mode === 'create' && publicIdDirty ? { public_id: publicId } : {}),
       meta: {
         hire_modes: form.hire_modes,
         passengers: form.passengers,
         transmission: form.transmission,
         fuel: form.fuel,
         chauffeur_price: Math.round(form.chauffeur_price * 100),
+        price_poa: chauffeurOnly ? false : form.price_poa,
+        chauffeur_price_poa: form.chauffeur_price_poa,
+        day_rates: form.day_rates.map(r => ({
+          ...r,
+          price: chauffeurOnly ? 0 : Math.round(r.price * 100),
+          chauffeur_price: Math.round(r.chauffeur_price * 100),
+        })),
       },
     }
     try {
@@ -71,6 +111,35 @@ export default function VehicleForm({ initial, vehicleId, mode }: Props) {
     <form onSubmit={save} className="space-y-6 max-w-[720px]">
       {error && <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[6px] px-3 py-2">{error}</p>}
 
+      {/* Vehicle ID */}
+      <Card title="Vehicle ID">
+        {mode === 'create' ? (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider">
+              Public ID <span className="font-normal normal-case text-ink-4">(auto-generated — edit to override)</span>
+            </label>
+            <input
+              className={inp}
+              value={publicIdLoading ? 'Loading…' : publicId}
+              disabled={publicIdLoading}
+              onChange={e => { setPublicId(e.target.value); setPublicIdDirty(true) }}
+              placeholder="e.g. VHC-0004"
+            />
+            {!publicIdDirty && !publicIdLoading && (
+              <p className="text-[12px] text-ink-4">Leave unchanged to use the auto-generated ID above.</p>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[13px] font-semibold text-ink bg-bg border border-border rounded-[6px] px-3 py-2">
+              {publicIdDisplay}
+            </span>
+            <p className="text-[12.5px] text-ink-4">Vehicle ID cannot be changed after creation.</p>
+          </div>
+        )}
+      </Card>
+
+      {/* Basic Information */}
       <Card title="Basic Information">
         <Field label="Vehicle Name" required>
           <input className={inp} required value={form.name} onChange={e => up({ name: e.target.value })} placeholder="e.g. Mercedes-Benz S-Class W223" />
@@ -80,6 +149,7 @@ export default function VehicleForm({ initial, vehicleId, mode }: Props) {
         </Field>
       </Card>
 
+      {/* Hire Configuration */}
       <Card title="Hire Configuration">
         <Field label="Hire Modes">
           <div className="grid grid-cols-2 gap-2">
@@ -95,22 +165,119 @@ export default function VehicleForm({ initial, vehicleId, mode }: Props) {
             ))}
           </div>
         </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Self-Drive Daily Rate (AUD)" required>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-[13px]">$</span>
-              <input className={cn(inp, 'pl-7')} type="number" min="0" step="1" required value={form.price || ''} onChange={e => up({ price: Number(e.target.value) })} placeholder="0" />
-            </div>
-          </Field>
+
+        {/* Rates */}
+        <div className={cn('grid gap-4', chauffeurOnly ? 'grid-cols-1' : 'grid-cols-2')}>
+          {/* Chauffeur rate — always shown */}
           <Field label="Chauffeured Daily Rate (AUD)" required>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-[13px]">$</span>
-              <input className={cn(inp, 'pl-7')} type="number" min="0" step="1" required value={form.chauffeur_price || ''} onChange={e => up({ chauffeur_price: Number(e.target.value) })} placeholder="0" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-[13px]">$</span>
+                  <input
+                    className={cn(inp, 'pl-7', form.chauffeur_price_poa && 'opacity-40 pointer-events-none')}
+                    type="number" min="0" step="1"
+                    value={form.chauffeur_price_poa ? '' : (form.chauffeur_price || '')}
+                    onChange={e => up({ chauffeur_price: Number(e.target.value) })}
+                    placeholder={form.chauffeur_price_poa ? 'POA' : '0'}
+                    disabled={form.chauffeur_price_poa}
+                  />
+                </div>
+                <PoaToggle active={form.chauffeur_price_poa} onToggle={() => up({ chauffeur_price_poa: !form.chauffeur_price_poa })} />
+              </div>
             </div>
           </Field>
+
+          {/* Self-hire rate — only when both modes */}
+          {!chauffeurOnly && (
+            <Field label="Self-Drive Daily Rate (AUD)" required>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 text-[13px]">$</span>
+                    <input
+                      className={cn(inp, 'pl-7', form.price_poa && 'opacity-40 pointer-events-none')}
+                      type="number" min="0" step="1"
+                      value={form.price_poa ? '' : (form.price || '')}
+                      onChange={e => up({ price: Number(e.target.value) })}
+                      placeholder={form.price_poa ? 'POA' : '0'}
+                      disabled={form.price_poa}
+                    />
+                  </div>
+                  <PoaToggle active={form.price_poa} onToggle={() => up({ price_poa: !form.price_poa })} />
+                </div>
+              </div>
+            </Field>
+          )}
+        </div>
+
+        {/* Day-range rates */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-semibold text-ink">Day-Range Rates</p>
+              <p className="text-[12px] text-ink-4">Optional tiered pricing that overrides the base rate for specific day ranges.</p>
+            </div>
+            <button type="button" onClick={addRate}
+              className="text-[12.5px] font-semibold text-accent hover:text-accent-dark border border-accent/30 hover:border-accent/60 rounded-[6px] px-3 py-1.5 transition-all">
+              + Add Tier
+            </button>
+          </div>
+
+          {form.day_rates.length > 0 && (
+            <div className="border border-border rounded-[8px] divide-y divide-border overflow-hidden">
+              {/* Header */}
+              <div className={cn('grid gap-2 px-4 py-2 bg-bg', chauffeurOnly ? 'grid-cols-[80px_80px_1fr_28px]' : 'grid-cols-[80px_80px_1fr_1fr_28px]')}>
+                <span className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider">From (day)</span>
+                <span className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider">To (day)</span>
+                <span className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider">Chauffeur / day</span>
+                {!chauffeurOnly && <span className="text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider">Self-Drive / day</span>}
+                <span />
+              </div>
+              {form.day_rates.map((rate, i) => (
+                <div key={i} className={cn('grid gap-2 px-4 py-3 items-center bg-white', chauffeurOnly ? 'grid-cols-[80px_80px_1fr_28px]' : 'grid-cols-[80px_80px_1fr_1fr_28px]')}>
+                  <input className={cn(inp, 'text-center')} type="number" min="1" step="1"
+                    value={rate.days_from || ''} onChange={e => updateRate(i, { days_from: Number(e.target.value) })} placeholder="1" />
+                  <input className={cn(inp, 'text-center')} type="number" min="1" step="1"
+                    value={rate.days_to ?? ''} onChange={e => updateRate(i, { days_to: e.target.value === '' ? null : Number(e.target.value) })} placeholder="∞" />
+                  {/* Chauffeur rate */}
+                  <div className="flex items-center gap-1.5">
+                    <div className="relative flex-1">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-3 text-[12px]">$</span>
+                      <input className={cn(inp, 'pl-5 text-[13px]', rate.chauffeur_price_poa && 'opacity-40 pointer-events-none')}
+                        type="number" min="0" step="1"
+                        value={rate.chauffeur_price_poa ? '' : (rate.chauffeur_price || '')}
+                        onChange={e => updateRate(i, { chauffeur_price: Number(e.target.value) })}
+                        placeholder={rate.chauffeur_price_poa ? 'POA' : '0'}
+                        disabled={rate.chauffeur_price_poa} />
+                    </div>
+                    <PoaToggle active={rate.chauffeur_price_poa} onToggle={() => updateRate(i, { chauffeur_price_poa: !rate.chauffeur_price_poa })} />
+                  </div>
+                  {/* Self-drive rate */}
+                  {!chauffeurOnly && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-3 text-[12px]">$</span>
+                        <input className={cn(inp, 'pl-5 text-[13px]', rate.price_poa && 'opacity-40 pointer-events-none')}
+                          type="number" min="0" step="1"
+                          value={rate.price_poa ? '' : (rate.price || '')}
+                          onChange={e => updateRate(i, { price: Number(e.target.value) })}
+                          placeholder={rate.price_poa ? 'POA' : '0'}
+                          disabled={rate.price_poa} />
+                      </div>
+                      <PoaToggle active={rate.price_poa} onToggle={() => updateRate(i, { price_poa: !rate.price_poa })} />
+                    </div>
+                  )}
+                  <button type="button" onClick={() => removeRate(i)}
+                    className="w-7 h-7 flex items-center justify-center rounded-[4px] text-ink-4 hover:text-red-600 hover:bg-red-50 transition-all text-[15px] font-bold">×</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </Card>
 
+      {/* Specifications */}
       <Card title="Specifications">
         <div className="grid grid-cols-3 gap-4">
           <Field label="Passengers">
@@ -129,6 +296,7 @@ export default function VehicleForm({ initial, vehicleId, mode }: Props) {
         </div>
       </Card>
 
+      {/* Images */}
       <Card title="Images">
         <Field label="Image URLs">
           <textarea
@@ -149,6 +317,7 @@ export default function VehicleForm({ initial, vehicleId, mode }: Props) {
         )}
       </Card>
 
+      {/* Availability */}
       <Card title="Availability">
         <label className="flex items-center gap-3 cursor-pointer">
           <div onClick={() => up({ is_available: !form.is_available })}
@@ -180,6 +349,20 @@ export default function VehicleForm({ initial, vehicleId, mode }: Props) {
 }
 
 const inp = 'w-full border border-border rounded-[6px] px-3 py-2.5 text-[13.5px] text-ink bg-white outline-none focus:border-ink focus:ring-2 focus:ring-ink/5 transition-all'
+
+function PoaToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle}
+      className={cn(
+        'flex-shrink-0 text-[11px] font-bold px-2 py-1.5 rounded-[5px] border transition-all whitespace-nowrap',
+        active
+          ? 'bg-amber-50 border-amber-300 text-amber-700'
+          : 'bg-white border-border text-ink-4 hover:border-ink-3 hover:text-ink-2'
+      )}>
+      POA
+    </button>
+  )
+}
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (

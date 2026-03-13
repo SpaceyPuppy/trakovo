@@ -47,7 +47,14 @@ export default async function VehicleDetailPage({ params }: Props) {
               )}
               <div className="absolute bottom-5 left-5 bg-black/45 backdrop-blur-sm border border-white/10 rounded-lg px-4 py-2.5 text-white">
                 <p className="font-display font-bold text-[16px]">{vehicle.name}</p>
-                <p className="text-[12px] text-white/60 mt-0.5">{vehicle.category?.name ?? 'Vehicle'} · From {formatCurrency(vehicle.price)}/day</p>
+                <p className="text-[12px] text-white/60 mt-0.5">
+                  {vehicle.category?.name ?? 'Vehicle'} · From{' '}
+                  {(() => {
+                    const poa = isDual ? vehicle.price_poa : vehicle.chauffeur_price_poa
+                    const basePrice = isDual ? vehicle.price : vehicle.chauffeur_price
+                    return poa ? 'POA' : `${formatCurrency(basePrice)}/day`
+                  })()}
+                </p>
               </div>
             </div>
 
@@ -78,13 +85,21 @@ export default async function VehicleDetailPage({ params }: Props) {
               {isDual && (
                 <div className="flex-1 min-w-[140px] border border-border rounded-[6px] px-4 py-3.5">
                   <p className="text-[11px] font-semibold text-ink-4 uppercase tracking-wider mb-1">Self-Drive</p>
-                  <p className="font-display font-extrabold text-[24px] tracking-tight">{formatCurrency(vehicle.price)}</p>
+                  {vehicle.price_poa ? (
+                    <p className="font-display font-extrabold text-[24px] tracking-tight text-amber-600">POA</p>
+                  ) : (
+                    <p className="font-display font-extrabold text-[24px] tracking-tight">{formatCurrency(vehicle.price)}</p>
+                  )}
                   <p className="text-[12px] text-ink-4 mt-0.5">per day</p>
                 </div>
               )}
               <div className="flex-1 min-w-[140px] bg-slate border-slate border rounded-[6px] px-4 py-3.5">
                 <p className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-1">Chauffeured</p>
-                <p className="font-display font-extrabold text-[24px] tracking-tight text-white">{formatCurrency(vehicle.chauffeur_price)}</p>
+                {vehicle.chauffeur_price_poa ? (
+                  <p className="font-display font-extrabold text-[24px] tracking-tight text-amber-400">POA</p>
+                ) : (
+                  <p className="font-display font-extrabold text-[24px] tracking-tight text-white">{formatCurrency(vehicle.chauffeur_price)}</p>
+                )}
                 <p className="text-[12px] text-white/40 mt-0.5">per day incl. driver</p>
               </div>
             </div>

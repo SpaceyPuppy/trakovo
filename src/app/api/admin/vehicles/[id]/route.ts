@@ -14,13 +14,18 @@ export async function PUT(req: NextRequest, { params }: Context) {
     // Replace all media (delete + recreate)
     await execute('DELETE FROM VehicleMedia WHERE vehicle_id = ?', [params.id])
 
+    const dayRates = Array.isArray(meta?.day_rates) ? JSON.stringify(meta.day_rates) : null
+
     await execute(
-      `UPDATE Vehicle SET name = ?, description = ?, price = ?, chauffeur_price = ?, hire_modes = ?, passengers = ?, transmission = ?, fuel = ?, is_available = ?, updated_at = NOW() WHERE id = ?`,
+      `UPDATE Vehicle SET name = ?, description = ?, price = ?, chauffeur_price = ?, price_poa = ?, chauffeur_price_poa = ?, day_rates = ?, hire_modes = ?, passengers = ?, transmission = ?, fuel = ?, is_available = ?, updated_at = NOW() WHERE id = ?`,
       [
         name as string,
         (description as string) ?? '',
         typeof price === 'number' ? price : 0,
         typeof meta?.chauffeur_price === 'number' ? meta.chauffeur_price : 0,
+        Boolean(meta?.price_poa) ? 1 : 0,
+        Boolean(meta?.chauffeur_price_poa) ? 1 : 0,
+        dayRates,
         (meta?.hire_modes as string) ?? 'chauffeured_only',
         (meta?.passengers as string) ?? '',
         (meta?.transmission as string) ?? 'Automatic',
