@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { execSync } from 'child_process'
+import AdmZip from 'adm-zip'
 
 const APP_ROOT = process.cwd()
 export const NEXT_DIR = path.join(APP_ROOT, '.next')
@@ -25,30 +26,8 @@ export async function applyUpdate(zipPath: string): Promise<UpdateResult> {
   fs.mkdirSync(extractDir, { recursive: true })
 
   try {
-    // Extract zip to temp — do not touch production files yet.
-    // Try unzip first, then python3, then python as fallbacks.
-    let extracted = false
-    try {
-      execSync(`unzip -o "${zipPath}" -d "${extractDir}"`, { stdio: 'pipe' })
-      extracted = true
-    } catch { /* try next method */ }
-
-    if (!extracted) {
-      for (const py of ['python3', 'python']) {
-        try {
-          execSync(
-            `${py} -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "${zipPath}" "${extractDir}"`,
-            { stdio: 'pipe' }
-          )
-          extracted = true
-          break
-        } catch { /* try next */ }
-      }
-    }
-
-    if (!extracted) {
-      throw new Error('Could not extract zip — unzip and python3 are both unavailable on this server.')
-    }
+    // Extract zip using adm-zip (pure JS — no system binaries required)
+    new AdmZip(zipPath).extractAllTo(extractDir, true)
 
     // Zip must contain a .next folder with BUILD_ID
     const candidateNext = path.join(extractDir, '.next')
