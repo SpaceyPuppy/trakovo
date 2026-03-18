@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { queryOne, execute, newId, generatePublicId } from '@/lib/db'
 import { sendBookingNotification } from '@/lib/email'
+import { sendBookingReceived } from '@/lib/email-sequences'
 import { syncBookingToCalendar } from '@/lib/calendar'
 import { sendPushNotification } from '@/lib/push'
 import { diffDays } from '@/lib/utils'
@@ -76,6 +77,9 @@ export async function POST(req: NextRequest) {
       sendBookingNotification(response, vehicle.name).catch(err =>
         console.error('[email] Notification failed for', public_id, err)
       )
+      sendBookingReceived(response, vehicle.name).catch(err =>
+        console.error('[email] Received confirmation failed for', public_id, err)
+      )
       syncBookingToCalendar(id).catch(err =>
         console.error('[calendar] Sync failed for', public_id, err)
       )
@@ -122,6 +126,9 @@ export async function POST(req: NextRequest) {
 
       sendBookingNotification(response, vehicle.name).catch(err =>
         console.error('[email] Notification failed for', public_id, err)
+      )
+      sendBookingReceived(response, vehicle.name).catch(err =>
+        console.error('[email] Received confirmation failed for', public_id, err)
       )
       syncBookingToCalendar(id).catch(err =>
         console.error('[calendar] Sync failed for', public_id, err)

@@ -9,8 +9,8 @@ export interface CalendarEvent {
   subtitle?: string  // shown in tooltip only — callers control whether this is PII-safe
   start: string      // YYYY-MM-DD
   end: string        // YYYY-MM-DD
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
-  href: string
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'blockout'
+  href?: string      // omit for blockouts
 }
 
 interface PlacedEvent {
@@ -31,6 +31,7 @@ const EVENT_BAR: Record<string, string> = {
   confirmed: 'bg-accent text-white hover:opacity-90',
   completed: 'bg-green-500 text-white hover:bg-green-600',
   cancelled: 'bg-gray-200 text-gray-400 hover:bg-gray-300',
+  blockout:  'bg-slate-200 text-slate-500 cursor-default select-none',
 }
 
 function toYMD(d: Date): string {
@@ -189,25 +190,38 @@ export default function CalendarView({ events }: { events: CalendarEvent[] }) {
                     const laneEvents = placed.filter(p => p.lane === lane)
                     return (
                       <div key={lane} className="grid grid-cols-7 h-5">
-                        {laneEvents.map(pe => (
-                          <Link
-                            key={pe.event.id}
-                            href={pe.event.href}
-                            title={pe.event.subtitle
-                              ? `${pe.event.title} · ${pe.event.subtitle}`
-                              : pe.event.title
-                            }
-                            style={{ gridColumn: `${pe.startCol + 1} / span ${pe.span}` }}
-                            className={cn(
-                              'h-5 flex items-center px-1.5 text-[11px] font-medium truncate transition-opacity',
-                              EVENT_BAR[pe.event.status],
-                              pe.continued ? 'rounded-l-none' : 'rounded-l-[3px] ml-0.5',
-                              pe.continues  ? 'rounded-r-none' : 'rounded-r-[3px] mr-0.5',
-                            )}
-                          >
-                            {!pe.continued && pe.event.title}
-                          </Link>
-                        ))}
+                        {laneEvents.map(pe => {
+                          const barClass = cn(
+                            'h-5 flex items-center px-1.5 text-[11px] font-medium truncate',
+                            EVENT_BAR[pe.event.status],
+                            pe.continued ? 'rounded-l-none' : 'rounded-l-[3px] ml-0.5',
+                            pe.continues  ? 'rounded-r-none' : 'rounded-r-[3px] mr-0.5',
+                          )
+                          const title = pe.event.subtitle
+                            ? `${pe.event.title} · ${pe.event.subtitle}`
+                            : pe.event.title
+                          const content = !pe.continued && pe.event.title
+                          return pe.event.href ? (
+                            <Link
+                              key={pe.event.id}
+                              href={pe.event.href}
+                              title={title}
+                              style={{ gridColumn: `${pe.startCol + 1} / span ${pe.span}` }}
+                              className={cn(barClass, 'transition-opacity')}
+                            >
+                              {content}
+                            </Link>
+                          ) : (
+                            <div
+                              key={pe.event.id}
+                              title={title}
+                              style={{ gridColumn: `${pe.startCol + 1} / span ${pe.span}` }}
+                              className={barClass}
+                            >
+                              {content}
+                            </div>
+                          )
+                        })}
                       </div>
                     )
                   })}
@@ -244,10 +258,10 @@ export default function CalendarView({ events }: { events: CalendarEvent[] }) {
 
       {/* Legend */}
       <div className="flex items-center gap-4 px-5 py-3 border-t border-border bg-bg flex-wrap">
-        {(['pending','confirmed','completed','cancelled'] as const).map(s => (
+        {(['pending','confirmed','completed','cancelled','blockout'] as const).map(s => (
           <div key={s} className="flex items-center gap-1.5">
             <span className={cn('w-3 h-3 rounded-[2px]', EVENT_BAR[s].split(' ')[0])} />
-            <span className="text-[11px] text-ink-3 capitalize">{s}</span>
+            <span className="text-[11px] text-ink-3 capitalize">{s === 'blockout' ? 'blocked' : s}</span>
           </div>
         ))}
       </div>

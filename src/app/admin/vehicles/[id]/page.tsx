@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import VehicleForm from '@/components/admin/VehicleForm'
+import BlockoutManager from '@/components/admin/BlockoutManager'
 import { adminGetVehicle } from '@/lib/api'
 import type { Metadata } from 'next'
 
@@ -35,6 +36,9 @@ export default async function EditVehiclePage({ params }: Props) {
       <h1 className="font-display font-bold text-[26px] tracking-tight mb-2">{vehicle.name}</h1>
       <p className="text-[14px] text-ink-3 mb-8">Edit vehicle details and configuration.</p>
       <VehicleForm mode="edit" vehicleId={vehicle.id} publicIdDisplay={vehicle.public_id} initial={initial} />
+      <div className="mt-8">
+        <BlockoutManager vehicleId={vehicle.id} />
+      </div>
     </div>
   )
 }

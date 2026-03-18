@@ -195,3 +195,54 @@ ALTER TABLE `VendorClient` ADD CONSTRAINT `VendorClient_vendor_id_fkey` FOREIGN 
 -- AddForeignKey
 ALTER TABLE `VendorEnquiry` ADD CONSTRAINT `VendorEnquiry_vendor_id_fkey` FOREIGN KEY (`vendor_id`) REFERENCES `Vendor`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- ─── Tables added post-v1.3 ─────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS `VehicleBlockout` (
+  `id` VARCHAR(191) NOT NULL,
+  `vehicle_id` VARCHAR(191) NULL,
+  `start_date` VARCHAR(10) NOT NULL,
+  `end_date` VARCHAR(10) NOT NULL,
+  `reason` VARCHAR(191) NOT NULL DEFAULT '',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `VehicleBlockout_vehicle_idx` (`vehicle_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `BookingEmailLog` (
+  `id` INTEGER NOT NULL AUTO_INCREMENT,
+  `booking_id` VARCHAR(191) NOT NULL,
+  `template_key` VARCHAR(191) NOT NULL,
+  `sent_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE INDEX `BookingEmailLog_unique` (`booking_id`, `template_key`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `CustomerNote` (
+  `id` VARCHAR(191) NOT NULL,
+  `contact_email` VARCHAR(191) NOT NULL,
+  `text` TEXT NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `CustomerNote_email_idx` (`contact_email`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `CustomerArchive` (
+  `email` VARCHAR(191) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`email`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `CustomerAlias` (
+  `id` VARCHAR(191) NOT NULL,
+  `primary_email` VARCHAR(191) NOT NULL,
+  `alias_email` VARCHAR(191) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `CustomerAlias_alias_email_unique` (`alias_email`),
+  INDEX `CustomerAlias_primary_email_idx` (`primary_email`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE `Booking`
+  ADD COLUMN IF NOT EXISTS `driver_id` VARCHAR(191) NULL AFTER `vendor_client_id`,
+  ADD COLUMN IF NOT EXISTS `enquiry_status` VARCHAR(20) NULL DEFAULT 'new' AFTER `is_enquiry`;

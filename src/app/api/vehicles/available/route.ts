@@ -15,6 +15,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'start and end are required' }, { status: 400 })
   }
 
+  // Check for global fleet blockouts first
+  const globalBlockout = await query<{ id: string }>(
+    "SELECT id FROM VehicleBlockout WHERE vehicle_id IS NULL AND start_date <= ? AND end_date >= ? LIMIT 1",
+    [end, start]
+  )
+  if (globalBlockout.length > 0) {
+    return NextResponse.json([])
+  }
+
   // Find vehicle IDs that have a conflicting booking
   const conflicting = await query<{ vehicle_id: string | null }>(
     "SELECT vehicle_id FROM Booking WHERE status IN ('pending','confirmed') AND start_date <= ? AND end_date >= ?",
@@ -22,6 +31,13 @@ export async function GET(req: NextRequest) {
   )
   const blockedIds = Array.from(new Set(conflicting.map((b) => b.vehicle_id).filter(Boolean))) as string[]
   if (exclude) blockedIds.push(exclude)
+
+  // Add per-vehicle blockouts
+  const vehicleBlockouts = await query<{ vehicle_id: string }>(
+    "SELECT vehicle_id FROM VehicleBlockout WHERE vehicle_id IS NOT NULL AND start_date <= ? AND end_date >= ?",
+    [end, start]
+  )
+  vehicleBlockouts.forEach(b => { if (!blockedIds.includes(b.vehicle_id)) blockedIds.push(b.vehicle_id) })
 
   let vehicles: { id: string; slug: string; name: string; price: number; chauffeur_price: number; hire_modes: string }[]
   if (blockedIds.length > 0) {

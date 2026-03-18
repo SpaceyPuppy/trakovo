@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { execute, queryOne } from '@/lib/db'
 import { syncBookingToCalendar, deleteCalendarEvent } from '@/lib/calendar'
+import { sendBookingConfirmed } from '@/lib/email-sequences'
 
 interface Context { params: { id: string } }
 
@@ -22,6 +23,10 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       deleteCalendarEvent(params.id).catch(err => console.error('[calendar]', err))
     } else {
       syncBookingToCalendar(params.id).catch(err => console.error('[calendar]', err))
+    }
+
+    if (status === 'confirmed') {
+      sendBookingConfirmed(params.id).catch(err => console.error('[email-seq] confirmed', err))
     }
 
     return NextResponse.json(booking)

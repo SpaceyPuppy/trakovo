@@ -213,20 +213,303 @@ export const TEMPLATE_CUSTOMER_QUOTE = `<!DOCTYPE html>
 </body>
 </html>`
 
+// ─── Default: Booking Received (Customer) ───────────────────────────────────
+
+export const TEMPLATE_BOOKING_RECEIVED = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Booking Request Received {{booking_ref}}</title></head>
+<body style="margin:0;padding:0;background:#f0efe9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0efe9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e0d8;">
+        <tr>
+          <td style="background:#1a2235;padding:28px 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td>
+                <span style="display:inline-block;background:#d4570a;color:#fff;font-weight:800;font-size:13px;padding:4px 8px;border-radius:4px;">A</span>
+                <span style="color:#fff;font-weight:700;font-size:15px;margin-left:8px;vertical-align:middle;">{{site_name}}</span>
+              </td>
+              <td align="right">
+                <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Booking Request</p>
+                <p style="color:#d4570a;font-size:22px;font-weight:700;margin:4px 0 0 0;font-family:monospace;">{{booking_ref}}</p>
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+        <tr><td style="padding:32px 36px;">
+          <p style="margin:0 0 8px;font-size:15px;color:#1a1a1a;">Hi <strong>{{contact_name}}</strong>,</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.65;">
+            Thanks for your booking request. We&apos;ve received your <strong>{{hire_type}}</strong> booking for the <strong>{{vehicle_name}}</strong> and will be in touch to confirm.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f6f2;border-radius:8px;margin-bottom:24px;overflow:hidden;border:1px solid #e2e0d8;">
+            <tr><td style="padding:14px 18px;border-bottom:1px solid #e2e0d8;background:#f0efe9;">
+              <p style="margin:0;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.1em;">Booking Summary</p>
+            </td></tr>
+            <tr><td style="padding:0 18px;">
+              <table width="100%" cellpadding="0" cellspacing="0">${row('Reference', '{{booking_ref}}')}${row('Vehicle', '{{vehicle_name}}')}${row('Hire Type', '{{hire_type}}')}${row('Start Date', '{{start_date}}')}${row('End Date', '{{end_date}}')}${row('Duration', '{{total_days}} days')}</table>
+            </td></tr>
+          </table>
+          <p style="font-size:13px;color:#888;margin:0;line-height:1.6;">
+            If you have any questions, please don&apos;t hesitate to contact us. We look forward to hearing from you.
+          </p>
+        </td></tr>
+        <tr><td style="padding:20px 36px;border-top:1px solid #e2e0d8;background:#f7f6f2;">
+          <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">This confirmation was sent by {{site_name}}. Booking reference: {{booking_ref}}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+// ─── Default: Booking Confirmed (Customer) ──────────────────────────────────
+
+export const TEMPLATE_BOOKING_CONFIRMED = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Booking Confirmed {{booking_ref}}</title></head>
+<body style="margin:0;padding:0;background:#f0efe9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0efe9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e0d8;">
+        <tr>
+          <td style="background:#1a2235;padding:28px 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td>
+                <span style="display:inline-block;background:#d4570a;color:#fff;font-weight:800;font-size:13px;padding:4px 8px;border-radius:4px;">A</span>
+                <span style="color:#fff;font-weight:700;font-size:15px;margin-left:8px;vertical-align:middle;">{{site_name}}</span>
+              </td>
+              <td align="right">
+                <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Booking Confirmed</p>
+                <p style="color:#d4570a;font-size:22px;font-weight:700;margin:4px 0 0 0;font-family:monospace;">{{booking_ref}}</p>
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+        <tr><td style="padding:32px 36px;">
+          <p style="margin:0 0 8px;font-size:15px;color:#1a1a1a;">Hi <strong>{{contact_name}}</strong>,</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.65;">
+            Great news — your <strong>{{hire_type}}</strong> booking for the <strong>{{vehicle_name}}</strong> is confirmed. We look forward to seeing you on <strong>{{start_date}}</strong>.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f6f2;border-radius:8px;margin-bottom:24px;overflow:hidden;border:1px solid #e2e0d8;">
+            <tr><td style="padding:14px 18px;border-bottom:1px solid #e2e0d8;background:#f0efe9;">
+              <p style="margin:0;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.1em;">Booking Details</p>
+            </td></tr>
+            <tr><td style="padding:0 18px;">
+              <table width="100%" cellpadding="0" cellspacing="0">${row('Reference', '{{booking_ref}}')}${row('Vehicle', '{{vehicle_name}}')}${row('Hire Type', '{{hire_type}}')}${row('Start Date', '{{start_date}}')}${row('End Date', '{{end_date}}')}${row('Duration', '{{total_days}} days')}${row('Daily Rate', '{{daily_rate}}')}${row('Total Cost', '{{total_cost}}', true)}</table>
+            </td></tr>
+          </table>
+          <p style="font-size:13px;color:#888;margin:0;line-height:1.6;">
+            If you need to make any changes or have questions, please get in touch with our team as soon as possible.
+          </p>
+        </td></tr>
+        <tr><td style="padding:20px 36px;border-top:1px solid #e2e0d8;background:#f7f6f2;">
+          <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">{{site_name}} · Booking reference: {{booking_ref}}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+// ─── Default: 24hr Reminder ──────────────────────────────────────────────────
+
+export const TEMPLATE_REMINDER_24HR = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Reminder — Your Booking is Tomorrow</title></head>
+<body style="margin:0;padding:0;background:#f0efe9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0efe9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e0d8;">
+        <tr>
+          <td style="background:#1a2235;padding:28px 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td>
+                <span style="display:inline-block;background:#d4570a;color:#fff;font-weight:800;font-size:13px;padding:4px 8px;border-radius:4px;">A</span>
+                <span style="color:#fff;font-weight:700;font-size:15px;margin-left:8px;vertical-align:middle;">{{site_name}}</span>
+              </td>
+              <td align="right">
+                <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Booking Reminder</p>
+                <p style="color:#d4570a;font-size:22px;font-weight:700;margin:4px 0 0 0;font-family:monospace;">{{booking_ref}}</p>
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+        <tr><td style="padding:32px 36px;">
+          <p style="margin:0 0 8px;font-size:15px;color:#1a1a1a;">Hi <strong>{{contact_name}}</strong>,</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.65;">
+            Just a reminder that your <strong>{{hire_type}}</strong> booking for the <strong>{{vehicle_name}}</strong> is <strong>tomorrow, {{start_date}}</strong>.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f6f2;border-radius:8px;margin-bottom:24px;overflow:hidden;border:1px solid #e2e0d8;">
+            <tr><td style="padding:14px 18px;border-bottom:1px solid #e2e0d8;background:#f0efe9;">
+              <p style="margin:0;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.1em;">Your Booking</p>
+            </td></tr>
+            <tr><td style="padding:0 18px;">
+              <table width="100%" cellpadding="0" cellspacing="0">${row('Reference', '{{booking_ref}}')}${row('Vehicle', '{{vehicle_name}}')}${row('Start Date', '{{start_date}}')}${row('End Date', '{{end_date}}')}${row('Duration', '{{total_days}} days')}</table>
+            </td></tr>
+          </table>
+          <p style="font-size:13px;color:#888;margin:0;line-height:1.6;">
+            If you have any last-minute questions, please don&apos;t hesitate to contact us.
+          </p>
+        </td></tr>
+        <tr><td style="padding:20px 36px;border-top:1px solid #e2e0d8;background:#f7f6f2;">
+          <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">{{site_name}} · Booking reference: {{booking_ref}}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+// ─── Default: Post-trip Follow-up ────────────────────────────────────────────
+
+export const TEMPLATE_FOLLOWUP = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Thank You — {{booking_ref}}</title></head>
+<body style="margin:0;padding:0;background:#f0efe9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0efe9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e0d8;">
+        <tr>
+          <td style="background:#1a2235;padding:28px 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td>
+                <span style="display:inline-block;background:#d4570a;color:#fff;font-weight:800;font-size:13px;padding:4px 8px;border-radius:4px;">A</span>
+                <span style="color:#fff;font-weight:700;font-size:15px;margin-left:8px;vertical-align:middle;">{{site_name}}</span>
+              </td>
+              <td align="right">
+                <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Thank You</p>
+                <p style="color:#d4570a;font-size:22px;font-weight:700;margin:4px 0 0 0;font-family:monospace;">{{booking_ref}}</p>
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+        <tr><td style="padding:32px 36px;">
+          <p style="margin:0 0 8px;font-size:15px;color:#1a1a1a;">Hi <strong>{{contact_name}}</strong>,</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.65;">
+            Thank you for choosing <strong>{{site_name}}</strong>. We hope you enjoyed your <strong>{{hire_type}}</strong> experience with the <strong>{{vehicle_name}}</strong>.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f6f2;border-radius:8px;margin-bottom:24px;overflow:hidden;border:1px solid #e2e0d8;">
+            <tr><td style="padding:14px 18px;border-bottom:1px solid #e2e0d8;background:#f0efe9;">
+              <p style="margin:0;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.1em;">Booking Summary</p>
+            </td></tr>
+            <tr><td style="padding:0 18px;">
+              <table width="100%" cellpadding="0" cellspacing="0">${row('Reference', '{{booking_ref}}')}${row('Vehicle', '{{vehicle_name}}')}${row('Dates', '{{start_date}} — {{end_date}}')}</table>
+            </td></tr>
+          </table>
+          <p style="font-size:13px;color:#555;margin:0 0 24px;line-height:1.6;">
+            We&apos;d love to have you back. Browse our fleet whenever you&apos;re planning your next trip.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center">
+              <a href="{{site_url}}/vehicles" style="display:inline-block;background:#d4570a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:6px;text-decoration:none;">View Our Fleet &rarr;</a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:20px 36px;border-top:1px solid #e2e0d8;background:#f7f6f2;">
+          <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">{{site_name}} · Booking reference: {{booking_ref}}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+// ─── Default: Enquiry — Dates Now Available ──────────────────────────────────
+
+export const TEMPLATE_ENQUIRY_AVAILABLE = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Good News — Dates Now Available</title></head>
+<body style="margin:0;padding:0;background:#f0efe9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0efe9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e0d8;">
+        <tr>
+          <td style="background:#1a2235;padding:28px 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td>
+                <span style="display:inline-block;background:#d4570a;color:#fff;font-weight:800;font-size:13px;padding:4px 8px;border-radius:4px;">A</span>
+                <span style="color:#fff;font-weight:700;font-size:15px;margin-left:8px;vertical-align:middle;">{{site_name}}</span>
+              </td>
+              <td align="right">
+                <p style="color:rgba(255,255,255,0.4);font-size:11px;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Availability Update</p>
+                <p style="color:#d4570a;font-size:22px;font-weight:700;margin:4px 0 0 0;font-family:monospace;">{{booking_ref}}</p>
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+        <tr><td style="padding:32px 36px;">
+          <p style="margin:0 0 8px;font-size:15px;color:#1a1a1a;">Hi <strong>{{contact_name}}</strong>,</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.65;">
+            Great news! The dates you enquired about for the <strong>{{vehicle_name}}</strong> are now available.
+            If you&apos;re still interested, head to our website to make a booking before they fill up again.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f6f2;border-radius:8px;margin-bottom:24px;overflow:hidden;border:1px solid #e2e0d8;">
+            <tr><td style="padding:14px 18px;border-bottom:1px solid #e2e0d8;background:#f0efe9;">
+              <p style="margin:0;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.1em;">Your Enquiry</p>
+            </td></tr>
+            <tr><td style="padding:0 18px;">
+              <table width="100%" cellpadding="0" cellspacing="0">${row('Reference', '{{booking_ref}}')}${row('Vehicle', '{{vehicle_name}}')}${row('Start Date', '{{start_date}}')}${row('End Date', '{{end_date}}')}${row('Duration', '{{total_days}} days')}</table>
+            </td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center">
+              <a href="{{site_url}}/vehicles" style="display:inline-block;background:#d4570a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:6px;text-decoration:none;">Book Now &rarr;</a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:20px 36px;border-top:1px solid #e2e0d8;background:#f7f6f2;">
+          <p style="margin:0;font-size:12px;color:#aaa;text-align:center;">{{site_name}} · Enquiry reference: {{booking_ref}}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
 // ─── Template metadata ──────────────────────────────────────────────────────
 
 export const TEMPLATE_META = {
   booking_notification: {
     key: 'email_template_booking_notification',
     label: 'Booking Notification (Admin)',
-    description: 'Sent to the admin when a new booking is submitted.',
+    description: 'Sent to the admin notification email when a new booking is submitted.',
     default: TEMPLATE_BOOKING_NOTIFICATION,
   },
   customer_quote: {
     key: 'email_template_customer_quote',
     label: 'Customer Quote',
-    description: 'Sent to the customer when you update their quote.',
+    description: 'Sent to the customer when you update their quote from the booking detail page.',
     default: TEMPLATE_CUSTOMER_QUOTE,
+  },
+  booking_received: {
+    key: 'email_template_booking_received',
+    label: 'Booking Received (Customer)',
+    description: 'Sent to the customer immediately when their booking request is submitted.',
+    default: TEMPLATE_BOOKING_RECEIVED,
+  },
+  booking_confirmed: {
+    key: 'email_template_booking_confirmed',
+    label: 'Booking Confirmed (Customer + Admin)',
+    description: 'Sent to the customer and admin notification email when a booking status is set to confirmed.',
+    default: TEMPLATE_BOOKING_CONFIRMED,
+  },
+  reminder_24hr: {
+    key: 'email_template_reminder_24hr',
+    label: '24hr Reminder (Customer + Admin)',
+    description: 'Sent the day before the booking start date. Requires cron to be configured.',
+    default: TEMPLATE_REMINDER_24HR,
+  },
+  followup: {
+    key: 'email_template_followup',
+    label: 'Post-trip Follow-up (Customer + Admin)',
+    description: 'Sent the day after the booking end date. Requires cron to be configured.',
+    default: TEMPLATE_FOLLOWUP,
+  },
+  enquiry_available: {
+    key: 'email_template_enquiry_available',
+    label: 'Enquiry — Dates Now Available (Customer)',
+    description: 'Sent manually from an enquiry when you click "Notify Customer" to inform them their requested dates are now available.',
+    default: TEMPLATE_ENQUIRY_AVAILABLE,
   },
 } as const
 

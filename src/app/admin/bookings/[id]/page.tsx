@@ -7,6 +7,7 @@ import BookingDetailEditor from './BookingDetailEditor'
 import BookingNotes from './BookingNotes'
 import BookingDeleteButton from './BookingDeleteButton'
 import DriverAssigner from './DriverAssigner'
+import EnquiryManager from './EnquiryManager'
 import type { Metadata } from 'next'
 
 export const revalidate = 0
@@ -22,7 +23,7 @@ export default async function BookingDetailPage({ params }: Props) {
   const [booking, activeDrivers, notes] = await Promise.all([
     queryOne<{
       id: string; public_id: string; status: string; hire_type: string;
-      is_enquiry: number; start_date: string; end_date: string; total_days: number;
+      is_enquiry: number; enquiry_status: string | null; start_date: string; end_date: string; total_days: number;
       daily_rate: number; total_cost: number; contact_name: string | null;
       contact_email: string; contact_phone: string; driver_name: string | null;
       driver_dob: string | null; driver_licence_number: string | null;
@@ -80,18 +81,13 @@ export default async function BookingDetailPage({ params }: Props) {
       </div>
 
       <div className="space-y-5">
-        {/* Enquiry notice */}
+        {/* Enquiry management */}
         {isEnquiry && (
-          <div className="bg-purple-50 border border-purple-200 rounded-xl px-5 py-4 flex gap-3">
-            <span className="text-purple-500 text-xl flex-shrink-0">📋</span>
-            <div>
-              <p className="font-semibold text-purple-800 text-[14px] mb-0.5">Waitlist Enquiry</p>
-              <p className="text-[13px] text-purple-700">
-                The customer submitted this as an enquiry because their preferred dates were already booked.
-                Contact them if availability opens up.
-              </p>
-            </div>
-          </div>
+          <EnquiryManager
+            bookingId={booking.id}
+            vehicleName={booking.vehicle_name ?? 'Vehicle'}
+            enquiryStatus={booking.enquiry_status ?? 'new'}
+          />
         )}
 
         {/* Booking summary */}

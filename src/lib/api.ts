@@ -102,11 +102,17 @@ export async function getVehicle(slug: string): Promise<Vehicle> {
 // ─── Public: Availability ─────────────────────────────────────────────────────
 
 export async function getAvailability(vehicleId: string): Promise<AvailabilityRange[]> {
-  const bookings = await query<{ start_date: string; end_date: string }>(
-    "SELECT start_date, end_date FROM Booking WHERE vehicle_id = ? AND status IN ('pending', 'confirmed')",
-    [vehicleId]
-  )
-  return bookings.map((b) => ({ start: b.start_date, end: b.end_date }))
+  const [bookings, blockouts] = await Promise.all([
+    query<{ start_date: string; end_date: string }>(
+      "SELECT start_date, end_date FROM Booking WHERE vehicle_id = ? AND status IN ('pending', 'confirmed')",
+      [vehicleId]
+    ),
+    query<{ start_date: string; end_date: string }>(
+      "SELECT start_date, end_date FROM VehicleBlockout WHERE vehicle_id = ? OR vehicle_id IS NULL",
+      [vehicleId]
+    ),
+  ])
+  return [...bookings, ...blockouts].map((b) => ({ start: b.start_date, end: b.end_date }))
 }
 
 // ─── Admin: Vehicles ──────────────────────────────────────────────────────────
