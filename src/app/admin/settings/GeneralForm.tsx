@@ -29,6 +29,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function GeneralForm({ initial }: Props) {
+  const [siteUrl, setSiteUrl] = useState(initial.site_url ?? '')
   const [siteName, setSiteName] = useState(initial.site_name ?? '')
   const [adminName, setAdminName] = useState(initial.admin_name ?? '')
   const [driverName, setDriverName] = useState(initial.driver_name ?? '')
@@ -151,6 +152,16 @@ export default function GeneralForm({ initial }: Props) {
       </Card>
 
       <Card title="Business Details" description="Used in notification emails and other communications.">
+        <Field label="Site URL">
+          <input
+            className={inp}
+            type="url"
+            value={siteUrl}
+            onChange={(e) => setSiteUrl(e.target.value)}
+            placeholder="https://yourdomain.com"
+          />
+          <p className="text-[12px] text-ink-4">Used for OAuth redirects, email links, and QR codes. No trailing slash.</p>
+        </Field>
         <Field label="Business Name">
           <input
             className={inp}
@@ -169,7 +180,7 @@ export default function GeneralForm({ initial }: Props) {
           />
         </Field>
         <button
-          onClick={() => saveSettings({ business_name: businessName, contact_phone: contactPhone }, 'biz')}
+          onClick={() => saveSettings({ site_url: siteUrl.replace(/\/$/, ''), business_name: businessName, contact_phone: contactPhone }, 'biz')}
           disabled={saving === 'biz'}
           className="bg-accent text-white font-display font-bold text-[13.5px] px-5 py-2 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50">
           {saving === 'biz' ? 'Saving…' : 'Save'}

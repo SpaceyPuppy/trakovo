@@ -1,9 +1,14 @@
+import { queryOne } from '@/lib/db'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Booking App' }
+export const revalidate = 0
 
-export default function BookingAppPage() {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? ''
+export default async function BookingAppPage() {
+  const row = await queryOne<{ value: string }>(
+    "SELECT value FROM Setting WHERE `key` = 'site_url' LIMIT 1"
+  )
+  const siteUrl = (row?.value || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
   const bookingUrl = `${siteUrl}/book`
 
   return (
