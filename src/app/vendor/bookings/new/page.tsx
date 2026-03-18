@@ -8,7 +8,6 @@ interface Vehicle {
   id: string
   name: string
   description: string
-  chauffeur_price: number
   passengers: number
   transmission: string
   fuel: string
@@ -126,9 +125,6 @@ function StepService({
                           {v.passengers > 0 && <span>{v.passengers} pax</span>}
                           {v.transmission && <span>{v.transmission}</span>}
                         </div>
-                        <p className="mt-1.5 font-semibold text-[13px] text-ink">
-                          ${v.chauffeur_price.toFixed(2)}<span className="font-normal text-ink-3 text-[12px]"> / day</span>
-                        </p>
                       </div>
                     </button>
                   )
@@ -162,7 +158,6 @@ function StepDetails({
   onNext: () => void
 }) {
   const days = calcDays(form.start_date, form.end_date)
-  const total = days > 0 && vehicle ? days * vehicle.chauffeur_price : null
 
   function set(key: keyof DetailsForm, val: string) {
     onChange({ ...form, [key]: val })
@@ -261,27 +256,13 @@ function StepDetails({
               <span className="text-ink font-medium">{serviceName}</span>
             </div>
             <div className="flex justify-between text-ink-3">
-              <span>Rate</span>
-              <span>
-                {serviceType === 'vehicle' && vehicle
-                  ? `$${vehicle.chauffeur_price.toFixed(2)} / day`
-                  : serviceType === 'taxi' ? 'Metered' : 'Agreed rate'}
-              </span>
-            </div>
-            <div className="flex justify-between text-ink-3">
               <span>Duration</span>
               <span>{days > 0 ? `${days} day${days !== 1 ? 's' : ''}` : '—'}</span>
             </div>
           </div>
-          <div className="border-t border-border pt-3 flex justify-between items-baseline">
-            <span className="text-[12px] text-ink-3 font-semibold uppercase tracking-wide">Estimated total</span>
-            <span className="font-display font-extrabold text-[22px]">
-              {total != null ? `$${total.toFixed(2)}` : 'TBD'}
-            </span>
+          <div className="border-t border-border pt-3">
+            <p className="text-[12px] text-ink-4">Cost will be confirmed by our team after submission.</p>
           </div>
-          {serviceType !== 'vehicle' && (
-            <p className="text-[11.5px] text-ink-4">Final cost to be advised by our team after confirmation.</p>
-          )}
         </div>
       </div>
 
@@ -310,7 +291,6 @@ function StepReview({
   error: string
 }) {
   const days = calcDays(form.start_date, form.end_date)
-  const total = vehicle ? days * vehicle.chauffeur_price : null
   const selectedClient = clients.find(c => c.id === form.vendor_client_id)
   const serviceName = serviceType === 'taxi' ? 'Taxi (metered)' : serviceType === 'cpv' ? 'CPV (agreed rate)' : vehicle?.name ?? ''
 
@@ -330,7 +310,6 @@ function StepReview({
         <div className="px-5 py-4">
           <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-2">Service</p>
           {row('Type', serviceName)}
-          {serviceType === 'vehicle' && vehicle && row('Daily rate', `$${vehicle.chauffeur_price.toFixed(2)}`)}
         </div>
         <div className="px-5 py-4">
           <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-2">Dates</p>
@@ -357,12 +336,7 @@ function StepReview({
           )}
         </div>
         <div className="px-5 py-4 bg-bg/50">
-          <div className="flex justify-between items-baseline">
-            <span className="text-[13px] font-semibold text-ink-3">Estimated total</span>
-            {total != null
-              ? <span className="font-display font-extrabold text-[24px]">${total.toFixed(2)}</span>
-              : <span className="font-display font-bold text-[18px] text-ink-3">To be advised</span>}
-          </div>
+          <p className="text-[12.5px] text-ink-4">Cost will be confirmed by our team after submission — all bookings are billed to your account.</p>
         </div>
       </div>
 

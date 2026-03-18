@@ -2,17 +2,12 @@ import Link from 'next/link'
 import NavWrapper from '@/components/ui/NavWrapper'
 import Footer from '@/components/ui/Footer'
 import VehicleCard from '@/components/ui/VehicleCard'
+import ServicesPanel from './ServicesPanel'
 import { getVehicles } from '@/lib/api'
 import { queryOne } from '@/lib/db'
 import type { Vehicle } from '@/types'
 
 export const revalidate = 0 // ISR — revalidate every 60s
-
-const SERVICES = [
-  { icon: '🤵', title: 'Chauffeured Hire', desc: 'Professional drivers for executive travel, airports, and special events.' },
-  { icon: '🔑', title: 'Self-Drive (Dry Hire)', desc: 'Take the wheel on your own schedule with full day-to-day flexibility.' },
-  { icon: '🏢', title: 'Corporate & Events', desc: 'Tailored solutions for businesses, conferences, and group bookings.' },
-]
 
 export default async function HomePage() {
   let vehicles: Vehicle[] = []
@@ -39,28 +34,7 @@ export default async function HomePage() {
 
           {/* Right — services + CTA (25%) */}
           <div className="w-full md:w-1/4 bg-gradient-to-br from-[#1e2535] to-[#151b28] flex items-center justify-center px-6 py-10 md:py-16">
-            <div className="w-full space-y-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30 mb-4">Our Services</p>
-              {SERVICES.map(({ icon, title, desc }) => (
-                <div key={title} className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.09] rounded-xl px-4 py-3.5 text-white transition-colors">
-                  <div className="flex items-start gap-3">
-                    <span className="text-[20px] flex-shrink-0 mt-0.5">{icon}</span>
-                    <div>
-                      <p className="font-display font-bold text-[13px] mb-0.5">{title}</p>
-                      <p className="text-[11.5px] text-white/45 leading-[1.5]">{desc}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div className="flex flex-col gap-2 pt-2">
-                <Link href="/vehicles" className="bg-accent text-white font-semibold text-[13.5px] px-5 py-3 rounded-[6px] hover:bg-accent-dark transition-colors text-center">
-                  Book Now →
-                </Link>
-                <Link href="/vehicles" className="border border-white/20 text-white/75 font-medium text-[13.5px] px-5 py-3 rounded-[6px] hover:border-white/50 hover:text-white transition-all text-center">
-                  View Fleet
-                </Link>
-              </div>
-            </div>
+            <ServicesPanel compact />
           </div>
         </section>
       ) : (
@@ -100,20 +74,7 @@ export default async function HomePage() {
 
           {/* Right panel — Service highlights */}
           <div className="relative bg-gradient-to-br from-[#1e2535] to-[#151b28] flex items-center justify-center px-6 py-10 md:px-10 md:py-16">
-            <div className="w-full max-w-[340px] space-y-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30 mb-4">Our Services</p>
-              {SERVICES.map(({ icon, title, desc }) => (
-                <div key={title} className="bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.09] rounded-xl px-5 py-4 text-white transition-colors">
-                  <div className="flex items-start gap-3.5">
-                    <span className="text-[22px] flex-shrink-0 mt-0.5">{icon}</span>
-                    <div>
-                      <p className="font-display font-bold text-[14px] mb-1">{title}</p>
-                      <p className="text-[12px] text-white/45 leading-[1.55]">{desc}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ServicesPanel />
           </div>
         </section>
       )}

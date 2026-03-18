@@ -7,10 +7,10 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
   const rows = await query<{
-    id: string; name: string; description: string; chauffeur_price: number;
+    id: string; name: string; description: string;
     passengers: string; transmission: string; fuel: string;
   }>(
-    'SELECT v.id, v.name, v.description, v.chauffeur_price, v.passengers, v.transmission, v.fuel FROM VendorVehicle vv JOIN Vehicle v ON vv.vehicle_id = v.id WHERE vv.vendor_id = ? AND vv.is_enabled = 1 AND v.is_available = 1 ORDER BY v.name ASC',
+    'SELECT v.id, v.name, v.description, v.passengers, v.transmission, v.fuel FROM VendorVehicle vv JOIN Vehicle v ON vv.vehicle_id = v.id WHERE vv.vendor_id = ? AND vv.is_enabled = 1 AND v.is_available = 1 ORDER BY v.name ASC',
     [session.vendorId]
   )
 
@@ -24,7 +24,6 @@ export async function GET() {
     id: v.id,
     name: v.name,
     description: v.description,
-    chauffeur_price: v.chauffeur_price / 100,
     passengers: v.passengers,
     transmission: v.transmission,
     fuel: v.fuel,

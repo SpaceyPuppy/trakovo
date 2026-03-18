@@ -127,23 +127,27 @@ export default async function VendorBookingDetailPage({ params }: { params: { id
 
         {/* Sidebar */}
         <div className="space-y-5">
-          {/* Cost */}
+          {/* Cost — only shown once admin has set it */}
           <div className="bg-white border border-border rounded-xl p-5">
             <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-3">Cost</p>
-            {booking.daily_rate === 0 && !booking.vehicle_id ? (
-              <p className="text-[13.5px] text-ink-3">Cost to be advised — our team will confirm the rate for this trip.</p>
-            ) : (
+            {booking.total_cost > 0 ? (
               <div className="space-y-2 text-[13.5px]">
-                <div className="flex justify-between text-ink-3">
-                  <span>Daily rate</span><span>${dailyRateDollars.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-ink-3">
-                  <span>Days</span><span>{booking.total_days}</span>
-                </div>
+                {booking.daily_rate > 0 && (
+                  <>
+                    <div className="flex justify-between text-ink-3">
+                      <span>Daily rate</span><span>${dailyRateDollars.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-ink-3">
+                      <span>Days</span><span>{booking.total_days}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between font-bold text-ink border-t border-border pt-2 mt-2">
                   <span>Total</span><span className="text-[16px] font-display">${totalCostDollars.toFixed(2)}</span>
                 </div>
               </div>
+            ) : (
+              <p className="text-[13.5px] text-ink-3">Cost will be advised by our team — all bookings are billed to your account.</p>
             )}
           </div>
 
