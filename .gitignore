@@ -14,3 +14,9 @@ Thumbs.db
 
 # Local env (never commit — contains local-only secrets)
 .env.local
+
+# Release zips (build artefacts — don't commit)
+*.zip
+
+# Claude Code local settings
+.claude/
