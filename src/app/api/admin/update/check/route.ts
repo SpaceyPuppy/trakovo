@@ -13,9 +13,11 @@ export async function GET() {
   // Read current installed version from package.json on disk.
   // The bundle swap also replaces package.json, so this stays current.
   let currentVersion = 'unknown'
+  let currentBuildLabel = 'unknown'
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'))
     currentVersion = pkg.version ?? 'unknown'
+    currentBuildLabel = pkg.build_label ?? currentVersion
   } catch { /* ignore */ }
 
   try {
@@ -49,6 +51,7 @@ export async function GET() {
 
     return NextResponse.json({
       currentVersion,
+      currentBuildLabel,
       latestVersion,
       tag,
       releaseName,

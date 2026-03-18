@@ -5,12 +5,14 @@
 #   trakovo-vX.X.X.zip      — full release for fresh deployments
 #   next-bundle-vX.X.X.zip  — update bundle for admin Settings > Updates
 
-$version = (Get-Content package.json | ConvertFrom-Json).version
-$releaseZip = "trakovo-v$version.zip"
-$bundleZip = "next-bundle-v$version.zip"
+$pkg = Get-Content package.json | ConvertFrom-Json
+$version = $pkg.version
+$label = if ($pkg.build_label) { $pkg.build_label } else { $version }
+$releaseZip = "trakovo-v$label.zip"
+$bundleZip = "next-bundle-v$label.zip"
 $timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 
-Write-Host "Packaging Trakovo v$version..."
+Write-Host "Packaging Trakovo v$label..."
 
 # Sanity check
 if (-not (Test-Path ".next\BUILD_ID")) {
@@ -49,6 +51,7 @@ Remove-Item $tmpBundle -Recurse -Force
 Write-Host "  Created $bundleZip  ($([Math]::Round((Get-Item $bundleZip).Length / 1MB, 1)) MB)"
 
 Write-Host ""
+Write-Host ""
 Write-Host "Done. To release:"
-Write-Host "  git tag v$version && git push origin v$version"
-Write-Host "  gh release create v$version $releaseZip $bundleZip --notes 'Release v$version'"
+Write-Host "  git tag v$label && git push origin v$label"
+Write-Host "  gh release create v$label $releaseZip $bundleZip --title 'v$label' --notes 'Release v$label'"

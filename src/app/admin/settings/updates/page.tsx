@@ -23,16 +23,19 @@ export default function UpdatesPage() {
     } catch { /* ignore */ }
   }
 
-  // Read version from package.json — the bundle swap also updates this file
+  // Read version/label from package.json — the bundle swap also updates this file
   let version = 'unknown'
+  let buildLabel = 'unknown'
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(APP_ROOT, 'package.json'), 'utf-8'))
     version = pkg.version ?? 'unknown'
+    buildLabel = pkg.build_label ?? version
   } catch { /* ignore */ }
 
   return (
     <UpdatesCard
       version={version}
+      buildLabel={buildLabel}
       currentBuildId={currentBuildId}
       hasBackup={hasBackup}
       backupBuildId={backupBuildId}

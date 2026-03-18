@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 
 interface Props {
   version: string
+  buildLabel: string
   currentBuildId: string | null
   hasBackup: boolean
   backupBuildId: string | null
@@ -43,7 +44,7 @@ function formatDate(iso: string) {
   catch { return iso }
 }
 
-export default function UpdatesCard({ version, currentBuildId, hasBackup, backupBuildId }: Props) {
+export default function UpdatesCard({ version, buildLabel, currentBuildId, hasBackup, backupBuildId }: Props) {
   // Current build state
   const [deployedBuildId, setDeployedBuildId] = useState(currentBuildId)
   const [backupExists, setBackupExists] = useState(hasBackup)
@@ -172,7 +173,7 @@ export default function UpdatesCard({ version, currentBuildId, hasBackup, backup
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-[12px] text-ink-4 uppercase tracking-wider font-semibold mb-0.5">App version</p>
-            <p className="text-[15px] font-display font-bold text-ink">v{version}</p>
+            <p className="text-[15px] font-display font-bold text-ink">v{buildLabel}</p>
           </div>
           <div className="text-right">
             <p className="text-[12px] text-ink-4 uppercase tracking-wider font-semibold mb-0.5">Build ID</p>
@@ -199,14 +200,14 @@ export default function UpdatesCard({ version, currentBuildId, hasBackup, backup
         {release && (
           <div className={`rounded-[8px] border px-4 py-3 space-y-2 ${release.upToDate ? 'bg-success-bg border-success/30' : 'bg-blue-50 border-blue-200'}`}>
             {release.upToDate ? (
-              <p className="text-[13px] text-success font-semibold">You are on the latest version (v{release.latestVersion})</p>
+              <p className="text-[13px] text-success font-semibold">You are on the latest version (v{release.latestVersion ?? buildLabel})</p>
             ) : (
               <>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-[13px] font-semibold text-blue-900">Update available — {release.releaseName}</p>
                     <p className="text-[12px] text-blue-700 mt-0.5">
-                      v{version} → v{release.latestVersion} · Released {formatDate(release.publishedAt)}
+                      v{buildLabel} → v{release.latestVersion} · Released {formatDate(release.publishedAt)}
                     </p>
                   </div>
                   <a
