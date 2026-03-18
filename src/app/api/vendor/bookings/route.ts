@@ -119,10 +119,10 @@ export async function POST(req: Request) {
     created_at: booking!.created_at instanceof Date ? booking!.created_at.toISOString() : String(booking!.created_at),
   }
 
+  sendBookingNotification(response, serviceLabel).catch((err) =>
+    console.error('[email] Vendor booking notification failed', err)
+  )
   if (vehicle) {
-    sendBookingNotification(response, vehicle.name).catch((err) =>
-      console.error('[email] Vendor booking notification failed', err)
-    )
     syncBookingToCalendar(id).catch((err) =>
       console.error('[calendar] Vendor booking sync failed', err)
     )

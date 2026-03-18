@@ -44,7 +44,16 @@ export default function AdminNewBookingPage() {
   useEffect(() => {
     fetch('/api/admin/vehicles')
       .then(r => r.json())
-      .then((data: Vehicle[]) => setVehicles(data.filter(v => (v as unknown as { is_available: boolean }).is_available !== false)))
+      .then((data: (Vehicle & { day_rates: unknown })[]) => setVehicles(
+        data
+          .filter(v => (v as unknown as { is_available: boolean }).is_available !== false)
+          .map(v => ({
+            ...v,
+            day_rates: typeof v.day_rates === 'string'
+              ? (v.day_rates ? JSON.parse(v.day_rates) : [])
+              : (Array.isArray(v.day_rates) ? v.day_rates : []),
+          }))
+      ))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
