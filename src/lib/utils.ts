@@ -56,3 +56,22 @@ export function slugify(str: string): string {
 export function getVehicleImage(vehicle: { media: Array<{ url: string }> }): string | null {
   return vehicle.media?.[0]?.url ?? null
 }
+
+/**
+ * Returns the daily rate for a given hire type and number of days,
+ * applying day-range tier pricing if a matching tier exists.
+ * Falls back to the vehicle base price when no tier matches.
+ */
+export function getDailyRate(
+  vehicle: { price: number; chauffeur_price: number; day_rates: Array<{ days_from: number; days_to: number | null; price: number; chauffeur_price: number }> },
+  hireType: 'dry-hire' | 'chauffeured',
+  days: number
+): number {
+  const tier = vehicle.day_rates?.find(r =>
+    days >= r.days_from && (r.days_to === null || days <= r.days_to)
+  )
+  if (tier) {
+    return hireType === 'dry-hire' ? tier.price : tier.chauffeur_price
+  }
+  return hireType === 'dry-hire' ? vehicle.price : vehicle.chauffeur_price
+}

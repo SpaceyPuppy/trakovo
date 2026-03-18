@@ -7,7 +7,7 @@ import HireAgreementModal from './HireAgreementModal'
 import type { Clause } from '@/lib/hire-agreement-defaults'
 import type { Vehicle, AvailabilityRange, BookingFormState, TripLeg } from '@/types'
 import { freshBookingState } from '@/types'
-import { formatCurrency, diffDays, toISODate } from '@/lib/utils'
+import { formatCurrency, diffDays, toISODate, getDailyRate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 interface AlternativeVehicle {
@@ -80,7 +80,8 @@ export default function BookingPanel({ vehicle, availability, vehicleBasePath = 
 
   const isDual = vehicle.meta.hire_modes === 'both'
   const days = form.startDate && form.endDate ? diffDays(form.startDate, form.endDate) + 1 : 0
-  const rate = form.hireType === 'dry-hire' ? vehicle.price : vehicle.chauffeur_price
+  const hireTypeForRate = form.hireType === 'dry-hire' ? 'dry-hire' : 'chauffeured'
+  const rate = days > 0 ? getDailyRate(vehicle, hireTypeForRate, days) : (form.hireType === 'dry-hire' ? vehicle.price : vehicle.chauffeur_price)
   const total = days * rate
 
   // Age check for dry-hire

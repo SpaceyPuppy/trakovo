@@ -4,7 +4,7 @@ import { sendBookingNotification } from '@/lib/email'
 import { sendBookingReceived } from '@/lib/email-sequences'
 import { syncBookingToCalendar } from '@/lib/calendar'
 import { sendPushNotification } from '@/lib/push'
-import { diffDays } from '@/lib/utils'
+import { diffDays, getDailyRate } from '@/lib/utils'
 import type { BookingResponse } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const vehicle = await queryOne<{ id: string; name: string; price: number; chauffeur_price: number }>(
-      'SELECT id, name, price, chauffeur_price FROM Vehicle WHERE id = ? LIMIT 1',
+    const vehicle = await queryOne<{ id: string; name: string; price: number; chauffeur_price: number; day_rates: string | null }>(
+      'SELECT id, name, price, chauffeur_price, day_rates FROM Vehicle WHERE id = ? LIMIT 1',
       [product_id]
     )
     if (!vehicle) return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 })
@@ -31,7 +31,16 @@ export async function POST(req: NextRequest) {
     const start = new Date(start_date)
     const end = new Date(end_date)
     const total_days = diffDays(start, end) + 1
-    const daily_rate = resolvedHireType === 'dry-hire' ? vehicle.price : vehicle.chauffeur_price
+
+    // Parse day_rates and apply tiered pricing if a tier matches
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsedDayRates: any[] = vehicle.day_rates ? JSON.parse(vehicle.day_rates) : []
+    const vehicleForRate = {
+      price: vehicle.price,
+      chauffeur_price: vehicle.chauffeur_price,
+      day_rates: parsedDayRates.map((r) => ({ ...r, price: r.price, chauffeur_price: r.chauffeur_price })),
+    }
+    const daily_rate = getDailyRate(vehicleForRate, resolvedHireType, total_days)
     const total_cost = total_days * daily_rate
 
     const public_id = await generatePublicId('VHB')
