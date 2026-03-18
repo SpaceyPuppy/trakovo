@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Calendar from './Calendar'
 import HireAgreementModal from './HireAgreementModal'
+import type { Clause } from '@/lib/hire-agreement-defaults'
 import type { Vehicle, AvailabilityRange, BookingFormState, TripLeg } from '@/types'
 import { freshBookingState } from '@/types'
 import { formatCurrency, diffDays, toISODate } from '@/lib/utils'
@@ -23,6 +24,7 @@ interface Props {
   vehicle: Vehicle
   availability: AvailabilityRange[]
   vehicleBasePath?: string
+  hireAgreementClauses: Clause[]
 }
 
 function hasConflict(start: Date, end: Date, ranges: AvailabilityRange[]): boolean {
@@ -59,7 +61,7 @@ function buildTripDetails(form: BookingFormState): string | undefined {
   return JSON.stringify({ legs, passengerCount: form.passengerCount, tripPurpose: form.tripPurpose })
 }
 
-export default function BookingPanel({ vehicle, availability, vehicleBasePath = '/vehicles' }: Props) {
+export default function BookingPanel({ vehicle, availability, vehicleBasePath = '/vehicles', hireAgreementClauses }: Props) {
   const router = useRouter()
   const [form, setForm] = useState<BookingFormState>(() => {
     const s = freshBookingState()
@@ -563,6 +565,7 @@ export default function BookingPanel({ vehicle, availability, vehicleBasePath = 
         open={agreementOpen}
         onAccept={() => { update({ agreed: true }); setAgreementOpen(false) }}
         onClose={() => setAgreementOpen(false)}
+        clauses={hireAgreementClauses}
       />
     </>
   )

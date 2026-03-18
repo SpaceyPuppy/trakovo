@@ -5,6 +5,7 @@ import BookingPanel from '@/components/booking/BookingPanel'
 import { queryOne } from '@/lib/db'
 import { getVehicle, getAvailability } from '@/lib/api'
 import { getSiteName } from '@/lib/site'
+import { parseHireAgreement } from '@/lib/hire-agreement-defaults'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import type { Metadata } from 'next'
 
@@ -28,10 +29,16 @@ export default async function BookVehiclePage({ params }: Props) {
     availability = await getAvailability(vehicle.id).catch(() => [])
   } catch { notFound() }
 
+  let hireAgreementClauses
   try {
-    const logo = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])
+    const [logo, agreement] = await Promise.all([
+      queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'logo_path' LIMIT 1"),
+      queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'hire_agreement' LIMIT 1"),
+    ])
     if (logo?.value) logoUrl = '/api/logo'
-  } catch { /* no logo */ }
+    hireAgreementClauses = parseHireAgreement(agreement?.value)
+  } catch { /* use defaults */ }
+  if (!hireAgreementClauses) hireAgreementClauses = parseHireAgreement(null)
 
   const img = getVehicleImage(vehicle)
   const isDual = vehicle.meta.hire_modes === 'both'
@@ -110,7 +117,7 @@ export default async function BookVehiclePage({ params }: Props) {
 
       {/* Booking panel */}
       <div className="px-4 pt-5 pb-10 flex-1 bg-bg">
-        <BookingPanel vehicle={vehicle} availability={availability} vehicleBasePath="/book" />
+        <BookingPanel vehicle={vehicle} availability={availability} vehicleBasePath="/book" hireAgreementClauses={hireAgreementClauses} />
       </div>
     </div>
   )

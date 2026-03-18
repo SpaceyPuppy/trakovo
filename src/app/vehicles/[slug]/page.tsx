@@ -5,6 +5,8 @@ import Footer from '@/components/ui/Footer'
 import BookingPanel from '@/components/booking/BookingPanel'
 import { getVehicle, getAvailability } from '@/lib/api'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
+import { queryOne } from '@/lib/db'
+import { parseHireAgreement } from '@/lib/hire-agreement-defaults'
 import type { Metadata } from 'next'
 
 interface Props { params: { slug: string } }
@@ -24,6 +26,9 @@ export default async function VehicleDetailPage({ params }: Props) {
     vehicle = await getVehicle(params.slug)
     availability = await getAvailability(vehicle.id).catch(() => [])
   } catch { notFound() }
+
+  const agreementRow = await queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'hire_agreement' LIMIT 1").catch(() => null)
+  const hireAgreementClauses = parseHireAgreement(agreementRow?.value)
 
   const img = getVehicleImage(vehicle)
   const isDual = vehicle.meta.hire_modes === 'both'
@@ -106,7 +111,7 @@ export default async function VehicleDetailPage({ params }: Props) {
           </div>
 
           {/* Booking panel */}
-          <BookingPanel vehicle={vehicle} availability={availability} />
+          <BookingPanel vehicle={vehicle} availability={availability} hireAgreementClauses={hireAgreementClauses} />
         </div>
       </main>
       <Footer />

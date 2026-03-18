@@ -16,8 +16,17 @@ export default async function VendorBookingsPage() {
     vehicle_name?: string; vendor_client_name?: string;
     [k: string]: unknown
   }>(
-    'SELECT b.*, v.name as vehicle_name, vc.name as vendor_client_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.vendor_id = ? ORDER BY b.created_at DESC',
-    [session.vendorId]
+    `SELECT b.*, v.name as vehicle_name, vc.name as vendor_client_name
+     FROM Booking b
+     LEFT JOIN Vehicle v ON b.vehicle_id = v.id
+     LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id
+     WHERE b.vendor_id = ?
+        OR b.vehicle_id IN (
+          SELECT vehicle_id FROM VendorVehicle WHERE vendor_id = ? AND is_enabled = 1
+        )
+     GROUP BY b.id
+     ORDER BY b.created_at DESC`,
+    [session.vendorId, session.vendorId]
   )
   const bookings = rows.map(b => ({
     ...b,

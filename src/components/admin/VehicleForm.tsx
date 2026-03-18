@@ -15,7 +15,7 @@ const empty: VehicleFormData = {
   name: '', description: '', price: 0, price_poa: false,
   chauffeur_price: 0, chauffeur_price_poa: false, day_rates: [],
   hire_modes: 'chauffeured_only', passengers: '', transmission: 'Automatic', fuel: 'Petrol',
-  is_available: true, images: [],
+  is_available: true, public_bookings_enabled: true, vendor_bookings_enabled: true, images: [],
 }
 
 export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode }: Props) {
@@ -63,6 +63,8 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
       description: form.description,
       price: chauffeurOnly ? 0 : Math.round(form.price * 100),
       is_available: form.is_available,
+      public_bookings_enabled: form.public_bookings_enabled,
+      vendor_bookings_enabled: form.vendor_bookings_enabled,
       images: form.images,
       // only send custom public_id if user explicitly edited it
       ...(mode === 'create' && publicIdDirty ? { public_id: publicId } : {}),
@@ -318,14 +320,29 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
       </Card>
 
       {/* Availability */}
-      <Card title="Availability">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <div onClick={() => up({ is_available: !form.is_available })}
-            className={cn('w-10 h-6 rounded-full transition-colors relative', form.is_available ? 'bg-success' : 'bg-border-2')}>
-            <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', form.is_available ? 'left-[18px]' : 'left-0.5')} />
+      <Card title="Availability & Visibility">
+        <div className="space-y-3">
+          <Toggle
+            on={form.is_available}
+            onToggle={() => up({ is_available: !form.is_available })}
+            label="Vehicle is active"
+            sub="Master switch — when off, vehicle is hidden everywhere regardless of other settings."
+          />
+          <div className={cn('pl-4 border-l-2 border-border space-y-3 transition-opacity', !form.is_available && 'opacity-40 pointer-events-none')}>
+            <Toggle
+              on={form.public_bookings_enabled}
+              onToggle={() => up({ public_bookings_enabled: !form.public_bookings_enabled })}
+              label="Visible on public site"
+              sub="Show this vehicle on the public fleet page and allow direct online bookings."
+            />
+            <Toggle
+              on={form.vendor_bookings_enabled}
+              onToggle={() => up({ vendor_bookings_enabled: !form.vendor_bookings_enabled })}
+              label="Available to vendors"
+              sub="Allow assigned vendors to see and book this vehicle via their portal."
+            />
           </div>
-          <span className="text-[14px] font-medium">{form.is_available ? 'Available for booking' : 'Not available'}</span>
-        </label>
+        </div>
       </Card>
 
       <div className="flex items-center gap-3 pt-2">
@@ -372,6 +389,21 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
       </div>
       <div className="px-6 py-5 space-y-4">{children}</div>
     </div>
+  )
+}
+
+function Toggle({ on, onToggle, label, sub }: { on: boolean; onToggle: () => void; label: string; sub?: string }) {
+  return (
+    <label className="flex items-start gap-3 cursor-pointer">
+      <div onClick={onToggle}
+        className={cn('w-10 h-6 rounded-full transition-colors relative flex-shrink-0 mt-0.5', on ? 'bg-success' : 'bg-border-2')}>
+        <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', on ? 'left-[18px]' : 'left-0.5')} />
+      </div>
+      <div>
+        <p className="text-[14px] font-medium leading-snug">{label}</p>
+        {sub && <p className="text-[12px] text-ink-4 mt-0.5">{sub}</p>}
+      </div>
+    </label>
   )
 }
 

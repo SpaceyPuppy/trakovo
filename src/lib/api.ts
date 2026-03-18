@@ -41,6 +41,8 @@ function dbVehicleToVehicle(row: Row, media: Row[]): Vehicle {
       chauffeur_price: row.chauffeur_price / 100,
     },
     is_available: Boolean(row.is_available),
+    public_bookings_enabled: row.public_bookings_enabled === undefined ? true : Boolean(row.public_bookings_enabled),
+    vendor_bookings_enabled: row.vendor_bookings_enabled === undefined ? true : Boolean(row.vendor_bookings_enabled),
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   }
@@ -90,7 +92,7 @@ function dbBookingToResponse(b: Row): BookingResponse {
 // ─── Public: Vehicles ─────────────────────────────────────────────────────────
 
 export async function getVehicles(): Promise<Vehicle[]> {
-  return vehiclesWithMedia('is_available = 1', [])
+  return vehiclesWithMedia('is_available = 1 AND public_bookings_enabled = 1', [])
 }
 
 export async function getVehicle(slug: string): Promise<Vehicle> {

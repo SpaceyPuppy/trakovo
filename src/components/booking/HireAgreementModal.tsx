@@ -1,12 +1,14 @@
 'use client'
+import type { Clause } from '@/lib/hire-agreement-defaults'
 
 interface Props {
   open: boolean
   onAccept: () => void
   onClose: () => void
+  clauses: Clause[]
 }
 
-export default function HireAgreementModal({ open, onAccept, onClose }: Props) {
+export default function HireAgreementModal({ open, onAccept, onClose, clauses }: Props) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 animate-fade-up">
@@ -16,18 +18,10 @@ export default function HireAgreementModal({ open, onAccept, onClose }: Props) {
           <button onClick={onClose} className="w-7 h-7 rounded-md flex items-center justify-center text-ink-4 hover:bg-bg hover:text-ink transition-all text-base">✕</button>
         </div>
         <div className="px-6 py-5 overflow-y-auto flex-1 text-[13.5px] text-ink-2 leading-relaxed space-y-4">
-          {[
-            ['1. Hirer Requirements', 'The Hirer must hold a current and valid Australian driver\'s licence appropriate for the class of vehicle. The Hirer must be at least 21 years of age and present valid photo ID at the time of vehicle collection.'],
-            ['2. Authorised Drivers', 'The vehicle may only be driven by the nominated Hirer. Any additional drivers must be declared in advance and approved in writing by the operator.'],
-            ['3. Permitted Use', 'The vehicle must not be used for any unlawful purpose, racing, off-road driving, driver instruction, or to carry more passengers than the vehicle is rated for.'],
-            ['4. Damage & Excess', 'The Hirer is responsible for all damage occurring during the hire period. A damage excess of $2,500 applies per incident.'],
-            ['5. Fuel', 'Vehicles are provided with a full tank and must be returned full. A refuelling fee of $2.50/L plus a $40 admin fee applies if returned below full.'],
-            ['6. Late Returns', 'The vehicle must be returned by the agreed date and time. Late returns are charged at the full daily rate per day or part thereof.'],
-            ['7. Cancellation', 'Cancellations more than 48 hours prior to hire start receive a full refund. Cancellations within 48 hours forfeit the deposit.'],
-          ].map(([title, body]) => (
-            <div key={title}>
-              <h4 className="font-display font-bold text-[14px] text-ink mb-1">{title}</h4>
-              <p>{body}</p>
+          {clauses.map((clause) => (
+            <div key={clause.title}>
+              <h4 className="font-display font-bold text-[14px] text-ink mb-1">{clause.title}</h4>
+              <p>{clause.body}</p>
             </div>
           ))}
         </div>

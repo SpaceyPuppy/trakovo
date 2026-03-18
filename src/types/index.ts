@@ -42,6 +42,8 @@ export interface Vehicle {
   }
   tags?: string[]
   is_available: boolean
+  public_bookings_enabled: boolean
+  vendor_bookings_enabled: boolean
   created_at: string
   updated_at: string
 }
@@ -141,6 +143,8 @@ export interface VehicleFormData {
   transmission: string
   fuel: string
   is_available: boolean
+  public_bookings_enabled: boolean
+  vendor_bookings_enabled: boolean
   images: string[]
 }
 

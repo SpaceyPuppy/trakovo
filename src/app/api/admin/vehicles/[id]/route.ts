@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, { params }: Context) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {
     const body = await req.json()
-    const { name, description, price, is_available, images, meta } = body
+    const { name, description, price, is_available, public_bookings_enabled, vendor_bookings_enabled, images, meta } = body
 
     // Replace all media (delete + recreate)
     await execute('DELETE FROM VehicleMedia WHERE vehicle_id = ?', [params.id])
@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest, { params }: Context) {
     const dayRates = Array.isArray(meta?.day_rates) ? JSON.stringify(meta.day_rates) : null
 
     await execute(
-      `UPDATE Vehicle SET name = ?, description = ?, price = ?, chauffeur_price = ?, price_poa = ?, chauffeur_price_poa = ?, day_rates = ?, hire_modes = ?, passengers = ?, transmission = ?, fuel = ?, is_available = ?, updated_at = NOW() WHERE id = ?`,
+      `UPDATE Vehicle SET name = ?, description = ?, price = ?, chauffeur_price = ?, price_poa = ?, chauffeur_price_poa = ?, day_rates = ?, hire_modes = ?, passengers = ?, transmission = ?, fuel = ?, is_available = ?, public_bookings_enabled = ?, vendor_bookings_enabled = ?, updated_at = NOW() WHERE id = ?`,
       [
         name as string,
         (description as string) ?? '',
@@ -31,6 +31,8 @@ export async function PUT(req: NextRequest, { params }: Context) {
         (meta?.transmission as string) ?? 'Automatic',
         (meta?.fuel as string) ?? 'Petrol',
         Boolean(is_available) ? 1 : 0,
+        public_bookings_enabled === false ? 0 : 1,
+        vendor_bookings_enabled === false ? 0 : 1,
         params.id,
       ]
     )

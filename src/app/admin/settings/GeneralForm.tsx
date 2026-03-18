@@ -37,10 +37,12 @@ export default function GeneralForm({ initial }: Props) {
   const [businessName, setBusinessName] = useState(initial.business_name ?? '')
   const [contactPhone, setContactPhone] = useState(initial.contact_phone ?? '')
   const [logoUrl, setLogoUrl] = useState<string | null>(initial.logo_path ? '/api/logo' : null)
+  const [heroUrl, setHeroUrl] = useState<string | null>(initial.hero_image_path ? '/api/hero' : null)
   const [saving, setSaving] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const heroInputRef = useRef<HTMLInputElement>(null)
 
   function flash(msg: string, type: 'success' | 'error') {
     if (type === 'success') { setSuccess(msg); setError(null) }
@@ -84,6 +86,32 @@ export default function GeneralForm({ initial }: Props) {
       await fetch('/api/admin/settings/logo', { method: 'DELETE' })
       setLogoUrl(null)
       flash('Logo removed', 'success')
+    } catch {
+      flash('Remove failed', 'error')
+    } finally { setSaving(null) }
+  }
+
+  async function handleHeroUpload(file: File) {
+    setSaving('hero')
+    try {
+      const fd = new FormData()
+      fd.append('hero', file)
+      const res = await fetch('/api/admin/settings/hero', { method: 'POST', body: fd })
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? 'Upload failed') }
+      setHeroUrl(`/api/hero?t=${Date.now()}`)
+      flash('Hero image uploaded', 'success')
+    } catch (e: unknown) {
+      flash(e instanceof Error ? e.message : 'Upload failed', 'error')
+    } finally { setSaving(null) }
+  }
+
+  async function handleHeroRemove() {
+    if (!confirm('Remove the hero image?')) return
+    setSaving('hero')
+    try {
+      await fetch('/api/admin/settings/hero', { method: 'DELETE' })
+      setHeroUrl(null)
+      flash('Hero image removed', 'success')
     } catch {
       flash('Remove failed', 'error')
     } finally { setSaving(null) }
@@ -228,6 +256,49 @@ export default function GeneralForm({ initial }: Props) {
           }}
         />
         {saving === 'logo' && <p className="text-[12.5px] text-ink-3">Uploading…</p>}
+      </Card>
+
+      <Card title="Hero Image" description="Full-width image shown on the homepage. When set, replaces the dark gradient hero with your photo. Accepts PNG, JPG, or WebP.">
+        {heroUrl ? (
+          <div className="space-y-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={heroUrl} alt="Current hero" className="w-full max-h-[200px] object-cover rounded-[8px] border border-border" />
+            <div className="flex gap-2">
+              <button
+                onClick={() => heroInputRef.current?.click()}
+                disabled={saving === 'hero'}
+                className="border border-border text-ink-3 font-medium text-[13px] px-4 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-all disabled:opacity-50">
+                Replace
+              </button>
+              <button
+                onClick={handleHeroRemove}
+                disabled={saving === 'hero'}
+                className="border border-red-200 text-red-600 font-medium text-[13px] px-4 py-2 rounded-[6px] hover:bg-red-50 transition-all disabled:opacity-50">
+                {saving === 'hero' ? 'Removing…' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="border-2 border-dashed border-border rounded-[8px] p-8 text-center cursor-pointer hover:border-ink-3 transition-colors"
+            onClick={() => heroInputRef.current?.click()}>
+            <p className="text-[24px] mb-2">🌄</p>
+            <p className="text-[13.5px] font-medium text-ink-3">Click to upload hero image</p>
+            <p className="text-[12px] text-ink-4 mt-1">PNG, JPG, or WebP · Wide landscape recommended</p>
+          </div>
+        )}
+        <input
+          ref={heroInputRef}
+          type="file"
+          accept=".png,.jpg,.jpeg,.webp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) handleHeroUpload(file)
+            e.target.value = ''
+          }}
+        />
+        {saving === 'hero' && <p className="text-[12.5px] text-ink-3">Uploading…</p>}
       </Card>
     </div>
   )

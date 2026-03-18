@@ -1,15 +1,19 @@
 import { queryOne } from '@/lib/db'
+import { parseHireAgreement } from '@/lib/hire-agreement-defaults'
+import HireAgreementEditor from './HireAgreementEditor'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Booking App' }
 export const revalidate = 0
 
 export default async function BookingAppPage() {
-  const row = await queryOne<{ value: string }>(
-    "SELECT value FROM Setting WHERE `key` = 'site_url' LIMIT 1"
-  )
-  const siteUrl = (row?.value || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
+  const [siteUrlRow, agreementRow] = await Promise.all([
+    queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'site_url' LIMIT 1"),
+    queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'hire_agreement' LIMIT 1"),
+  ])
+  const siteUrl = (siteUrlRow?.value || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
   const bookingUrl = `${siteUrl}/book`
+  const clauses = parseHireAgreement(agreementRow?.value)
 
   return (
     <div className="space-y-6">
@@ -20,12 +24,10 @@ export default async function BookingAppPage() {
         </div>
         <div className="px-6 py-5">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
-            {/* QR code */}
             <div className="flex-shrink-0 border border-border rounded-xl p-3 bg-white inline-block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/api/admin/qr" alt="Mobile booking QR code" width={160} height={160} className="block" />
             </div>
-            {/* Instructions */}
             <div className="space-y-3 flex-1">
               <div>
                 <p className="text-[12px] font-semibold text-ink-3 uppercase tracking-wider mb-1.5">Booking URL</p>
@@ -55,6 +57,16 @@ export default async function BookingAppPage() {
               </a>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-border rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-bg">
+          <h3 className="font-display font-bold text-[14px]">Vehicle Hire Agreement</h3>
+          <p className="text-[12.5px] text-ink-3 mt-0.5">Shown to customers during dry-hire bookings. Changes take effect immediately.</p>
+        </div>
+        <div className="px-6 py-5">
+          <HireAgreementEditor initial={clauses} />
         </div>
       </div>
     </div>

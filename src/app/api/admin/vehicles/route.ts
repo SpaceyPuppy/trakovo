@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {
     const body = await req.json()
-    const { name, description, price, is_available, images, meta, public_id: customPublicId } = body
+    const { name, description, price, is_available, public_bookings_enabled, vendor_bookings_enabled, images, meta, public_id: customPublicId } = body
 
     if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 
@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
     const dayRates = Array.isArray(meta?.day_rates) ? JSON.stringify(meta.day_rates) : null
 
     await execute(
-      `INSERT INTO Vehicle (id, public_id, slug, name, description, price, chauffeur_price, price_poa, chauffeur_price_poa, day_rates, currency, hire_modes, passengers, transmission, fuel, is_available, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      `INSERT INTO Vehicle (id, public_id, slug, name, description, price, chauffeur_price, price_poa, chauffeur_price_poa, day_rates, currency, hire_modes, passengers, transmission, fuel, is_available, public_bookings_enabled, vendor_bookings_enabled, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         id, public_id, slug, name as string,
         (description as string) ?? '',
@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
         (meta?.transmission as string) ?? 'Automatic',
         (meta?.fuel as string) ?? 'Petrol',
         Boolean(is_available) ? 1 : 0,
+        public_bookings_enabled === false ? 0 : 1,
+        vendor_bookings_enabled === false ? 0 : 1,
       ]
     )
 

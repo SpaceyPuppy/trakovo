@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import VehicleForm from '@/components/admin/VehicleForm'
 import BlockoutManager from '@/components/admin/BlockoutManager'
+import VendorAccessManager from '@/components/admin/VendorAccessManager'
 import { adminGetVehicle } from '@/lib/api'
 import type { Metadata } from 'next'
 
@@ -27,6 +28,8 @@ export default async function EditVehiclePage({ params }: Props) {
     transmission: vehicle.meta.transmission ?? 'Automatic',
     fuel: vehicle.meta.fuel ?? 'Petrol',
     is_available: vehicle.is_available,
+    public_bookings_enabled: vehicle.public_bookings_enabled,
+    vendor_bookings_enabled: vehicle.vendor_bookings_enabled,
     images: vehicle.media.map(m => m.url),
   }
 
@@ -38,6 +41,9 @@ export default async function EditVehiclePage({ params }: Props) {
       <VehicleForm mode="edit" vehicleId={vehicle.id} publicIdDisplay={vehicle.public_id} initial={initial} />
       <div className="mt-8">
         <BlockoutManager vehicleId={vehicle.id} />
+      </div>
+      <div className="mt-8 max-w-[720px]">
+        <VendorAccessManager vehicleId={vehicle.id} />
       </div>
     </div>
   )

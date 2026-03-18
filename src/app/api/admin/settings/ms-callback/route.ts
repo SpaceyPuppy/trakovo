@@ -53,7 +53,9 @@ export async function GET(req: NextRequest) {
   if (!tokenRes.ok) {
     const err = await tokenRes.text()
     console.error('[ms-callback] Token exchange failed:', err)
-    return NextResponse.redirect(`${origin}/admin/settings?error=token_exchange_failed`)
+    let errCode = 'token_exchange_failed'
+    try { const j = JSON.parse(err); errCode = j.error_description ?? j.error ?? errCode } catch { /* ignore */ }
+    return NextResponse.redirect(`${origin}/admin/settings?error=${encodeURIComponent(errCode)}`)
   }
 
   const tokens = await tokenRes.json()
