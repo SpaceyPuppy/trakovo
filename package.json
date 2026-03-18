@@ -1,7 +1,7 @@
 {
   "name": "trakovo",
   "version": "1.5.6",
-  "build_label": "1.5.6",
+  "build_label": "1.5.6a",
   "private": true,
   "engines": {
     "node": ">=18.17.0"

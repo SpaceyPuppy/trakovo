@@ -58,7 +58,7 @@ export default async function HomePage() {
               <Link href="/vehicles" className="bg-accent text-white font-semibold text-[14px] px-7 py-3.5 rounded-[6px] hover:bg-accent-dark hover:-translate-y-px hover:shadow-lg transition-all inline-flex items-center gap-2">
                 Book Now →
               </Link>
-              <Link href="/vehicles" className="border border-white/20 text-white/75 font-medium text-[14px] px-6 py-3.5 rounded-[6px] hover:border-white/50 hover:text-white transition-all">
+              <Link href="/vehicles" className="bg-emerald-700 text-white font-medium text-[14px] px-6 py-3.5 rounded-[6px] hover:bg-emerald-600 transition-colors">
                 View Fleet
               </Link>
             </div>

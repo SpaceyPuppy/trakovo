@@ -65,7 +65,7 @@ export default function ServicesPanel({ compact = false }: Props) {
         </Link>
         <Link
           href="/vehicles"
-          className="border border-white/20 text-white/75 font-medium text-center rounded-[6px] hover:border-white/50 hover:text-white transition-all px-5 py-3"
+          className="bg-emerald-700 text-white font-medium text-center rounded-[6px] hover:bg-emerald-600 transition-colors px-5 py-3"
         >
           View Fleet
         </Link>
