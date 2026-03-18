@@ -10,8 +10,8 @@ const filters = [
   { key: 'selfdrive', label: 'Self-Drive Available' },
 ]
 
-export default function FleetGrid({ vehicles }: { vehicles: Vehicle[] }) {
-  const [active, setActive] = useState('all')
+export default function FleetGrid({ vehicles, initialFilter = 'all' }: { vehicles: Vehicle[]; initialFilter?: string }) {
+  const [active, setActive] = useState(initialFilter)
 
   const filtered = vehicles.filter(v => {
     if (active === 'chauffeur') return v.meta.hire_modes === 'chauffeured_only'

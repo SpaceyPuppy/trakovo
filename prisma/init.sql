@@ -251,3 +251,20 @@ ALTER TABLE `Vehicle`
   ADD COLUMN IF NOT EXISTS `public_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_available`,
   ADD COLUMN IF NOT EXISTS `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `public_bookings_enabled`,
   ADD COLUMN IF NOT EXISTS `licence_category` VARCHAR(10) NOT NULL DEFAULT '' AFTER `fuel`;
+
+CREATE TABLE IF NOT EXISTS `CorporateEnquiry` (
+  `id` VARCHAR(191) NOT NULL,
+  `public_id` VARCHAR(191) NOT NULL,
+  `name` VARCHAR(191) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `phone` VARCHAR(50) NULL,
+  `organisation` VARCHAR(191) NULL,
+  `event_type` VARCHAR(100) NULL,
+  `guests` VARCHAR(50) NULL,
+  `message` TEXT NOT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'new',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `CorporateEnquiry_public_id_unique` (`public_id`),
+  INDEX `CorporateEnquiry_status_idx` (`status`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

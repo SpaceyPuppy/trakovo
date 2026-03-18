@@ -33,7 +33,7 @@ export function newId(): string {
 }
 
 export async function generatePublicId(
-  prefix: 'VHB' | 'VHC' | 'VND' | 'VNC' | 'VNE' | 'DRV'
+  prefix: 'VHB' | 'VHC' | 'VND' | 'VNC' | 'VNE' | 'DRV' | 'CRQ'
 ): Promise<string> {
   const tableMap: Record<string, string> = {
     VHB: 'Booking',
@@ -42,6 +42,7 @@ export async function generatePublicId(
     VNC: 'VendorClient',
     VNE: 'VendorEnquiry',
     DRV: 'Driver',
+    CRQ: 'CorporateEnquiry',
   }
   const table = tableMap[prefix]
   const row = await queryOne<{ max_num: number | null }>(
