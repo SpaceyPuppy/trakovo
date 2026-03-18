@@ -38,6 +38,7 @@ function dbVehicleToVehicle(row: Row, media: Row[]): Vehicle {
       passengers: row.passengers,
       transmission: row.transmission,
       fuel: row.fuel,
+      licence_category: row.licence_category ?? '',
       chauffeur_price: row.chauffeur_price / 100,
     },
     is_available: Boolean(row.is_available),

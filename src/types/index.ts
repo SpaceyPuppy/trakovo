@@ -38,6 +38,7 @@ export interface Vehicle {
     passengers?: string | number
     transmission?: string
     fuel?: string
+    licence_category?: string
     chauffeur_price?: number
   }
   tags?: string[]
@@ -142,6 +143,7 @@ export interface VehicleFormData {
   passengers: string
   transmission: string
   fuel: string
+  licence_category: string
   is_available: boolean
   public_bookings_enabled: boolean
   vendor_bookings_enabled: boolean

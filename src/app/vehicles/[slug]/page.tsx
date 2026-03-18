@@ -77,6 +77,7 @@ export default async function VehicleDetailPage({ params }: Props) {
                 ['Passengers', vehicle.meta.passengers],
                 ['Transmission', vehicle.meta.transmission],
                 ['Fuel', vehicle.meta.fuel],
+                ['Licence Required', vehicle.meta.licence_category],
               ].filter(([, v]) => !!v).map(([label, val]) => (
                 <div key={label} className="bg-white px-4 py-4">
                   <p className="text-[11px] font-semibold text-ink-4 uppercase tracking-wider mb-1">{label}</p>

@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
     const dayRates = Array.isArray(meta?.day_rates) ? JSON.stringify(meta.day_rates) : null
 
     await execute(
-      `INSERT INTO Vehicle (id, public_id, slug, name, description, price, chauffeur_price, price_poa, chauffeur_price_poa, day_rates, currency, hire_modes, passengers, transmission, fuel, is_available, public_bookings_enabled, vendor_bookings_enabled, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      `INSERT INTO Vehicle (id, public_id, slug, name, description, price, chauffeur_price, price_poa, chauffeur_price_poa, day_rates, currency, hire_modes, passengers, transmission, fuel, licence_category, is_available, public_bookings_enabled, vendor_bookings_enabled, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         id, public_id, slug, name as string,
         (description as string) ?? '',
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
         (meta?.passengers as string) ?? '',
         (meta?.transmission as string) ?? 'Automatic',
         (meta?.fuel as string) ?? 'Petrol',
+        (meta?.licence_category as string) ?? '',
         Boolean(is_available) ? 1 : 0,
         public_bookings_enabled === false ? 0 : 1,
         vendor_bookings_enabled === false ? 0 : 1,

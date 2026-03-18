@@ -249,4 +249,5 @@ ALTER TABLE `Booking`
 
 ALTER TABLE `Vehicle`
   ADD COLUMN IF NOT EXISTS `public_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_available`,
-  ADD COLUMN IF NOT EXISTS `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `public_bookings_enabled`;
+  ADD COLUMN IF NOT EXISTS `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `public_bookings_enabled`,
+  ADD COLUMN IF NOT EXISTS `licence_category` VARCHAR(10) NOT NULL DEFAULT '' AFTER `fuel`;

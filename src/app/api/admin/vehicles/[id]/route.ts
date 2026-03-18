@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest, { params }: Context) {
     const dayRates = Array.isArray(meta?.day_rates) ? JSON.stringify(meta.day_rates) : null
 
     await execute(
-      `UPDATE Vehicle SET name = ?, description = ?, price = ?, chauffeur_price = ?, price_poa = ?, chauffeur_price_poa = ?, day_rates = ?, hire_modes = ?, passengers = ?, transmission = ?, fuel = ?, is_available = ?, public_bookings_enabled = ?, vendor_bookings_enabled = ?, updated_at = NOW() WHERE id = ?`,
+      `UPDATE Vehicle SET name = ?, description = ?, price = ?, chauffeur_price = ?, price_poa = ?, chauffeur_price_poa = ?, day_rates = ?, hire_modes = ?, passengers = ?, transmission = ?, fuel = ?, licence_category = ?, is_available = ?, public_bookings_enabled = ?, vendor_bookings_enabled = ?, updated_at = NOW() WHERE id = ?`,
       [
         name as string,
         (description as string) ?? '',
@@ -30,6 +30,7 @@ export async function PUT(req: NextRequest, { params }: Context) {
         (meta?.passengers as string) ?? '',
         (meta?.transmission as string) ?? 'Automatic',
         (meta?.fuel as string) ?? 'Petrol',
+        (meta?.licence_category as string) ?? '',
         Boolean(is_available) ? 1 : 0,
         public_bookings_enabled === false ? 0 : 1,
         vendor_bookings_enabled === false ? 0 : 1,

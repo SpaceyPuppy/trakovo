@@ -38,10 +38,11 @@ CREATE TABLE IF NOT EXISTS `BookingEmailLog` (
 ALTER TABLE `Booking`
   ADD COLUMN IF NOT EXISTS `enquiry_status` VARCHAR(20) NULL DEFAULT 'new' AFTER `is_enquiry`;
 
--- Feature: Vehicle visibility controls (v1.5.x)
+-- Feature: Vehicle visibility controls + licence category (v1.5.x)
 ALTER TABLE `Vehicle`
   ADD COLUMN IF NOT EXISTS `public_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_available`,
-  ADD COLUMN IF NOT EXISTS `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `public_bookings_enabled`;
+  ADD COLUMN IF NOT EXISTS `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `public_bookings_enabled`,
+  ADD COLUMN IF NOT EXISTS `licence_category` VARCHAR(10) NOT NULL DEFAULT '' AFTER `fuel`;
 
 -- Feature: Customer profiles & internal notes
 CREATE TABLE IF NOT EXISTS `CustomerNote` (

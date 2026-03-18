@@ -27,6 +27,7 @@ export default async function EditVehiclePage({ params }: Props) {
     passengers: String(vehicle.meta.passengers ?? ''),
     transmission: vehicle.meta.transmission ?? 'Automatic',
     fuel: vehicle.meta.fuel ?? 'Petrol',
+    licence_category: vehicle.meta.licence_category ?? '',
     is_available: vehicle.is_available,
     public_bookings_enabled: vehicle.public_bookings_enabled,
     vendor_bookings_enabled: vehicle.vendor_bookings_enabled,

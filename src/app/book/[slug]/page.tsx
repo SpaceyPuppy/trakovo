@@ -88,11 +88,12 @@ export default async function BookVehiclePage({ params }: Props) {
         <h1 className="font-display font-extrabold text-[22px] tracking-tight mb-3">{vehicle.name}</h1>
 
         {/* Specs row */}
-        {(vehicle.meta.passengers || vehicle.meta.transmission || vehicle.meta.fuel) && (
+        {(vehicle.meta.passengers || vehicle.meta.transmission || vehicle.meta.fuel || vehicle.meta.licence_category) && (
           <div className="flex gap-3 flex-wrap text-[12.5px] text-ink-3 mb-3">
             {vehicle.meta.passengers && <span>👥 {vehicle.meta.passengers} passengers</span>}
             {vehicle.meta.transmission && <span>⚙️ {vehicle.meta.transmission}</span>}
             {vehicle.meta.fuel && <span>⛽ {vehicle.meta.fuel}</span>}
+            {vehicle.meta.licence_category && <span>🪪 {vehicle.meta.licence_category} licence required</span>}
           </div>
         )}
 

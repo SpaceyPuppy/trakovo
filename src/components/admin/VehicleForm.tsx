@@ -14,7 +14,7 @@ interface Props {
 const empty: VehicleFormData = {
   name: '', description: '', price: 0, price_poa: false,
   chauffeur_price: 0, chauffeur_price_poa: false, day_rates: [],
-  hire_modes: 'chauffeured_only', passengers: '', transmission: 'Automatic', fuel: 'Petrol',
+  hire_modes: 'chauffeured_only', passengers: '', transmission: 'Automatic', fuel: 'Petrol', licence_category: '',
   is_available: true, public_bookings_enabled: true, vendor_bookings_enabled: true, images: [],
 }
 
@@ -73,6 +73,7 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
         passengers: form.passengers,
         transmission: form.transmission,
         fuel: form.fuel,
+        licence_category: form.licence_category,
         chauffeur_price: Math.round(form.chauffeur_price * 100),
         price_poa: chauffeurOnly ? false : form.price_poa,
         chauffeur_price_poa: form.chauffeur_price_poa,
@@ -296,6 +297,19 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
             </select>
           </Field>
         </div>
+        <Field label="Required Driver's Licence Category">
+          <select className={inp} value={form.licence_category} onChange={e => up({ licence_category: e.target.value })}>
+            <option value="">None / Not specified</option>
+            <option value="C">C — Car</option>
+            <option value="LR">LR — Light Rigid</option>
+            <option value="MR">MR — Medium Rigid</option>
+            <option value="HR">HR — Heavy Rigid</option>
+            <option value="HC">HC — Heavy Combination</option>
+            <option value="MC">MC — Multi Combination</option>
+            <option value="R">R — Rider (Motorcycle)</option>
+          </select>
+          <p className="text-[12px] text-ink-4">Australian licence class required to drive this vehicle under a self-drive hire. Leave blank if no specific class is required.</p>
+        </Field>
       </Card>
 
       {/* Images */}
