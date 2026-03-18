@@ -7,6 +7,11 @@
  */
 import { query, queryOne, execute } from './db'
 import { sendEmail } from './email'
+
+async function isEmailEnabled(key: string): Promise<boolean> {
+  const row = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', [key])
+  return row?.value !== '0'
+}
 import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
 import type { BookingResponse } from '@/types'
 
@@ -96,6 +101,7 @@ async function sendSequenceEmail(
 
 /** Fired immediately when a new booking is submitted. Sends to customer only. */
 export async function sendBookingReceived(booking: BookingResponse, vehicleName: string): Promise<void> {
+  if (!await isEmailEnabled('email_on_customer_received')) return
   try {
     await sendSequenceEmail(
       booking.id,
@@ -112,6 +118,7 @@ export async function sendBookingReceived(booking: BookingResponse, vehicleName:
 
 /** Fired when admin sets status to "confirmed". Sends to customer + admin notification email. */
 export async function sendBookingConfirmed(bookingId: string): Promise<void> {
+  if (!await isEmailEnabled('email_on_booking_confirmed')) return
   try {
     const data = await loadBooking(bookingId)
     if (!data) return
@@ -137,6 +144,7 @@ export async function sendBookingConfirmed(bookingId: string): Promise<void> {
 
 /** Run daily. Sends 24hr reminder to customer + admin for tomorrow's confirmed bookings. */
 export async function sendDue24hrReminders(): Promise<{ sent: number; errors: number }> {
+  if (!await isEmailEnabled('email_on_24hr_reminder')) return { sent: 0, errors: 0 }
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
   const tomorrowStr = tomorrow.toISOString().slice(0, 10)
@@ -175,6 +183,7 @@ export async function sendDue24hrReminders(): Promise<{ sent: number; errors: nu
 
 /** Run daily. Sends follow-up to customer + admin for bookings that ended yesterday. */
 export async function sendFollowups(): Promise<{ sent: number; errors: number }> {
+  if (!await isEmailEnabled('email_on_followup')) return { sent: 0, errors: 0 }
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   const yesterdayStr = yesterday.toISOString().slice(0, 10)

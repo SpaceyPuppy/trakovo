@@ -34,6 +34,11 @@ export default function GeneralForm({ initial }: Props) {
   const [adminName, setAdminName] = useState(initial.admin_name ?? '')
   const [driverName, setDriverName] = useState(initial.driver_name ?? '')
   const [notifEmail, setNotifEmail] = useState(initial.notification_email ?? '')
+  const [emailOnNewBooking, setEmailOnNewBooking] = useState(initial.email_on_new_booking !== '0')
+  const [emailOnCustomerReceived, setEmailOnCustomerReceived] = useState(initial.email_on_customer_received !== '0')
+  const [emailOnBookingConfirmed, setEmailOnBookingConfirmed] = useState(initial.email_on_booking_confirmed !== '0')
+  const [emailOn24hr, setEmailOn24hr] = useState(initial.email_on_24hr_reminder !== '0')
+  const [emailOnFollowup, setEmailOnFollowup] = useState(initial.email_on_followup !== '0')
   const [businessName, setBusinessName] = useState(initial.business_name ?? '')
   const [contactPhone, setContactPhone] = useState(initial.contact_phone ?? '')
   const [logoUrl, setLogoUrl] = useState<string | null>(initial.logo_path ? '/api/logo' : null)
@@ -176,6 +181,47 @@ export default function GeneralForm({ initial }: Props) {
           disabled={saving === 'notif'}
           className="bg-accent text-white font-display font-bold text-[13.5px] px-5 py-2 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50">
           {saving === 'notif' ? 'Saving…' : 'Save'}
+        </button>
+      </Card>
+
+      <Card title="Email Notification Toggles" description="Control which automated emails are sent. The notification email address above must be set for admin notifications to work.">
+        <div className="space-y-3">
+          {([
+            [emailOnNewBooking, setEmailOnNewBooking, 'email_on_new_booking', 'New booking request → admin', 'Admin receives an email when a new booking or enquiry is submitted.'],
+            [emailOnCustomerReceived, setEmailOnCustomerReceived, 'email_on_customer_received', 'Booking received → customer', 'Customer receives a "we\'ve received your booking" confirmation email.'],
+            [emailOnBookingConfirmed, setEmailOnBookingConfirmed, 'email_on_booking_confirmed', 'Booking confirmed → customer + admin', 'Sent when you mark a booking as Confirmed.'],
+            [emailOn24hr, setEmailOn24hr, 'email_on_24hr_reminder', '24-hour reminder → customer + admin', 'Sent the day before a booking starts.'],
+            [emailOnFollowup, setEmailOnFollowup, 'email_on_followup', 'Post-trip follow-up → customer + admin', 'Sent the day after a booking ends.'],
+          ] as [boolean, (v: boolean) => void, string, string, string][]).map(([val, set, , label, sub]) => (
+            <label key={label} className="flex items-start gap-3 cursor-pointer">
+              <button
+                type="button"
+                onClick={() => set(!val)}
+                className={`relative mt-0.5 w-10 h-5.5 rounded-full transition-colors flex-shrink-0 ${val ? 'bg-success' : 'bg-border-2'}`}
+                style={{ minWidth: '2.5rem', height: '1.375rem' }}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${val ? 'translate-x-[1.125rem]' : 'translate-x-0'}`}
+                />
+              </button>
+              <div>
+                <p className={`text-[13px] font-semibold ${val ? 'text-ink' : 'text-ink-3'}`}>{label}</p>
+                <p className="text-[11.5px] text-ink-4">{sub}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+        <button
+          onClick={() => saveSettings({
+            email_on_new_booking: emailOnNewBooking ? '1' : '0',
+            email_on_customer_received: emailOnCustomerReceived ? '1' : '0',
+            email_on_booking_confirmed: emailOnBookingConfirmed ? '1' : '0',
+            email_on_24hr_reminder: emailOn24hr ? '1' : '0',
+            email_on_followup: emailOnFollowup ? '1' : '0',
+          }, 'email-toggles')}
+          disabled={saving === 'email-toggles'}
+          className="bg-accent text-white font-display font-bold text-[13.5px] px-5 py-2 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50">
+          {saving === 'email-toggles' ? 'Saving…' : 'Save'}
         </button>
       </Card>
 

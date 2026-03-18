@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
+import { queryOne } from '@/lib/db'
 import QRCode from 'qrcode'
 
 export async function GET(_req: NextRequest) {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? ''
+  const row = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['site_url'])
+  const siteUrl = row?.value?.trim().replace(/\/$/, '') ?? ''
   const bookingUrl = `${siteUrl}/book`
 
   try {
@@ -19,7 +21,7 @@ export async function GET(_req: NextRequest) {
     return new NextResponse(svg, {
       headers: {
         'Content-Type': 'image/svg+xml',
-        'Cache-Control': 'public, max-age=86400',
+        'Cache-Control': 'no-store',
       },
     })
   } catch {

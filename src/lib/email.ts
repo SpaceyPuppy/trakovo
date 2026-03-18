@@ -104,12 +104,20 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   })
 }
 
+// ─── Toggle helper ────────────────────────────────────────────────────────────
+
+async function isEmailEnabled(key: string): Promise<boolean> {
+  const row = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', [key])
+  return row?.value !== '0'
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 export async function sendBookingNotification(
   booking: BookingResponse,
   vehicleName: string
 ): Promise<void> {
+  if (!await isEmailEnabled('email_on_new_booking')) return
   const setting = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['notification_email'])
   if (!setting?.value?.trim()) return
 

@@ -1,6 +1,7 @@
 import { queryOne } from '@/lib/db'
 import { parseHireAgreement } from '@/lib/hire-agreement-defaults'
 import HireAgreementEditor from './HireAgreementEditor'
+import QRDownloadJpg from './QRDownloadJpg'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Booking App' }
@@ -49,12 +50,15 @@ export default async function BookingAppPage() {
                 <p className="flex gap-2"><span className="font-semibold text-ink w-5 flex-shrink-0">2.</span>Customers scan it with their phone camera.</p>
                 <p className="flex gap-2"><span className="font-semibold text-ink w-5 flex-shrink-0">3.</span>They land on a mobile-optimised booking experience.</p>
               </div>
-              <a
-                href="/api/admin/qr"
-                download="booking-qr.svg"
-                className="inline-flex items-center gap-1.5 border border-border text-ink-3 font-semibold text-[13px] px-4 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-all">
-                ↓ Download QR Code (SVG)
-              </a>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href="/api/admin/qr"
+                  download="booking-qr.svg"
+                  className="inline-flex items-center gap-1.5 border border-border text-ink-3 font-semibold text-[13px] px-4 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-all">
+                  ↓ Download QR Code (SVG)
+                </a>
+                <QRDownloadJpg />
+              </div>
             </div>
           </div>
         </div>

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run build)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\chris\\\\AppData\\\\Local\\\\Temp\\\\make-zip.ps1\")",
+      "Bash(docker exec -i trakovo-mysql mysql -u root -proot trakovo -e \":*)",
+      "Bash(mkdir -p \"c:/github/trakovo/src/app/api/admin/customers/[email]/archive\")",
+      "Bash(mkdir -p \"c:/github/trakovo/src/app/api/admin/customers/[email]/aliases\")",
+      "Bash(mkdir -p \"c:/github/trakovo/src/app/api/admin/customers/[email]/aliases/[alias]\")",
+      "Bash(\"c:/github/trakovo/prisma/init.sql\":*)",
+      "Bash(docker exec trakovo-mysql mysql -uroot -proot trakovo -e \":*)",
+      "Bash(npm install:*)",
+      "Bash(ls c:/github/trakovo/*.ps1)",
+      "Bash(ls c:/github/trakovo/*zip*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"make-zip.ps1\")",
+      "Bash(ls -la \"c:/github/trakovo/\"*1.5.0*.zip)",
+      "Bash(gh release:*)",
+      "Bash(powershell -Command \"Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\(''next-bundle-v1.5.0.zip''\\); $zip.Entries | Select-Object -First 10 | ForEach-Object { $_.FullName }; $zip.Dispose\\(\\)\")",
+      "Bash(powershell -Command \"Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\(''next-bundle-v1.5.0.zip''\\); $zip.Entries | Select-Object -First 5 | ForEach-Object { $_.FullName }; $zip.Dispose\\(\\)\")",
+      "Bash(npx tsc:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -Command \":*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File make-zip.ps1)"
+    ]
+  }
+}
