@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
-export const revalidate = 0
+export const dynamic = 'force-dynamic'
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -21,13 +21,27 @@ export default async function VendorDashboard() {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
 
+  const vendorFilter = `(b.vendor_id = ? OR b.vehicle_id IN (SELECT vehicle_id FROM VendorVehicle WHERE vendor_id = ? AND is_enabled = 1))`
+
   const [bookingsThisMonthRow, pendingCountRow, clientCountRow, recentBookings] = await Promise.all([
-    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE vendor_id = ? AND created_at >= ?', [session.vendorId, startOfMonth]),
-    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE vendor_id = ? AND status = ?', [session.vendorId, 'pending']),
+    queryOne<{ count: number }>(
+      `SELECT COUNT(DISTINCT b.id) as count FROM Booking b WHERE ${vendorFilter} AND b.created_at >= ?`,
+      [session.vendorId, session.vendorId, startOfMonth]
+    ),
+    queryOne<{ count: number }>(
+      `SELECT COUNT(DISTINCT b.id) as count FROM Booking b WHERE ${vendorFilter} AND b.status = ?`,
+      [session.vendorId, session.vendorId, 'pending']
+    ),
     queryOne<{ count: number }>('SELECT COUNT(*) as count FROM VendorClient WHERE vendor_id = ? AND is_active = 1', [session.vendorId]),
     query(
-      'SELECT b.*, v.name as vehicle_name, vc.name as vendor_client_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.vendor_id = ? ORDER BY b.created_at DESC LIMIT 5',
-      [session.vendorId]
+      `SELECT b.*, v.name as vehicle_name, vc.name as vendor_client_name
+       FROM Booking b
+       LEFT JOIN Vehicle v ON b.vehicle_id = v.id
+       LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id
+       WHERE ${vendorFilter}
+       GROUP BY b.id
+       ORDER BY b.created_at DESC LIMIT 5`,
+      [session.vendorId, session.vendorId]
     ),
   ])
   const bookingsThisMonth = bookingsThisMonthRow?.count ?? 0

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Calendar from './Calendar'
@@ -25,6 +25,7 @@ interface Props {
   availability: AvailabilityRange[]
   vehicleBasePath?: string
   hireAgreementClauses: Clause[]
+  externalHireType?: 'chauffeured' | 'dry-hire'
 }
 
 function hasConflict(start: Date, end: Date, ranges: AvailabilityRange[]): boolean {
@@ -61,13 +62,23 @@ function buildTripDetails(form: BookingFormState): string | undefined {
   return JSON.stringify({ legs, passengerCount: form.passengerCount, tripPurpose: form.tripPurpose })
 }
 
-export default function BookingPanel({ vehicle, availability, vehicleBasePath = '/vehicles', hireAgreementClauses }: Props) {
+export default function BookingPanel({ vehicle, availability, vehicleBasePath = '/vehicles', hireAgreementClauses, externalHireType }: Props) {
   const router = useRouter()
   const [form, setForm] = useState<BookingFormState>(() => {
     const s = freshBookingState()
     if (vehicle.meta.hire_modes === 'chauffeured_only') s.hireType = 'chauffeured'
+    else if (externalHireType) s.hireType = externalHireType
     return s
   })
+
+  // Sync hire type when price tiles change externally
+  const prevExternal = useRef(externalHireType)
+  useEffect(() => {
+    if (externalHireType && externalHireType !== prevExternal.current) {
+      prevExternal.current = externalHireType
+      setForm(f => ({ ...f, hireType: externalHireType }))
+    }
+  }, [externalHireType])
   const [agreementOpen, setAgreementOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
