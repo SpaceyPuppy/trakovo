@@ -13,9 +13,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'MS_CLIENT_ID and MS_TENANT_ID must be set' }, { status: 500 })
   }
 
-  // NEXT_PUBLIC_SITE_URL overrides req.url origin — needed on cPanel/Passenger
-  // where the internal request URL shows localhost:3000 instead of the real domain.
-  const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? new URL(req.url).origin
+  // Read site_url from DB (most reliable on cPanel/Passenger where env vars may not propagate)
+  const siteUrlRow = await import('@/lib/db').then(m => m.queryOne<{ value: string }>(
+    "SELECT value FROM Setting WHERE `key` = 'site_url' LIMIT 1"
+  ))
+  const origin = (siteUrlRow?.value || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
   const redirectUri = `${origin}/api/admin/settings/ms-callback`
 
   // Generate and store state for CSRF protection

@@ -7,9 +7,11 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get('state')
   const error = searchParams.get('error')
 
-  // NEXT_PUBLIC_SITE_URL overrides req.url origin — needed on cPanel/Passenger
-  // where the internal request URL shows localhost:3000 instead of the real domain.
-  const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? new URL(req.url).origin
+  // Read site_url from DB (most reliable on cPanel/Passenger where env vars may not propagate)
+  const siteUrlRow = await queryOne<{ value: string }>(
+    "SELECT value FROM Setting WHERE `key` = 'site_url' LIMIT 1"
+  )
+  const origin = (siteUrlRow?.value || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
 
   if (error) {
     console.error('[ms-callback] OAuth error:', error, searchParams.get('error_description'))
