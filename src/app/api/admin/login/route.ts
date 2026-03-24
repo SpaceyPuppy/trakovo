@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createToken, COOKIE_NAME } from '@/lib/auth'
+// token + username are included in the response body so the Android app
+// can use bearer-token auth without cookies. The web portal ignores them.
 import { queryOne } from '@/lib/db'
 import { verifyPassword } from '@/lib/password'
 
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest) {
     password === process.env.ADMIN_PASSWORD
   ) {
     const token = await createToken(username)
-    const res = NextResponse.json({ ok: true })
+    const res = NextResponse.json({ ok: true, token, username })
     res.cookies.set(COOKIE_NAME, token, COOKIE_OPTS)
     return res
   }
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   const token = await createToken(username)
-  const res = NextResponse.json({ ok: true })
+  const res = NextResponse.json({ ok: true, token, username })
   res.cookies.set(COOKIE_NAME, token, COOKIE_OPTS)
   return res
 }

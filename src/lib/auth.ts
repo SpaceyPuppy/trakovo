@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import type { AdminSession } from '@/types'
 
 const SECRET = process.env.ADMIN_JWT_SECRET ?? 'dev-secret'
@@ -60,10 +60,18 @@ export async function verifyToken(token: string): Promise<AdminSession | null> {
 }
 
 export async function getAdminSession(): Promise<AdminSession | null> {
+  // Cookie path — web portal
   const cookieStore = cookies()
-  const token = cookieStore.get(COOKIE)?.value
-  if (!token) return null
-  return verifyToken(token)
+  const cookieToken = cookieStore.get(COOKIE)?.value
+  if (cookieToken) return verifyToken(cookieToken)
+
+  // Bearer token path — Android companion app
+  const authHeader = headers().get('Authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    return verifyToken(authHeader.slice(7))
+  }
+
+  return null
 }
 
 export function setSessionCookie(token: string): void {
