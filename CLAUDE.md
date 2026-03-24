@@ -1,7 +1,7 @@
 # Trakovo — Claude Context
 
 Fleet management platform for vehicle hire bookings, drivers, vendors, and dispatch.
-Current version: **v1.4.1**
+Current version: **v1.5.7**
 
 ---
 
@@ -356,6 +356,17 @@ git push
 ```
 
 Version in `package.json` — bump on meaningful releases (semver: MAJOR.MINOR.PATCH).
+
+### After every git push / release — REQUIRED
+
+After any `git push` or version release, always update both files:
+
+**1. `CLAUDE.md`** — update the `Current version` line at the top to match `package.json`.
+
+**2. `PENDING-DEPLOY.md`** — keep this in sync:
+- If the push includes a new version bump: update the `## Current pending version` header to the new version and add a new `## vX.X.X — (unreleased)` changelog section.
+- If the push is a production deployment (OTA or manual): clear all completed SQL/env/cron items and mark them as deployed, or reset the file if everything has been applied.
+- Always ensure the pending SQL, env vars, cron jobs, and post-deploy checklist reflect only what is still outstanding on the production server.
 
 ---
 
