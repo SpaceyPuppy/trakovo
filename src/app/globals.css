@@ -48,6 +48,36 @@
   display: inline-block;
 }
 
+/* Book app screen transitions */
+@keyframes bookSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes bookSlideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes bookFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bookSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.book-screen { animation: bookSlideIn 0.2s ease both; }
+.book-screen-back { animation: bookSlideInLeft 0.2s ease both; }
+.book-sheet { animation: bookSlideUp 0.25s ease both; }
+.book-fade { animation: bookFadeIn 0.3s ease both; }
+
+/* Location pin pulse rings */
+@keyframes locPulse {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+.animate-loc-pulse { animation: locPulse 2s ease-out infinite; }
+.animate-loc-pulse-2 { animation: locPulse 2s ease-out 0.7s infinite; }
+
 /* Noise texture overlay for hero */
 .hero-noise {
   position: absolute; inset: 0; pointer-events: none; opacity: 0.025;

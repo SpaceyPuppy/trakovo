@@ -110,6 +110,59 @@ CREATE TABLE IF NOT EXISTS `DriverMessage` (
 
 ALTER TABLE `Booking`
   ADD COLUMN IF NOT EXISTS `driver_id` VARCHAR(191) NULL AFTER `vendor_client_id`;
+
+-- Feature: CorporateEnquiry (v1.5.7)
+CREATE TABLE IF NOT EXISTS `CorporateEnquiry` (
+  `id` VARCHAR(191) NOT NULL,
+  `public_id` VARCHAR(191) NOT NULL,
+  `name` VARCHAR(191) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `phone` VARCHAR(50) NULL,
+  `organisation` VARCHAR(191) NULL,
+  `event_type` VARCHAR(100) NULL,
+  `guests` VARCHAR(50) NULL,
+  `message` TEXT NOT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'new',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `CorporateEnquiry_public_id_unique` (`public_id`),
+  INDEX `CorporateEnquiry_status_idx` (`status`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Feature: Service feature toggles (dispatch settings) + trip ratings (v1.6.0)
+CREATE TABLE IF NOT EXISTS `ServiceFeature` (
+  `id`           VARCHAR(36) NOT NULL,
+  `service_type` VARCHAR(32) NOT NULL,
+  `feature_key`  VARCHAR(64) NOT NULL,
+  `is_enabled`   TINYINT(1) NOT NULL DEFAULT 0,
+  `config`       JSON DEFAULT NULL,
+  `updated_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_service_feature` (`service_type`, `feature_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Seed all features as OFF by default
+INSERT IGNORE INTO `ServiceFeature` (`id`, `service_type`, `feature_key`, `is_enabled`, `config`) VALUES
+(UUID(), 'taxi',        'rating',         0, '{"max_stars":5,"mandatory":false}'),
+(UUID(), 'taxi',        'rating_comment', 0, '{"max_length":500}'),
+(UUID(), 'taxi',        'share_trip',     0, NULL),
+(UUID(), 'taxi',        'live_tracking',  0, NULL),
+(UUID(), 'rideshare',   'rating',         0, '{"max_stars":5,"mandatory":true}'),
+(UUID(), 'rideshare',   'rating_comment', 0, '{"max_length":500}'),
+(UUID(), 'rideshare',   'share_trip',     0, NULL),
+(UUID(), 'rideshare',   'live_tracking',  0, NULL),
+(UUID(), 'self_drive',  'rating',         0, '{"max_stars":5,"mandatory":false}'),
+(UUID(), 'chauffeured', 'rating',         0, '{"max_stars":5,"mandatory":false}');
+
+CREATE TABLE IF NOT EXISTS `TripRating` (
+  `id`         VARCHAR(36) NOT NULL,
+  `booking_id` VARCHAR(191) NOT NULL,
+  `stars`      TINYINT NOT NULL,
+  `comment`    TEXT DEFAULT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `TripRating_booking_unique` (`booking_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
