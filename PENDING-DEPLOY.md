@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.7.1
+## Current pending version: v1.7.2
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -15,16 +15,29 @@ Update it as features are built. Clear it after each successful production deplo
 - [ ] No new env vars required
 
 ### Post-deploy verification
-- [ ] Admin → Settings → Connections — app-picker tiles load, CrazyTel tile configurable
-- [ ] Admin → Settings → Templates — all 9 templates listed; SMS templates editable
-- [ ] /book splash screen shows site logo from Settings
-- [ ] /book/taxi — map centres on Kerang/Cohuna/Barham region; no fake recents/Home/Work
-- [ ] /book/taxi/confirm — shows nearest taxi name, no fare estimate
-- [ ] Taxi booking confirm → SMS sent to customer + dispatch (if CrazyTel configured)
+- [ ] Admin → Settings → Connections — CrazyTel tile shows masked email + balance after key saved
+- [ ] CrazyTel from number field shows dropdown when numbers are available on the account
+- [ ] Taxi booking confirm → SMS sent using correct CrazyTel endpoint (sms.crazytel.net.au)
 
 ---
 
 # Changelog / Release Notes
+
+## v1.7.2 — pending
+
+### Fixes
+
+**CrazyTel SMS — correct API endpoint**
+- Fixed SMS send endpoint: now uses `https://sms.crazytel.net.au/api/v1/sms/send` with `Authorization: Bearer` header and JSON body `{to, from, message}`
+- Previous endpoint (`crazytel.io`) was incorrect and returned 401/403
+
+**CrazyTel — account info & DID dropdown**
+- CrazyTel tile in Settings → Connections now fetches account info after API key is saved
+- Shows masked email (e.g. `j***@example.com`) and account balance as a status card
+- From number is now a dropdown populated from numbers/DIDs on the CrazyTel account (falls back to text input if account info unavailable)
+- New API endpoint: `GET /api/admin/settings/crazytel/account`
+
+---
 
 ## v1.5.0 — released
 

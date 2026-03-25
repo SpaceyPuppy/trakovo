@@ -281,6 +281,8 @@ function SmtpPanel({ smtpConfigured, smtpVars, msConnected }: {
 
 // ─── CrazyTel SMS panel ───────────────────────────────────────────────────────
 
+type AccountInfo = { email: string | null; balance: string | null; numbers: string[]; account_found: boolean; numbers_found: boolean }
+
 function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, initialDispatchNumber }: {
   initialEnabled: boolean; initialApiKeySet: boolean; initialFromNumber: string; initialDispatchNumber: string
 }) {
@@ -292,11 +294,26 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [account, setAccount] = useState<AccountInfo | null>(null)
+  const [accountLoading, setAccountLoading] = useState(false)
 
   function flash(text: string, type: 'success' | 'error') {
     setMsg({ text, type })
     setTimeout(() => setMsg(null), 5000)
   }
+
+  async function fetchAccount() {
+    setAccountLoading(true)
+    try {
+      const res = await fetch('/api/admin/settings/crazytel/account')
+      if (res.ok) setAccount(await res.json())
+    } catch { /* silent */ }
+    finally { setAccountLoading(false) }
+  }
+
+  useEffect(() => {
+    if (initialApiKeySet) fetchAccount()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSave() {
     setSaving(true)
@@ -309,7 +326,9 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
       })
       if (!res.ok) throw new Error('Save failed')
       flash('CrazyTel settings saved', 'success')
-      setApiKey('') // clear after save
+      setApiKey('')
+      // Refresh account info after saving a new key
+      if (apiKey) fetchAccount()
     } catch { flash('Save failed', 'error') }
     finally { setSaving(false) }
   }
@@ -329,11 +348,33 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
     finally { setTesting(false) }
   }
 
+  const availableNumbers = account?.numbers ?? []
+
   return (
     <div className="bg-white border border-border rounded-xl overflow-hidden">
       <SectionHeader title="CrazyTel SMS" description="Send SMS notifications to customers and your dispatch number when bookings are created." />
       <div className="px-5 py-4 space-y-4">
         {msg && <p className={`text-[13px] rounded-[6px] px-3 py-2 ${msg.type === 'success' ? 'text-success bg-success-bg border border-success/30' : 'text-red-600 bg-red-50 border border-red-200'}`}>{msg.text}</p>}
+
+        {/* Account status (shown when key is saved) */}
+        {initialApiKeySet && (
+          <div className={cn('rounded-[6px] px-4 py-3 border text-[13px]', account ? 'bg-success-bg border-success/30' : 'bg-bg border-border')}>
+            {accountLoading ? (
+              <p className="text-ink-3">Verifying account…</p>
+            ) : account ? (
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="font-semibold text-success">Connected</p>
+                  {account.email && <p className="text-[12px] text-ink-3 mt-0.5">Account: <span className="text-ink font-medium">{account.email}</span></p>}
+                  {account.balance != null && <p className="text-[12px] text-ink-3 mt-0.5">Balance: <span className="text-ink font-medium">{account.balance}</span></p>}
+                </div>
+                <button onClick={fetchAccount} className="text-[12px] text-ink-3 hover:text-ink transition-colors whitespace-nowrap">Refresh</button>
+              </div>
+            ) : (
+              <p className="text-ink-3">API key saved — account info unavailable</p>
+            )}
+          </div>
+        )}
 
         {/* Enable toggle */}
         <div className="flex items-center justify-between">
@@ -343,10 +384,10 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
           </div>
           <button
             onClick={() => setEnabled(v => !v)}
-            className={cn('relative w-10 h-5.5 rounded-full transition-colors border', enabled ? 'bg-accent border-accent' : 'bg-bg border-border')}
+            className={cn('relative rounded-full transition-colors border', enabled ? 'bg-accent border-accent' : 'bg-bg border-border')}
             style={{ width: 40, height: 22 }}
           >
-            <span className={cn('absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform', enabled ? 'translate-x-[18px]' : '')} style={{ width: 18, height: 18 }} />
+            <span className={cn('absolute top-0.5 rounded-full bg-white shadow transition-transform', enabled ? 'translate-x-[18px]' : 'translate-x-0.5')} style={{ width: 18, height: 18 }} />
           </button>
         </div>
 
@@ -355,23 +396,34 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
         {/* API Key */}
         <div>
           <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">
-            API Key {initialApiKeySet && <span className="font-normal text-ink-3">(saved — enter new value to replace)</span>}
+            SMS API Key {initialApiKeySet && <span className="font-normal text-ink-3">(saved — enter new value to replace)</span>}
           </label>
           <input
             type="password"
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
-            placeholder={initialApiKeySet ? '••••••••••••••••' : 'Enter CrazyTel API key…'}
+            placeholder={initialApiKeySet ? '••••••••••••••••' : 'Enter CrazyTel SMS API key…'}
             className={inp}
             autoComplete="off"
           />
         </div>
 
-        {/* From number */}
+        {/* From number — dropdown if numbers available, text input fallback */}
         <div>
-          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">From Number <span className="font-normal text-ink-3">(verified caller ID, e.g. 0400000000)</span></label>
-          <input type="tel" value={fromNumber} onChange={e => setFromNumber(e.target.value)}
-            placeholder="0400000000" className={inp} />
+          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">
+            From Number <span className="font-normal text-ink-3">(sender number on your CrazyTel account)</span>
+          </label>
+          {availableNumbers.length > 0 ? (
+            <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className={inp}>
+              <option value="">Select a number…</option>
+              {availableNumbers.map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          ) : (
+            <input type="tel" value={fromNumber} onChange={e => setFromNumber(e.target.value)}
+              placeholder="0400000000" className={inp} />
+          )}
         </div>
 
         {/* Dispatch number */}

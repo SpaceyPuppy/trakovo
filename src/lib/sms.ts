@@ -1,5 +1,7 @@
 import { queryOne } from '@/lib/db'
 
+const SMS_API = 'https://sms.crazytel.net.au/api/v1/sms/send'
+
 export async function sendSms(to: string, message: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const [apiKeyRow, fromRow, enabledRow] = await Promise.all([
@@ -15,15 +17,18 @@ export async function sendSms(to: string, message: string): Promise<{ ok: boolea
     if (!enabled) return { ok: false, error: 'SMS not enabled' }
     if (!apiKey || !fromNumber) return { ok: false, error: 'SMS not configured' }
 
-    const params = new URLSearchParams({ from_number: fromNumber, to_number: to, message })
-    const res = await fetch(`https://crazytel.io/api/v1/sms/send?${params}`, {
+    const res = await fetch(SMS_API, {
       method: 'POST',
-      headers: { 'X-Crazytel-Api-Key': apiKey },
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ to, from: fromNumber, message }),
     })
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      return { ok: false, error: body.message ?? `SMS failed (${res.status})` }
+      return { ok: false, error: body.message ?? body.error ?? `SMS failed (${res.status})` }
     }
     return { ok: true }
   } catch (e) {
