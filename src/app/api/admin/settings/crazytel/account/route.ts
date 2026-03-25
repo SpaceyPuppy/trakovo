@@ -2,19 +2,12 @@ import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { queryOne } from '@/lib/db'
 
-const BASE = 'https://sms.crazytel.net.au/api/v1'
-
-// Mask email: j***@example.com
-function maskEmail(email: string): string {
-  const [local, domain] = email.split('@')
-  if (!domain) return email
-  return `${local[0]}***@${domain}`
-}
+const BASE = 'https://crazytel.io/api/v1'
 
 async function crazytelGet(path: string, apiKey: string) {
   const res = await fetch(`${BASE}${path}`, {
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      'X-Crazytel-Api-Key': apiKey,
       'Content-Type': 'application/json',
     },
   })
@@ -30,29 +23,30 @@ export async function GET() {
   const apiKey = apiKeyRow?.value?.trim()
   if (!apiKey) return NextResponse.json({ error: 'API key not set' }, { status: 400 })
 
-  // Try common account info endpoint patterns
-  const account = await crazytelGet('/account', apiKey)
-    ?? await crazytelGet('/me', apiKey)
-    ?? await crazytelGet('/user', apiKey)
+  const [balanceData, numbersData] = await Promise.all([
+    crazytelGet('/balance/', apiKey),
+    crazytelGet('/phone-numbers', apiKey),
+  ])
 
-  // Try common DID/number listing endpoint patterns
-  const numbersData = await crazytelGet('/dids', apiKey)
-    ?? await crazytelGet('/numbers', apiKey)
-    ?? await crazytelGet('/caller-ids', apiKey)
-    ?? await crazytelGet('/senders', apiKey)
+  const balance = balanceData?.balance ?? balanceData?.amount ?? balanceData?.credit ?? null
 
-  const email = account?.email ?? account?.user?.email ?? account?.account?.email ?? null
-  const balance = account?.balance ?? account?.credit ?? account?.account?.balance ?? null
-  const numbers: string[] = (
-    numbersData?.dids ?? numbersData?.numbers ?? numbersData?.data ?? numbersData?.caller_ids ?? []
-  ).map((n: unknown) => (typeof n === 'string' ? n : (n as Record<string, string>).number ?? (n as Record<string, string>).did ?? (n as Record<string, string>).value)).filter(Boolean)
+  // phone-numbers returns array directly or wrapped in data/results
+  const rawNumbers: unknown[] = Array.isArray(numbersData)
+    ? numbersData
+    : (numbersData?.data ?? numbersData?.results ?? numbersData?.phone_numbers ?? [])
+
+  const numbers: string[] = rawNumbers
+    .map((n: unknown) => {
+      if (typeof n === 'string') return n
+      const obj = n as Record<string, string>
+      return obj.did_number ?? obj.number ?? obj.did ?? obj.phone_number ?? ''
+    })
+    .filter(Boolean)
 
   return NextResponse.json({
-    email: email ? maskEmail(String(email)) : null,
     balance: balance != null ? String(balance) : null,
     numbers,
-    // Flag for UI to show "endpoints not found" message if both came back null
-    account_found: Boolean(account),
+    account_found: Boolean(balanceData),
     numbers_found: Boolean(numbersData),
   })
 }

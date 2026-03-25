@@ -281,7 +281,7 @@ function SmtpPanel({ smtpConfigured, smtpVars, msConnected }: {
 
 // ─── CrazyTel SMS panel ───────────────────────────────────────────────────────
 
-type AccountInfo = { email: string | null; balance: string | null; numbers: string[]; account_found: boolean; numbers_found: boolean }
+type AccountInfo = { balance: string | null; numbers: string[]; account_found: boolean; numbers_found: boolean }
 
 function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, initialDispatchNumber }: {
   initialEnabled: boolean; initialApiKeySet: boolean; initialFromNumber: string; initialDispatchNumber: string
@@ -365,7 +365,6 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <p className="font-semibold text-success">Connected</p>
-                  {account.email && <p className="text-[12px] text-ink-3 mt-0.5">Account: <span className="text-ink font-medium">{account.email}</span></p>}
                   {account.balance != null && <p className="text-[12px] text-ink-3 mt-0.5">Balance: <span className="text-ink font-medium">{account.balance}</span></p>}
                 </div>
                 <button onClick={fetchAccount} className="text-[12px] text-ink-3 hover:text-ink transition-colors whitespace-nowrap">Refresh</button>
