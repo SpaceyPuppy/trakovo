@@ -5,61 +5,11 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.7.0
+## Current pending version: —
 
----
+✅ Production is up to date — v1.7.0 deployed.
 
-## 1. Database — run via phpMyAdmin
-
-✅ All DB migrations up to and including v1.7.0 have been applied on production.
-
----
-
-## 2. Environment variables — add to `.env` on server
-
-```env
-# Cron authentication (for /api/cron/email-sequences)
-CRON_SECRET=generate_a_long_random_string_here
-
-# Mapbox (for /book taxi flow — v1.7.0)
-NEXT_PUBLIC_MAPBOX_TOKEN=pk.ey...your_token_here
-```
-
-## 2b. npm install on server (v1.7.0)
-
-New packages were added. After deploying the zip, run npm install via cPanel Node.js App setup:
-```
-npm install
-```
-New dependencies: `react-map-gl`, `mapbox-gl`, `@types/mapbox-gl`
-
----
-
-## 3. Cron jobs — set up in cPanel Cron Jobs
-
-```
-# Daily email sequences (24hr reminders + post-trip follow-ups) — 7am AEST
-0 7 * * * curl -s -X POST https://yourdomain.com/api/cron/email-sequences -H "Authorization: Bearer YOUR_CRON_SECRET"
-```
-
-Replace `yourdomain.com` and `YOUR_CRON_SECRET` with actual values.
-
----
-
-## 4. Code deployment — OTA zip or manual upload
-
-Deploy via Admin → Settings → Updates (OTA) or zip upload.
-All code changes are in git — build locally, create zip, deploy.
-
----
-
-## 5. Post-deploy checks
-
-- [ ] Admin → Settings → Dispatch — confirm page loads, toggle a feature on/off
-- [ ] /book/taxi — confirm Mapbox map loads, geolocation prompt appears
-- [ ] Type a destination in taxi search — confirm suggestions appear
-- [ ] Complete taxi confirm flow — confirm booking appears in admin panel
-- [ ] Admin → Settings — confirm horizontal tab navigation works
+Nothing pending. Add items here as new features are built.
 
 ---
 
