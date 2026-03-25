@@ -17,8 +17,24 @@ function formatDistance(m: number): string {
   return `${(m / 1000).toFixed(1)} km`
 }
 
-function formatFare(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`
+const TAXI_BASES = [
+  { name: 'Cohuna Taxi', lat: -35.8729, lng: 144.3194 },
+  { name: 'Kerang Taxi', lat: -35.7258, lng: 143.9194 },
+  { name: 'Koondrook Taxi', lat: -35.6400, lng: 144.1200 },
+]
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function nearestTaxi(lat: number, lng: number) {
+  return TAXI_BASES.reduce((best, base) =>
+    haversineKm(lat, lng, base.lat, base.lng) < haversineKm(lat, lng, best.lat, best.lng) ? base : best
+  )
 }
 
 function ConfirmContent() {
@@ -36,6 +52,7 @@ function ConfirmContent() {
   const dest: [number, number] = [destLng, destLat]
 
   const { route, loading: routeLoading } = useRoute(pickup, dest)
+  const taxi = nearestTaxi(pickupLat, pickupLng)
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -83,9 +100,9 @@ function ConfirmContent() {
   const canConfirm = name.trim().length > 1 && phone.trim().length > 5 && !!route && !submitting
 
   return (
-    <div className="flex flex-col lg:flex-row" style={{ minHeight: '100dvh' }}>
+    <div className="flex flex-col lg:flex-row lg:h-screen" style={{ minHeight: '100dvh' }}>
       {/* Map */}
-      <div className="relative lg:flex-1" style={{ height: '40vh', minHeight: 260 }}>
+      <div className="relative lg:flex-1 h-[40vh] lg:h-full">
         <TaxiMap
           pickup={pickup}
           dest={dest}
@@ -131,7 +148,7 @@ function ConfirmContent() {
             </div>
           </div>
 
-          {/* Fare / distance / ETA */}
+          {/* Distance / ETA */}
           {routeLoading ? (
             <div className="flex items-center gap-2 py-2" style={{ color: '#9a9894', fontSize: 12 }}>
               <div style={{ width: 14, height: 14, border: '2px solid #e2e0db', borderTopColor: '#d4570a', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -140,18 +157,12 @@ function ConfirmContent() {
           ) : route ? (
             <div className="flex gap-3">
               {[
-                { label: 'Fare', value: formatFare(route.fare_cents), accent: true },
                 { label: 'Distance', value: formatDistance(route.distance_m) },
                 { label: 'ETA', value: formatDuration(route.duration_s) },
               ].map(stat => (
                 <div key={stat.label} className="flex-1 flex flex-col items-center py-3 rounded-[10px]" style={{ background: '#f7f6f3', border: '0.5px solid #e2e0db' }}>
                   <p style={{ fontSize: 9, color: '#9a9894', letterSpacing: '0.05px', marginBottom: 3 }}>{stat.label}</p>
-                  <p style={{
-                    fontFamily: stat.accent ? 'Syne, sans-serif' : undefined,
-                    fontWeight: stat.accent ? 700 : 500,
-                    fontSize: stat.accent ? 16 : 13,
-                    color: '#141414',
-                  }}>{stat.value}</p>
+                  <p style={{ fontWeight: 500, fontSize: 13, color: '#141414' }}>{stat.value}</p>
                 </div>
               ))}
             </div>
@@ -176,18 +187,16 @@ function ConfirmContent() {
             />
           </div>
 
-          {/* Mock driver */}
+          {/* Nearest taxi info */}
           <div className="flex items-center gap-3 px-4 py-3 rounded-[10px]" style={{ background: '#f7f6f3', border: '0.5px solid #e2e0db' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #2d3444, #1e2330)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
-              BT
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #2d3444, #1e2330)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 4v5h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+              </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p style={{ fontSize: 12, fontWeight: 500, color: '#141414' }}>Barry Thompson</p>
-              <p style={{ fontSize: 10, color: '#9a9894' }}>White Toyota Camry · ABC-123</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: 10, color: '#9a9894' }}>Rating</p>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#141414' }}>4.9 ★</p>
+              <p style={{ fontSize: 12, fontWeight: 500, color: '#141414' }}>{taxi.name}</p>
+              <p style={{ fontSize: 10, color: '#9a9894' }}>Nearest taxi to your location</p>
             </div>
           </div>
 

@@ -5,11 +5,22 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: —
+## Current pending version: v1.7.1
 
-✅ Production is up to date — v1.7.0 deployed.
+### Deploy checklist
+- [ ] Upload and extract release zip
+- [ ] Run NPM Install in cPanel Node.js app
+- [ ] Restart app
+- [ ] No DB migrations required — all new keys use existing `Setting` table
+- [ ] No new env vars required
 
-Nothing pending. Add items here as new features are built.
+### Post-deploy verification
+- [ ] Admin → Settings → Connections — app-picker tiles load, CrazyTel tile configurable
+- [ ] Admin → Settings → Templates — all 9 templates listed; SMS templates editable
+- [ ] /book splash screen shows site logo from Settings
+- [ ] /book/taxi — map centres on Kerang/Cohuna/Barham region; no fake recents/Home/Work
+- [ ] /book/taxi/confirm — shows nearest taxi name, no fare estimate
+- [ ] Taxi booking confirm → SMS sent to customer + dispatch (if CrazyTel configured)
 
 ---
 
@@ -86,6 +97,47 @@ Nothing pending. Add items here as new features are built.
 - New admin endpoints: `GET/PATCH /api/admin/service-features`
 - New public endpoint: `POST /api/booking/[id]/rating`
 - New client hook: `useServiceFeatures(serviceType)` in lib/hooks
+
+---
+
+## v1.7.1 — pending
+
+### New features
+
+**CrazyTel SMS Integration**
+- New SMS integration via CrazyTel API (`POST /api/v1/sms/send`)
+- API key, from number, and dispatch number configurable in Admin → Settings → Connections
+- On taxi booking confirm: SMS sent to customer (confirmation + ETA + ref) and to dispatch number (booking summary)
+- SMS not sent if CrazyTel is not configured or disabled — fully non-blocking
+
+**Configurable Notification Templates**
+- Admin → Settings → Templates redesigned as a unified list of all 9 notifications (7 email + 2 SMS)
+- Each template has an enable/disable toggle (saves immediately) and an Edit button
+- Edit opens an inline panel: HTML editor + live preview for email; plain text editor + char/segment counter for SMS
+- SMS template variables: `{{contact_name}}`, `{{contact_phone}}`, `{{pickup}}`, `{{destination}}`, `{{eta_mins}}`, `{{booking_ref}}`
+- Taxi customer and dispatch SMS messages fully editable and independently toggleable
+
+**Connections Page — App Picker UI**
+- Admin → Settings → Connections redesigned as a grid of integration tiles
+- Tiles: Microsoft 365, Google Calendar, SMTP, Web Push, CrazyTel SMS — each showing connection status
+- Click a tile to expand its configuration panel; click again to collapse
+- OAuth callbacks (MS/GC) auto-open the relevant tile
+
+**Booking App Fixes**
+- /book splash screen now shows the actual site logo from Admin → Settings → General
+- /book/taxi: map starts zoomed out over Kerang/Cohuna/Barham region; centres on user location when geolocation resolves
+- /book/taxi: removed hardcoded recent places and Home/Work saved place options
+- /book/taxi/confirm: shows nearest taxi base (Cohuna/Kerang/Koondrook) based on Haversine distance; fare estimate removed
+- /book/taxi/ride: mock driver details removed; replaced with generic "Your taxi is on the way"
+- /book/taxi/complete: fare and mock driver row removed; rating widget shown inline
+- Map full-screen height fixed on desktop (`lg:h-screen` + `lg:h-full` on all taxi screens)
+
+### Technical
+- New files: `src/lib/sms.ts`, `src/lib/sms-templates.ts`, `src/lib/sms-template-defaults.ts`
+- New API: `GET/PATCH/POST /api/admin/settings/crazytel`
+- SMS template bodies stored in `Setting` table: `sms_template_taxi_customer`, `sms_template_taxi_dispatch`
+- Enable flags stored in `Setting` table: `*_enabled` keys (default enabled if not set)
+- No new DB tables or schema changes required
 
 ---
 

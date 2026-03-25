@@ -63,20 +63,10 @@ function TaxiHomeContent() {
     router.push(`/book/taxi/destination?${params}`)
   }
 
-  const saved = [
-    { label: 'Home', sub: 'Add home address', icon: '🏠' },
-    { label: 'Work', sub: 'Add work address', icon: '💼' },
-  ]
-
-  const recents = [
-    { label: 'Cohuna Hospital', sub: 'Heygarth St, Cohuna VIC' },
-    { label: 'Gunbower General Store', sub: 'Murray Valley Hwy' },
-  ]
-
   return (
-    <div className="flex flex-col lg:flex-row" style={{ minHeight: '100dvh' }}>
+    <div className="flex flex-col lg:flex-row lg:h-screen" style={{ minHeight: '100dvh' }}>
       {/* Map */}
-      <div className="relative lg:flex-1" style={{ height: '55vh', minHeight: 300 }}>
+      <div className="relative lg:flex-1 h-[55vh] lg:h-full">
         <TaxiMap pickup={coords} style={{ width: '100%', height: '100%' }} />
 
         {/* Back button */}
@@ -175,46 +165,9 @@ function TaxiHomeContent() {
             </div>
           )}
 
-          {/* Saved places + recents (when not searching) */}
+          {/* Mobile search button (when not searching) */}
           {!search && (
             <>
-              <div className="flex flex-col gap-1 mb-4">
-                {saved.map(s => (
-                  <button key={s.label}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-left transition-colors hover:bg-[#f7f6f3] active:bg-[#f0efe9] w-full"
-                  >
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f0efe9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
-                      {s.icon}
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: '#141414' }}>{s.label}</p>
-                      <p style={{ fontSize: 11, color: '#9a9894' }}>{s.sub}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <p style={{ fontSize: 11, fontWeight: 600, color: '#9a9894', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>Recent</p>
-              <div className="flex flex-col" style={{ borderRadius: 10, border: '0.5px solid #e2e0db', overflow: 'hidden', background: 'white' }}>
-                {recents.map((r, i) => (
-                  <button key={r.label}
-                    onClick={() => setSearch(r.label)}
-                    className="flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#f7f6f3] active:bg-[#f0efe9] w-full"
-                    style={{ borderTop: i > 0 ? '0.5px solid #f0efe9' : 'none' }}
-                  >
-                    <div style={{ width: 28, height: 28, borderRadius: 7, background: '#f0efe9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9a9894" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: '#141414' }}>{r.label}</p>
-                      <p style={{ fontSize: 11, color: '#9a9894' }}>{r.sub}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
               {/* Full search button (mobile) */}
               <button
                 onClick={goToSearch}

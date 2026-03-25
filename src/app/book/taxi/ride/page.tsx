@@ -6,8 +6,6 @@ import { useServiceFeatures } from '@/lib/hooks/useServiceFeatures'
 
 const TaxiMap = dynamic(() => import('@/components/book/TaxiMap'), { ssr: false })
 
-const MOCK_DRIVER = { name: 'Barry Thompson', initials: 'BT', vehicle: 'White Toyota Camry', rego: 'ABC-123' }
-
 function RideContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -48,9 +46,9 @@ function RideContent() {
   const eta = remaining <= 0 ? 'Arrived' : remaining < 60 ? '< 1 min' : `${Math.ceil(remaining / 60)} min`
 
   return (
-    <div className="flex flex-col lg:flex-row" style={{ minHeight: '100dvh' }}>
+    <div className="flex flex-col lg:flex-row lg:h-screen" style={{ minHeight: '100dvh' }}>
       {/* Map */}
-      <div className="relative lg:flex-1" style={{ height: '55vh', minHeight: 280 }}>
+      <div className="relative lg:flex-1 h-[55vh] lg:h-full">
         <TaxiMap style={{ width: '100%', height: '100%' }}>
           {/* ETA chip over map */}
           <div style={{ position: 'absolute', top: 14, left: 14, zIndex: 10, background: 'white', borderRadius: 14, padding: '10px 14px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', border: '0.5px solid rgba(0,0,0,0.06)' }}>
@@ -78,14 +76,16 @@ function RideContent() {
             <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #d4570a, #e87a3a)', borderRadius: 9999, transition: 'width 5s ease' }} />
           </div>
 
-          {/* Driver info */}
+          {/* Taxi info */}
           <div className="flex items-center gap-3 mb-4">
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #2d3444, #1e2330)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 600, boxShadow: '0 2px 6px rgba(0,0,0,0.2)', flexShrink: 0 }}>
-              {MOCK_DRIVER.initials}
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #2d3444, #1e2330)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.2)', flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 4v5h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+              </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <p style={{ fontSize: 12, fontWeight: 500, color: '#141414' }}>{MOCK_DRIVER.name.split(' ')[0]} is on the way</p>
-              <p style={{ fontSize: 10, color: '#717171' }}>{MOCK_DRIVER.vehicle} · {MOCK_DRIVER.rego}</p>
+              <p style={{ fontSize: 12, fontWeight: 500, color: '#141414' }}>Your taxi is on the way</p>
+              <p style={{ fontSize: 10, color: '#717171' }}>Heading to {destName}</p>
             </div>
           </div>
 

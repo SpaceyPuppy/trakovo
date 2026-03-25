@@ -32,13 +32,11 @@ function CompleteContent() {
 
   // Trip data passed via URL params
   const distanceM = parseFloat(searchParams.get('distance_m') || '0')
-  const fareCents = parseInt(searchParams.get('fare_cents') || '0')
   const durationS = parseInt(searchParams.get('duration_s') || '0')
   const destination = searchParams.get('dest_name') || 'Destination'
 
   const distance = distanceM > 0 ? `${(distanceM / 1000).toFixed(1)} km` : '—'
   const duration = durationS > 0 ? `${Math.round(durationS / 60)} min` : '—'
-  const fare = fareCents > 0 ? `$${(fareCents / 100).toFixed(2)}` : '—'
 
   async function handleDone() {
     if (features.rating && stars > 0 && !submitted && bookingId) {
@@ -82,31 +80,24 @@ function CompleteContent() {
       {/* Trip summary card */}
       <div style={{ background: 'white', borderRadius: 14, border: '0.5px solid #e2e0db', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', marginBottom: 16, overflow: 'hidden' }}>
         {/* Stats */}
-        <div className="flex" style={{ borderBottom: '0.5px solid #eeece8' }}>
+        <div className="flex" style={{ borderBottom: showRating ? '0.5px solid #eeece8' : 'none' }}>
           {[
             { label: 'Distance', value: distance },
             { label: 'Duration', value: duration },
-            { label: 'Total fare', value: fare, accent: true },
           ].map((stat, i) => (
             <div key={stat.label} className="flex-1 flex flex-col items-center py-4" style={{ borderLeft: i > 0 ? '0.5px solid #eeece8' : 'none' }}>
               <p style={{ fontSize: 9, color: '#717171', letterSpacing: '0.05px', marginBottom: 3 }}>{stat.label}</p>
-              <p style={{ fontFamily: stat.accent ? 'Syne, sans-serif' : undefined, fontWeight: stat.accent ? 700 : 500, fontSize: stat.accent ? 16 : 13, color: '#141414' }}>
-                {stat.value}
-              </p>
+              <p style={{ fontWeight: 500, fontSize: 13, color: '#141414' }}>{stat.value}</p>
             </div>
           ))}
         </div>
-        {/* Driver row */}
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #2d3444, #1e2330)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
-            BT
+        {/* Rating row */}
+        {showRating && (
+          <div className="flex items-center justify-between px-4 py-3">
+            <p style={{ fontSize: 11, color: '#717171' }}>Rate your trip</p>
+            <StarRating value={stars} onChange={setStars} />
           </div>
-          <div className="flex-1 min-w-0">
-            <p style={{ fontSize: 11, fontWeight: 500, color: '#141414' }}>Barry Thompson</p>
-            <p style={{ fontSize: 9, color: '#717171' }}>White Toyota Camry</p>
-          </div>
-          {showRating && <StarRating value={stars} onChange={setStars} />}
-        </div>
+        )}
       </div>
 
       {/* Comment (feature flagged) */}
@@ -116,7 +107,7 @@ function CompleteContent() {
             value={comment}
             onChange={e => setComment(e.target.value)}
             maxLength={500}
-            placeholder="Leave a comment for Barry…"
+            placeholder="Leave a comment about your trip…"
             style={{ width: '100%', background: '#f7f6f3', border: '0.5px solid #e2e0db', borderRadius: 10, padding: '10px 12px', fontSize: 11, color: '#141414', resize: 'none', outline: 'none', height: 48, fontFamily: 'Epilogue, sans-serif' }}
           />
         </div>

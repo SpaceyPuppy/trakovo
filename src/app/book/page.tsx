@@ -49,20 +49,15 @@ function ChauffeurIcon() {
   )
 }
 
-function CKBLogo({ size = 30 }: { size?: number }) {
+function SiteLogo({ height, maxWidth = 140 }: { height: number; maxWidth?: number }) {
   return (
-    <div
-      className="flex items-center justify-center shrink-0 rounded-[7px]"
-      style={{
-        width: size, height: size,
-        background: '#d4570a',
-        boxShadow: '0 2px 6px rgba(212,87,10,0.3)',
-      }}
-    >
-      <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: size * 0.32, color: 'white', letterSpacing: '-0.5px' }}>
-        CKB
-      </span>
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/api/logo"
+      alt=""
+      style={{ height, maxWidth, objectFit: 'contain', display: 'block' }}
+      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+    />
   )
 }
 
@@ -85,21 +80,8 @@ function SplashScreen() {
       style={{ background: '#1e2330', minHeight: '100%' }}
     >
       <div className="flex flex-col items-center gap-4 book-fade">
-        {/* Logo mark */}
-        <div style={{ position: 'relative' }}>
-          <div
-            className="flex items-center justify-center rounded-[18px]"
-            style={{
-              width: 64, height: 64,
-              background: '#d4570a',
-              boxShadow: '0 4px 16px rgba(212,87,10,0.4)',
-            }}
-          >
-            <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: 22, color: 'white', letterSpacing: '-1px' }}>
-              CKB
-            </span>
-          </div>
-        </div>
+        {/* Logo */}
+        <SiteLogo height={72} maxWidth={200} />
         <div className="text-center">
           <p style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.2px' }}>
             Passenger Transport
@@ -353,7 +335,7 @@ export default function BookPage() {
 
       {/* Footer branding */}
       <div className="px-5 py-4 flex items-center gap-3">
-        <CKBLogo size={30} />
+        <SiteLogo height={30} maxWidth={100} />
         <div>
           <p style={{ fontSize: 11, fontFamily: 'Syne, sans-serif', fontWeight: 700, color: '#3a3a3a', lineHeight: 1.2 }}>
             CKB Passenger Transport
