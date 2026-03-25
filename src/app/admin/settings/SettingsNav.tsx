@@ -4,36 +4,35 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 const nav = [
-  { href: '/admin/settings', label: 'General', icon: '⚙' },
-  { href: '/admin/settings/templates', label: 'Email Templates', icon: '✉' },
-  { href: '/admin/settings/connections', label: 'Connections', icon: '🔗' },
-  { href: '/admin/settings/booking-app', label: 'Booking App', icon: '📱' },
-  { href: '/admin/settings/dispatch', label: 'Dispatch', icon: '⚡' },
-  { href: '/admin/settings/updates', label: 'Updates', icon: '↑' },
+  { href: '/admin/settings', label: 'General' },
+  { href: '/admin/settings/templates', label: 'Email Templates' },
+  { href: '/admin/settings/connections', label: 'Connections' },
+  { href: '/admin/settings/booking-app', label: 'Booking App' },
+  { href: '/admin/settings/dispatch', label: 'Dispatch' },
+  { href: '/admin/settings/updates', label: 'Updates' },
 ]
 
 export default function SettingsNav() {
   const path = usePathname()
 
   return (
-    <nav className="w-[180px] shrink-0 sticky top-10 space-y-0.5">
-      {nav.map(({ href, label, icon }) => {
+    <div className="flex gap-0 overflow-x-auto -mx-4 px-4 sm:-mx-10 sm:px-10 border-b border-black/8 mb-8">
+      {nav.map(({ href, label }) => {
         const active = href === '/admin/settings'
           ? path === '/admin/settings'
           : path.startsWith(href)
         return (
           <Link key={href} href={href}
             className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-[6px] text-[13px] font-medium transition-all',
+              'shrink-0 px-4 py-2.5 text-[13px] font-medium border-b-2 transition-colors whitespace-nowrap',
               active
-                ? 'bg-accent/10 text-accent font-semibold'
-                : 'text-ink-3 hover:text-ink hover:bg-black/5'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-ink-3 hover:text-ink hover:border-black/20'
             )}>
-            <span className="w-4 text-center text-[13px]">{icon}</span>
             {label}
           </Link>
         )
       })}
-    </nav>
+    </div>
   )
 }

@@ -1,237 +1,249 @@
 'use client'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import type { Metadata } from 'next'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
+import { useMapboxSearch } from '@/lib/hooks/useMapboxSearch'
 
-// Styled SVG placeholder map of Cohuna-like street grid
-function PlaceholderMap() {
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 390 380" xmlns="http://www.w3.org/2000/svg" style={{ position: 'absolute', inset: 0 }}>
-      <rect width="390" height="380" fill="#e8e4dd" />
-      {/* Main roads */}
-      <rect x="0" y="90" width="390" height="12" fill="#d8d4cc" />
-      <rect x="0" y="180" width="390" height="12" fill="#d8d4cc" />
-      <rect x="0" y="270" width="390" height="12" fill="#d8d4cc" />
-      <rect x="70" y="0" width="12" height="380" fill="#d8d4cc" />
-      <rect x="170" y="0" width="12" height="380" fill="#d8d4cc" />
-      <rect x="280" y="0" width="12" height="380" fill="#d8d4cc" />
-      {/* Secondary roads */}
-      <rect x="0" y="140" width="390" height="6" fill="#ddd9d2" />
-      <rect x="0" y="230" width="390" height="6" fill="#ddd9d2" />
-      <rect x="120" y="0" width="6" height="380" fill="#ddd9d2" />
-      <rect x="220" y="0" width="6" height="380" fill="#ddd9d2" />
-      <rect x="330" y="0" width="6" height="380" fill="#ddd9d2" />
-      {/* Building blocks */}
-      <rect x="82" y="10" width="28" height="24" rx="2" fill="#d4d0c8" />
-      <rect x="120" y="10" width="40" height="24" rx="2" fill="#d4d0c8" />
-      <rect x="182" y="10" width="28" height="24" rx="2" fill="#d4d0c8" />
-      <rect x="236" y="10" width="32" height="24" rx="2" fill="#d4d0c8" />
-      <rect x="82" y="50" width="22" height="28" rx="2" fill="#ccc8c0" />
-      <rect x="126" y="50" width="34" height="28" rx="2" fill="#ccc8c0" />
-      <rect x="182" y="50" width="28" height="28" rx="2" fill="#ccc8c0" />
-      <rect x="240" y="50" width="28" height="20" rx="2" fill="#ccc8c0" />
-      <rect x="292" y="50" width="36" height="28" rx="2" fill="#ccc8c0" />
-      <rect x="82" y="104" width="26" height="24" rx="2" fill="#d4d0c8" />
-      <rect x="126" y="104" width="36" height="30" rx="2" fill="#d4d0c8" />
-      <rect x="182" y="104" width="30" height="24" rx="2" fill="#d4d0c8" />
-      <rect x="232" y="104" width="36" height="30" rx="2" fill="#d4d0c8" />
-      <rect x="292" y="104" width="28" height="24" rx="2" fill="#d4d0c8" />
-      <rect x="82" y="154" width="30" height="18" rx="2" fill="#ccc8c0" />
-      <rect x="126" y="154" width="40" height="18" rx="2" fill="#ccc8c0" />
-      <rect x="182" y="154" width="28" height="18" rx="2" fill="#ccc8c0" />
-      <rect x="240" y="154" width="32" height="18" rx="2" fill="#ccc8c0" />
-      <rect x="82" y="192" width="28" height="26" rx="2" fill="#d4d0c8" />
-      <rect x="126" y="192" width="36" height="26" rx="2" fill="#d4d0c8" />
-      <rect x="182" y="192" width="30" height="26" rx="2" fill="#d4d0c8" />
-      <rect x="240" y="192" width="28" height="26" rx="2" fill="#d4d0c8" />
-      <rect x="82" y="236" width="26" height="22" rx="2" fill="#ccc8c0" />
-      <rect x="126" y="236" width="32" height="22" rx="2" fill="#ccc8c0" />
-      <rect x="182" y="236" width="28" height="22" rx="2" fill="#ccc8c0" />
-      <rect x="240" y="236" width="36" height="22" rx="2" fill="#ccc8c0" />
-      <rect x="292" y="236" width="26" height="22" rx="2" fill="#ccc8c0" />
-      <rect x="82" y="282" width="28" height="30" rx="2" fill="#d4d0c8" />
-      <rect x="126" y="282" width="40" height="30" rx="2" fill="#d4d0c8" />
-      <rect x="182" y="282" width="28" height="30" rx="2" fill="#d4d0c8" />
-      <rect x="240" y="282" width="32" height="30" rx="2" fill="#d4d0c8" />
-      <rect x="292" y="282" width="28" height="30" rx="2" fill="#d4d0c8" />
-      {/* Street name labels */}
-      <text x="10" y="89" fontSize="7" fill="#b0aca4" fontFamily="sans-serif">Murray St</text>
-      <text x="10" y="179" fontSize="7" fill="#b0aca4" fontFamily="sans-serif">King George St</text>
-      <text x="10" y="269" fontSize="7" fill="#b0aca4" fontFamily="sans-serif">Victoria St</text>
-      <text x="73" y="22" fontSize="7" fill="#b0aca4" fontFamily="sans-serif" writingMode="vertical-rl">Punt Rd</text>
-      <text x="173" y="22" fontSize="7" fill="#b0aca4" fontFamily="sans-serif" writingMode="vertical-rl">Main St</text>
-      {/* Park/green area */}
-      <rect x="10" y="10" width="52" height="72" rx="4" fill="#d8e8d0" />
-      <rect x="340" y="10" width="42" height="72" rx="4" fill="#d8e8d0" />
-      {/* User location pin */}
-      <g transform="translate(195, 190)">
-        {/* Pulse rings */}
-        <circle cx="0" cy="0" r="16" fill="rgba(212,87,10,0.08)" className="animate-loc-pulse" style={{ transformOrigin: 'center' }} />
-        <circle cx="0" cy="0" r="10" fill="rgba(212,87,10,0.12)" className="animate-loc-pulse-2" style={{ transformOrigin: 'center' }} />
-        {/* Pin */}
-        <circle cx="0" cy="0" r="8" fill="#d4570a" stroke="white" strokeWidth="3" />
-      </g>
-      {/* Nearby driver markers */}
-      <g transform="translate(110, 130)" opacity="0.45">
-        <circle cx="0" cy="0" r="10" fill="#1e2330" stroke="white" strokeWidth="2" />
-        <text x="0" y="4" fontSize="8" fill="white" textAnchor="middle">🚗</text>
-      </g>
-      <g transform="translate(270, 230)" opacity="0.55">
-        <circle cx="0" cy="0" r="10" fill="#1e2330" stroke="white" strokeWidth="2" />
-        <text x="0" y="4" fontSize="8" fill="white" textAnchor="middle">🚗</text>
-      </g>
-      <g transform="translate(320, 110)" opacity="0.4">
-        <circle cx="0" cy="0" r="10" fill="#1e2330" stroke="white" strokeWidth="2" />
-        <text x="0" y="4" fontSize="8" fill="white" textAnchor="middle">🚗</text>
-      </g>
-    </svg>
-  )
-}
+const TaxiMap = dynamic(() => import('@/components/book/TaxiMap'), { ssr: false })
 
-const SAVED_PLACES = [
-  { key: 'home', label: 'Home', address: '24 Punt Rd', accent: '#d4570a', icon: '🏠' },
-  { key: 'work', label: 'Work', address: 'Main St CBD', accent: '#1D9E75', icon: '💼' },
-]
+// Default centre: Cohuna, VIC
+const DEFAULT_LNG = 144.3194
+const DEFAULT_LAT = -35.8729
 
-const RECENT_PLACES = [
-  { key: 'r1', label: 'Cohuna Hospital', address: 'King George St', destination: 'Cohuna Hospital' },
-  { key: 'r2', label: 'Cohuna Post Office', address: '68 King George St', destination: 'Cohuna Post Office' },
-  { key: 'r3', label: 'Cohuna IGA', address: 'Murray St', destination: 'Cohuna IGA' },
-]
-
-export default function TaxiMapPage() {
+function TaxiHomeContent() {
   const router = useRouter()
+  const [coords, setCoords] = useState<[number, number] | null>(null)
+  const [locationName, setLocationName] = useState('Current location')
+  const [search, setSearch] = useState('')
+  const { results, loading: searching } = useMapboxSearch(search, coords ?? [DEFAULT_LNG, DEFAULT_LAT])
+
+  // Request geolocation on mount
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const { longitude, latitude } = pos.coords
+          setCoords([longitude, latitude])
+          // Reverse-geocode for display name
+          const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+          if (token) {
+            fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?types=address,place&limit=1&access_token=${token}`)
+              .then(r => r.json())
+              .then(d => {
+                if (d.features?.[0]) setLocationName(d.features[0].text || d.features[0].place_name)
+              })
+              .catch(() => {})
+          }
+        },
+        () => setCoords([DEFAULT_LNG, DEFAULT_LAT])
+      )
+    } else {
+      setCoords([DEFAULT_LNG, DEFAULT_LAT])
+    }
+  }, [])
+
+  function selectDestination(place: { center: [number, number]; place_name: string; text: string }) {
+    const params = new URLSearchParams({
+      pickup_name: locationName,
+      pickup_lat: String(coords?.[1] ?? DEFAULT_LAT),
+      pickup_lng: String(coords?.[0] ?? DEFAULT_LNG),
+      dest_name: place.text || place.place_name,
+      dest_lat: String(place.center[1]),
+      dest_lng: String(place.center[0]),
+    })
+    router.push(`/book/taxi/confirm?${params}`)
+  }
+
+  function goToSearch() {
+    const params = new URLSearchParams({
+      pickup_name: locationName,
+      pickup_lat: String(coords?.[1] ?? DEFAULT_LAT),
+      pickup_lng: String(coords?.[0] ?? DEFAULT_LNG),
+    })
+    router.push(`/book/taxi/destination?${params}`)
+  }
+
+  const saved = [
+    { label: 'Home', sub: 'Add home address', icon: '🏠' },
+    { label: 'Work', sub: 'Add work address', icon: '💼' },
+  ]
+
+  const recents = [
+    { label: 'Cohuna Hospital', sub: 'Heygarth St, Cohuna VIC' },
+    { label: 'Gunbower General Store', sub: 'Murray Valley Hwy' },
+  ]
 
   return (
-    <div className="flex flex-col" style={{ minHeight: '100dvh', background: '#e8e4dd', position: 'relative' }}>
-      {/* Map area */}
-      <div style={{ flex: 1, position: 'relative', minHeight: '240px', maxHeight: '50vh' }}>
-        <PlaceholderMap />
+    <div className="flex flex-col lg:flex-row" style={{ minHeight: '100dvh' }}>
+      {/* Map */}
+      <div className="relative lg:flex-1" style={{ height: '55vh', minHeight: 300 }}>
+        <TaxiMap pickup={coords} style={{ width: '100%', height: '100%' }} />
 
         {/* Back button */}
-        <Link
-          href="/book"
-          className="absolute top-4 left-4 z-10 flex items-center justify-center rounded-full transition-all"
-          style={{
-            width: 32, height: 32,
-            background: 'white',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06)',
-          }}
+        <button
+          onClick={() => router.push('/book')}
+          className="absolute top-4 left-4 flex items-center justify-center rounded-full bg-white shadow-md transition-all active:scale-95"
+          style={{ width: 36, height: 36, border: '0.5px solid rgba(0,0,0,0.08)', zIndex: 10 }}
+          aria-label="Back"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#141414" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a3a3a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-        </Link>
-
-        {/* "Where to?" search bar */}
-        <button
-          onClick={() => router.push('/book/taxi/destination')}
-          className="absolute left-4 right-4 z-10 flex items-center gap-3 px-4 transition-all"
-          style={{
-            top: '52px',
-            height: '44px',
-            background: 'white',
-            borderRadius: '14px',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.06)',
-            border: '0.5px solid rgba(0,0,0,0.06)',
-            cursor: 'pointer',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#717171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-          </svg>
-          <span style={{ fontSize: 14, color: '#a8a8a8', fontWeight: 500 }}>Where to?</span>
         </button>
+
+        {/* Location chip (mobile only) */}
+        {coords && (
+          <div className="absolute bottom-4 left-4 right-4 lg:hidden" style={{ zIndex: 10 }}>
+            <div className="flex items-center gap-2 bg-white rounded-full px-3 py-2 shadow-md" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d4570a', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: '#3a3a3a', fontWeight: 500 }}>{locationName}</span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Bottom sheet */}
+      {/* Controls panel */}
       <div
-        className="book-sheet"
-        style={{
-          background: 'white',
-          borderRadius: '18px 18px 0 0',
-          borderTop: '0.5px solid rgba(0,0,0,0.06)',
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.05)',
-          padding: '0 0 32px',
-          flex: 1,
-        }}
+        className="bg-white lg:w-[400px] lg:h-screen lg:overflow-y-auto flex flex-col"
+        style={{ borderRadius: '18px 18px 0 0', borderTop: '0.5px solid rgba(0,0,0,0.06)', boxShadow: '0 -4px 20px rgba(0,0,0,0.05)' }}
       >
-        {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10, paddingBottom: 16 }}>
+        {/* Drag handle (mobile only) */}
+        <div className="flex justify-center pt-2.5 pb-1 lg:hidden">
           <div style={{ width: 32, height: 3.5, background: '#e2e0db', borderRadius: 9999 }} />
         </div>
 
-        <div className="px-4 space-y-5">
-          {/* Saved places */}
-          <div>
-            <p style={{ fontSize: 9, fontWeight: 600, color: '#a8a8a8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
-              Saved Places
-            </p>
-            <div className="flex gap-3">
-              {SAVED_PLACES.map(place => (
-                <button
-                  key={place.key}
-                  onClick={() => router.push(`/book/taxi/destination?pickup=${encodeURIComponent(place.address)}`)}
-                  className="flex-1 flex items-center gap-2 p-3 rounded-[10px] text-left transition-all"
-                  style={{
-                    background: 'white',
-                    border: '0.5px solid #e2e0db',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)',
-                  }}
-                >
-                  <div style={{
-                    width: 28, height: 28, borderRadius: 8,
-                    background: `${place.accent}18`,
-                    border: `0.5px solid ${place.accent}20`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, flexShrink: 0,
-                  }}>
-                    {place.icon}
-                  </div>
-                  <div className="min-w-0">
-                    <p style={{ fontSize: 11, fontWeight: 500, color: '#141414', lineHeight: 1.2 }}>{place.label}</p>
-                    <p style={{ fontSize: 9, color: '#a8a8a8', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{place.address}</p>
-                  </div>
-                </button>
-              ))}
+        <div className="px-4 pt-4 pb-6 lg:pt-8 lg:px-6">
+          {/* Desktop: heading */}
+          <h2 className="hidden lg:block font-display font-bold text-[22px] tracking-tight mb-5" style={{ color: '#141414' }}>
+            Where to?
+          </h2>
+
+          {/* Search input */}
+          <div className="relative mb-4">
+            <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a9894" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
             </div>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search destination…"
+              className="w-full rounded-[10px] pl-9 pr-4 text-[13px] outline-none"
+              style={{ height: 44, background: '#f7f6f3', border: '0.5px solid #e2e0db', color: '#141414', fontFamily: 'Epilogue, sans-serif' }}
+              onKeyDown={e => e.key === 'Enter' && results[0] && selectDestination(results[0])}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="Clear">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a9894" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
           </div>
 
-          {/* Recent */}
-          <div>
-            <p style={{ fontSize: 9, fontWeight: 600, color: '#a8a8a8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
-              Recent
-            </p>
-            <div className="divide-y" style={{ borderTop: '0.5px solid #eeece8', borderBottom: '0.5px solid #eeece8' }}>
-              {RECENT_PLACES.map(place => (
+          {/* Search results */}
+          {search.length >= 3 && (
+            <div className="mb-4" style={{ borderRadius: 10, border: '0.5px solid #e2e0db', overflow: 'hidden', background: 'white' }}>
+              {searching && (
+                <div className="flex items-center gap-2 px-4 py-3" style={{ color: '#9a9894', fontSize: 12 }}>
+                  <div style={{ width: 14, height: 14, border: '2px solid #e2e0db', borderTopColor: '#d4570a', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                  Searching…
+                </div>
+              )}
+              {!searching && results.length === 0 && (
+                <div className="px-4 py-3" style={{ color: '#9a9894', fontSize: 12 }}>No results found</div>
+              )}
+              {results.map(place => (
                 <button
-                  key={place.key}
-                  onClick={() => router.push(`/book/taxi/confirm?destination=${encodeURIComponent(place.destination)}`)}
-                  className="w-full flex items-center gap-3 py-3 text-left"
+                  key={place.id}
+                  onClick={() => selectDestination(place)}
+                  className="w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[#f7f6f3] active:bg-[#f0efe9]"
+                  style={{ borderTop: '0.5px solid #f0efe9' }}
                 >
-                  <div style={{
-                    width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                    background: 'white',
-                    border: '0.5px solid #e2e0db',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#717171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: '#f0efe9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9a9894" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p style={{ fontSize: 12, fontWeight: 500, color: '#141414' }}>{place.label}</p>
-                    <p style={{ fontSize: 10, color: '#a8a8a8' }}>{place.address}</p>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: '#141414', lineHeight: '1.3' }}>{place.text}</p>
+                    <p style={{ fontSize: 11, color: '#9a9894', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.place_name}</p>
                   </div>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.35 }}>
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
                 </button>
               ))}
             </div>
-          </div>
+          )}
+
+          {/* Saved places + recents (when not searching) */}
+          {!search && (
+            <>
+              <div className="flex flex-col gap-1 mb-4">
+                {saved.map(s => (
+                  <button key={s.label}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-left transition-colors hover:bg-[#f7f6f3] active:bg-[#f0efe9] w-full"
+                  >
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f0efe9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
+                      {s.icon}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: '#141414' }}>{s.label}</p>
+                      <p style={{ fontSize: 11, color: '#9a9894' }}>{s.sub}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <p style={{ fontSize: 11, fontWeight: 600, color: '#9a9894', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>Recent</p>
+              <div className="flex flex-col" style={{ borderRadius: 10, border: '0.5px solid #e2e0db', overflow: 'hidden', background: 'white' }}>
+                {recents.map((r, i) => (
+                  <button key={r.label}
+                    onClick={() => setSearch(r.label)}
+                    className="flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#f7f6f3] active:bg-[#f0efe9] w-full"
+                    style={{ borderTop: i > 0 ? '0.5px solid #f0efe9' : 'none' }}
+                  >
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: '#f0efe9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9a9894" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: '#141414' }}>{r.label}</p>
+                      <p style={{ fontSize: 11, color: '#9a9894' }}>{r.sub}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Full search button (mobile) */}
+              <button
+                onClick={goToSearch}
+                className="lg:hidden mt-4 w-full flex items-center justify-center gap-2 rounded-[12px] font-semibold transition-all active:scale-[0.97]"
+                style={{
+                  height: 50, fontSize: 14,
+                  background: 'linear-gradient(180deg, #252c3e 0%, #1a2030 100%)',
+                  color: 'white',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.15), 0 6px 16px rgba(0,0,0,0.1)',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Enter destination
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
+  )
+}
+
+export default function TaxiHomePage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100dvh', background: '#f7f6f3' }} />}>
+      <TaxiHomeContent />
+    </Suspense>
   )
 }

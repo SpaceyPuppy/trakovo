@@ -1,183 +1,222 @@
 'use client'
-import { useRouter } from 'next/navigation'
-import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
+import { useRoute } from '@/lib/hooks/useRoute'
 
-// Simple SVG route map (pickup → destination dashed line)
-function RouteMap({ destination }: { destination: string }) {
-  return (
-    <div style={{ position: 'relative', height: '200px', background: '#e8e4dd', overflow: 'hidden' }}>
-      {/* Street grid */}
-      <svg width="100%" height="100%" viewBox="0 0 390 200" style={{ position: 'absolute', inset: 0 }}>
-        <rect width="390" height="200" fill="#e8e4dd" />
-        <rect x="0" y="50" width="390" height="8" fill="#d4d0c8" />
-        <rect x="0" y="130" width="390" height="8" fill="#d4d0c8" />
-        <rect x="80" y="0" width="8" height="200" fill="#d4d0c8" />
-        <rect x="200" y="0" width="8" height="200" fill="#d4d0c8" />
-        <rect x="310" y="0" width="8" height="200" fill="#d4d0c8" />
-        {/* Buildings */}
-        <rect x="92" y="10" width="28" height="32" rx="2" fill="#ccc8c0" />
-        <rect x="130" y="10" width="40" height="32" rx="2" fill="#d4d0c8" />
-        <rect x="212" y="10" width="30" height="32" rx="2" fill="#ccc8c0" />
-        <rect x="92" y="62" width="36" height="60" rx="2" fill="#d4d0c8" />
-        <rect x="140" y="62" width="40" height="60" rx="2" fill="#ccc8c0" />
-        <rect x="212" y="62" width="30" height="60" rx="2" fill="#d4d0c8" />
-        <rect x="260" y="62" width="38" height="60" rx="2" fill="#ccc8c0" />
-        <rect x="92" y="140" width="28" height="50" rx="2" fill="#ccc8c0" />
-        <rect x="130" y="140" width="44" height="50" rx="2" fill="#d4d0c8" />
-        <rect x="212" y="140" width="30" height="50" rx="2" fill="#ccc8c0" />
-        {/* Dashed route line */}
-        <path d="M 110 180 L 110 100 L 200 100 L 200 30 L 280 30" stroke="#d4570a" strokeWidth="3.5" strokeDasharray="6,5" fill="none" opacity="0.8" strokeLinecap="round" />
-        {/* Route glow */}
-        <path d="M 110 180 L 110 100 L 200 100 L 200 30 L 280 30" stroke="#d4570a" strokeWidth="10" fill="none" opacity="0.06" strokeLinecap="round" />
-        {/* Pickup pin (orange) */}
-        <circle cx="110" cy="182" r="8" fill="#d4570a" stroke="white" strokeWidth="2.5" />
-        {/* Destination pin (dark square) */}
-        <rect x="272" y="22" width="16" height="16" rx="3" fill="#1e2330" />
-      </svg>
-      {/* Destination label */}
-      <div style={{ position: 'absolute', top: 12, right: 40, background: 'white', borderRadius: 8, padding: '3px 8px', fontSize: 10, fontWeight: 600, color: '#141414', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
-        {destination}
-      </div>
-    </div>
-  )
+const TaxiMap = dynamic(() => import('@/components/book/TaxiMap'), { ssr: false })
+
+function formatDuration(s: number): string {
+  const mins = Math.round(s / 60)
+  if (mins < 60) return `${mins} min`
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`
 }
 
-const MOCK_DRIVER = {
-  name: 'Barry Thompson',
-  initials: 'BT',
-  vehicle: 'White Toyota Camry',
-  rego: 'ABC-123',
-  rating: '4.8',
+function formatDistance(m: number): string {
+  if (m < 1000) return `${m.toFixed(0)} m`
+  return `${(m / 1000).toFixed(1)} km`
+}
+
+function formatFare(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`
 }
 
 function ConfirmContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const destination = searchParams.get('destination') || 'Cohuna Hospital'
-  const fare = '$12–18'
-  const eta = '4 min'
 
-  function confirmRide() {
-    router.push(`/book/taxi/ride?destination=${encodeURIComponent(destination)}`)
+  const pickupName = searchParams.get('pickup_name') || 'Current location'
+  const pickupLat = parseFloat(searchParams.get('pickup_lat') || '-35.8729')
+  const pickupLng = parseFloat(searchParams.get('pickup_lng') || '144.3194')
+  const destName = searchParams.get('dest_name') || 'Destination'
+  const destLat = parseFloat(searchParams.get('dest_lat') || '-35.8729')
+  const destLng = parseFloat(searchParams.get('dest_lng') || '144.3194')
+
+  const pickup: [number, number] = [pickupLng, pickupLat]
+  const dest: [number, number] = [destLng, destLat]
+
+  const { route, loading: routeLoading } = useRoute(pickup, dest)
+
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleConfirm() {
+    if (!name.trim() || !phone.trim() || !route) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/booking/taxi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contact_name: name.trim(),
+          contact_phone: phone.trim(),
+          pickup_address: pickupName,
+          dest_address: destName,
+          pickup_lat: pickupLat,
+          pickup_lng: pickupLng,
+          dest_lat: destLat,
+          dest_lng: destLng,
+          distance_m: route.distance_m,
+          duration_s: route.duration_s,
+          fare_cents: route.fare_cents,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Booking failed')
+      const rideParams = new URLSearchParams({
+        booking_id: data.booking_id,
+        dest_name: destName,
+        duration_s: String(Math.round(route.duration_s)),
+        distance_m: String(Math.round(route.distance_m)),
+        fare_cents: String(route.fare_cents),
+      })
+      router.push(`/book/taxi/ride?${rideParams}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong')
+      setSubmitting(false)
+    }
   }
 
-  function cancel() {
-    router.back()
-  }
+  const canConfirm = name.trim().length > 1 && phone.trim().length > 5 && !!route && !submitting
 
   return (
-    <div className="book-screen flex flex-col" style={{ minHeight: '100dvh', background: '#f7f6f3' }}>
-      {/* Map area */}
-      <RouteMap destination={destination} />
+    <div className="flex flex-col lg:flex-row" style={{ minHeight: '100dvh' }}>
+      {/* Map */}
+      <div className="relative lg:flex-1" style={{ height: '40vh', minHeight: 260 }}>
+        <TaxiMap
+          pickup={pickup}
+          dest={dest}
+          routeGeometry={route?.geometry ?? null}
+          style={{ width: '100%', height: '100%' }}
+        />
+        {/* Back */}
+        <button
+          onClick={() => router.back()}
+          className="absolute top-4 left-4 flex items-center justify-center rounded-full bg-white shadow-md transition-all active:scale-95"
+          style={{ width: 36, height: 36, border: '0.5px solid rgba(0,0,0,0.08)', zIndex: 10 }}
+          aria-label="Back"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a3a3a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      </div>
 
-      {/* Bottom sheet */}
+      {/* Panel */}
       <div
-        className="book-sheet flex-1"
-        style={{
-          background: 'white',
-          borderRadius: '18px 18px 0 0',
-          borderTop: '0.5px solid rgba(0,0,0,0.06)',
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.05)',
-          padding: '0 16px 32px',
-        }}
+        className="bg-white lg:w-[400px] lg:h-screen lg:overflow-y-auto flex flex-col"
+        style={{ borderRadius: '18px 18px 0 0', borderTop: '0.5px solid rgba(0,0,0,0.06)', boxShadow: '0 -4px 20px rgba(0,0,0,0.05)' }}
       >
         {/* Drag handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10, paddingBottom: 16 }}>
+        <div className="flex justify-center pt-2.5 pb-1 lg:hidden">
           <div style={{ width: 32, height: 3.5, background: '#e2e0db', borderRadius: 9999 }} />
         </div>
 
-        {/* Destination + fare row */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 14, color: '#141414' }}>{destination}</p>
-            <p style={{ fontSize: 10, color: '#717171', marginTop: 1 }}>{eta} away · ~2.4 km</p>
-          </div>
-          <div style={{
-            background: '#f7f6f3', borderRadius: 10, padding: '6px 12px',
-            border: '0.5px solid #e2e0db',
-          }}>
-            <p style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 18, color: '#141414', lineHeight: 1.1 }}>{fare}</p>
-            <p style={{ fontSize: 8, color: '#a8a8a8', textAlign: 'center' }}>est. fare</p>
-          </div>
-        </div>
-
-        {/* Driver card */}
-        <div style={{
-          background: '#f7f6f3', borderRadius: 12,
-          border: '0.5px solid #e2e0db',
-          padding: '12px',
-          display: 'flex', alignItems: 'center', gap: 10,
-          marginBottom: 16,
-        }}>
-          {/* Avatar */}
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #2d3444, #1e2330)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'white', fontSize: 11, fontWeight: 600,
-            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-            flexShrink: 0,
-          }}>
-            {MOCK_DRIVER.initials}
-          </div>
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p style={{ fontSize: 12, fontWeight: 500, color: '#141414' }}>{MOCK_DRIVER.name}</p>
-              {/* Rating pill */}
-              <div style={{
-                background: 'rgba(212,87,10,0.08)', borderRadius: 9999,
-                padding: '1px 6px',
-                display: 'flex', alignItems: 'center', gap: 3,
-              }}>
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="#d4570a">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#d4570a' }}>{MOCK_DRIVER.rating}</span>
+        <div className="px-4 pt-4 pb-8 lg:pt-8 lg:px-6 flex flex-col gap-4">
+          {/* Route summary */}
+          <div style={{ background: '#f7f6f3', borderRadius: 12, padding: '12px 14px', border: '0.5px solid #e2e0db' }}>
+            <div className="flex items-start gap-3">
+              <div className="flex flex-col items-center gap-1 pt-0.5 shrink-0">
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d4570a' }} />
+                <div style={{ width: 1, height: 18, background: '#d4d2cc' }} />
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: '#1e2330' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p style={{ fontSize: 13, fontWeight: 500, color: '#141414', marginBottom: 10 }}>{pickupName}</p>
+                <p style={{ fontSize: 13, fontWeight: 500, color: '#141414' }}>{destName}</p>
               </div>
             </div>
-            <p style={{ fontSize: 10, color: '#717171' }}>{MOCK_DRIVER.vehicle} · {MOCK_DRIVER.rego}</p>
           </div>
-          {/* Phone button */}
-          <button style={{
-            width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-            background: 'white', border: '0.5px solid #e2e0db',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#717171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.55a16 16 0 0 0 6.54 6.54l1.62-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-            </svg>
-          </button>
-        </div>
 
-        {/* Action buttons */}
-        <div className="flex gap-3">
-          <button
-            onClick={cancel}
-            className="flex-1 flex items-center justify-center rounded-[12px] text-[12px] font-medium transition-all active:scale-[0.97]"
-            style={{
-              height: 46,
-              background: 'white', color: '#3a3a3a',
-              border: '1px solid #e2e0db',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.5)',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={confirmRide}
-            className="flex items-center justify-center rounded-[12px] font-semibold transition-all active:scale-[0.97]"
-            style={{
-              flex: 2, height: 46,
-              background: 'linear-gradient(180deg, #252c3e 0%, #1a2030 100%)',
-              color: 'white', fontSize: 13,
-              border: '1px solid rgba(255,255,255,0.06)',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.15), 0 6px 16px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.08)',
-            }}
-          >
-            Confirm ride
-          </button>
+          {/* Fare / distance / ETA */}
+          {routeLoading ? (
+            <div className="flex items-center gap-2 py-2" style={{ color: '#9a9894', fontSize: 12 }}>
+              <div style={{ width: 14, height: 14, border: '2px solid #e2e0db', borderTopColor: '#d4570a', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+              Calculating route…
+            </div>
+          ) : route ? (
+            <div className="flex gap-3">
+              {[
+                { label: 'Fare', value: formatFare(route.fare_cents), accent: true },
+                { label: 'Distance', value: formatDistance(route.distance_m) },
+                { label: 'ETA', value: formatDuration(route.duration_s) },
+              ].map(stat => (
+                <div key={stat.label} className="flex-1 flex flex-col items-center py-3 rounded-[10px]" style={{ background: '#f7f6f3', border: '0.5px solid #e2e0db' }}>
+                  <p style={{ fontSize: 9, color: '#9a9894', letterSpacing: '0.05px', marginBottom: 3 }}>{stat.label}</p>
+                  <p style={{
+                    fontFamily: stat.accent ? 'Syne, sans-serif' : undefined,
+                    fontWeight: stat.accent ? 700 : 500,
+                    fontSize: stat.accent ? 16 : 13,
+                    color: '#141414',
+                  }}>{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Contact form */}
+          <div className="flex flex-col gap-2">
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Your name"
+              className="w-full rounded-[10px] px-3 text-[13px] outline-none"
+              style={{ height: 44, background: '#f7f6f3', border: '0.5px solid #e2e0db', color: '#141414', fontFamily: 'Epilogue, sans-serif' }}
+            />
+            <input
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="Phone number"
+              type="tel"
+              className="w-full rounded-[10px] px-3 text-[13px] outline-none"
+              style={{ height: 44, background: '#f7f6f3', border: '0.5px solid #e2e0db', color: '#141414', fontFamily: 'Epilogue, sans-serif' }}
+            />
+          </div>
+
+          {/* Mock driver */}
+          <div className="flex items-center gap-3 px-4 py-3 rounded-[10px]" style={{ background: '#f7f6f3', border: '0.5px solid #e2e0db' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #2d3444, #1e2330)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
+              BT
+            </div>
+            <div className="flex-1 min-w-0">
+              <p style={{ fontSize: 12, fontWeight: 500, color: '#141414' }}>Barry Thompson</p>
+              <p style={{ fontSize: 10, color: '#9a9894' }}>White Toyota Camry · ABC-123</p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: 10, color: '#9a9894' }}>Rating</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#141414' }}>4.9 ★</p>
+            </div>
+          </div>
+
+          {error && <p style={{ fontSize: 12, color: '#c0392b' }}>{error}</p>}
+
+          {/* Action buttons */}
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => router.back()}
+              className="flex-1 flex items-center justify-center rounded-[12px] font-medium transition-all active:scale-[0.97]"
+              style={{ height: 50, fontSize: 14, background: '#f0efe9', color: '#3a3a3a', border: '0.5px solid #e2e0db' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!canConfirm}
+              className="flex-[2] flex items-center justify-center rounded-[12px] font-semibold transition-all active:scale-[0.97] disabled:opacity-40"
+              style={{
+                height: 50, fontSize: 14,
+                background: 'linear-gradient(180deg, #252c3e 0%, #1a2030 100%)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.06)',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.15), 0 6px 16px rgba(0,0,0,0.1)',
+              }}
+            >
+              {submitting ? 'Booking…' : 'Confirm ride'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 {
   "name": "trakovo",
-  "version": "1.6.0",
-  "build_label": "1.6.0",
+  "version": "1.7.0",
+  "build_label": "1.7.0",
   "private": true,
   "engines": {
     "node": ">=18.17.0"
@@ -22,17 +22,20 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "js-cookie": "^3.0.5",
+    "mapbox-gl": "^3.20.0",
     "mysql2": "^3.11.5",
     "next": "^14.2.35",
     "nodemailer": "^8.0.1",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-map-gl": "^8.1.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",
     "@types/js-cookie": "^3.0.6",
+    "@types/mapbox-gl": "^3.4.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

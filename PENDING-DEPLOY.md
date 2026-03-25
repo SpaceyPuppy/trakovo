@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.5.0
+## Current pending version: v1.7.0
 
 ---
 
@@ -172,7 +172,18 @@ CREATE TABLE IF NOT EXISTS `TripRating` (
 ```env
 # Cron authentication (for /api/cron/email-sequences)
 CRON_SECRET=generate_a_long_random_string_here
+
+# Mapbox (for /book taxi flow — v1.7.0)
+NEXT_PUBLIC_MAPBOX_TOKEN=pk.ey...your_token_here
 ```
+
+## 2b. npm install on server (v1.7.0)
+
+New packages were added. After deploying the zip, run npm install via cPanel Node.js App setup:
+```
+npm install
+```
+New dependencies: `react-map-gl`, `mapbox-gl`, `@types/mapbox-gl`
 
 ---
 
@@ -264,3 +275,57 @@ All code changes are in git — build locally, create zip, deploy.
 - New cron endpoint: `POST /api/cron/email-sequences` (Bearer token auth)
 - Availability check (`/api/vehicles/available`) now excludes blockout date ranges
 - `getAvailability()` in lib/api.ts now includes blockouts for per-vehicle booking calendar
+
+---
+
+## v1.6.0 — (unreleased)
+
+### New features
+
+**Service Feature Toggles (Dispatch Settings)**
+- New Admin → Settings → Dispatch page for enabling/disabling per-service features
+- Toggleable features: Trip ratings, rating comments, trip sharing, live tracking — per service type (taxi, rideshare, self-drive, chauffeured)
+- Changes take effect immediately, cached 60s for public API
+
+**Trip Ratings**
+- Customers can rate their trip after completion (1–5 stars) — if enabled in Dispatch settings
+- Optional comment field (also toggleable)
+- Ratings stored in `TripRating` table, one per booking
+
+**Multi-service Booking App**
+- /book redesigned with a service picker (Taxi, Rideshare, Self-Drive, Chauffeured)
+- Vehicle hire flow moved to /book/hire — old /book/[slug] URLs auto-redirect
+- Taxi flow: 5-screen flow (home → destination → confirm → ride → complete) with MVP placeholder UI
+
+### Technical
+- New DB tables: `ServiceFeature` (10 seed rows), `TripRating`
+- New public endpoint: `GET /api/service-features?service_type=taxi` (cached 60s)
+- New admin endpoints: `GET/PATCH /api/admin/service-features`
+- New public endpoint: `POST /api/booking/[id]/rating`
+- New client hook: `useServiceFeatures(serviceType)` in lib/hooks
+
+---
+
+## v1.7.0 — (unreleased)
+
+### New features
+
+**Functional Taxi Flow**
+- /book/taxi now uses a real Mapbox GL map with live geolocation
+- Desktop: split layout (map left, controls right) — no phone frame
+- Live address search via Mapbox Geocoding API (debounced, AU-only)
+- Route calculation via Mapbox Directions API — real distance, ETA, fare
+- Fare formula: max($8.00, $3.50 + distance_km × $2.20)
+- Confirm screen creates a real Booking record in the database
+- Ride screen shows countdown ETA with progress bar
+- Complete screen loads real trip data from DB; submits rating to TripRating table
+
+**Admin Settings Navigation**
+- Settings tabs replaced sidebar nav with horizontal tab strip for better mobile usability
+
+### Technical
+- New packages: `react-map-gl`, `mapbox-gl`, `@types/mapbox-gl`
+- New env var: `NEXT_PUBLIC_MAPBOX_TOKEN` (public Mapbox access token)
+- New endpoint: `POST /api/booking/taxi` (public, creates Booking with service_type='taxi')
+- New components: `TaxiMap`, `useMapboxSearch`, `useRoute` hooks
+- `book/layout.tsx` simplified — phone frame removed

@@ -1,123 +1,118 @@
 'use client'
-import { useRouter } from 'next/navigation'
-import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
-
-const RECENT_DESTINATIONS = [
-  { key: 'd1', label: 'Cohuna Hospital', address: 'King George St, Cohuna' },
-  { key: 'd2', label: 'Cohuna Post Office', address: '68 King George St, Cohuna' },
-  { key: 'd3', label: 'Cohuna IGA', address: 'Murray St, Cohuna' },
-  { key: 'd4', label: 'Gunbower Hotel', address: 'Gunbower VIC 3566' },
-  { key: 'd5', label: 'Kerang Railway Station', address: 'Kerang VIC 3579' },
-]
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useMapboxSearch } from '@/lib/hooks/useMapboxSearch'
 
 function DestinationContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const pickup = searchParams.get('pickup') || 'Current location'
+  const pickupName = searchParams.get('pickup_name') || 'Current location'
+  const pickupLat = parseFloat(searchParams.get('pickup_lat') || '-35.8729')
+  const pickupLng = parseFloat(searchParams.get('pickup_lng') || '144.3194')
 
-  function selectDestination(dest: string) {
-    router.push(`/book/taxi/confirm?destination=${encodeURIComponent(dest)}`)
+  const [query, setQuery] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const { results, loading } = useMapboxSearch(query, [pickupLng, pickupLat])
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  function selectPlace(place: { center: [number, number]; place_name: string; text: string }) {
+    const params = new URLSearchParams({
+      pickup_name: pickupName,
+      pickup_lat: String(pickupLat),
+      pickup_lng: String(pickupLng),
+      dest_name: place.text || place.place_name,
+      dest_lat: String(place.center[1]),
+      dest_lng: String(place.center[0]),
+    })
+    router.push(`/book/taxi/confirm?${params}`)
   }
 
   return (
-    <div className="book-screen flex flex-col" style={{ minHeight: '100dvh', background: '#f7f6f3' }}>
+    <div className="flex flex-col" style={{ minHeight: '100dvh', background: '#f7f6f3', maxWidth: 480, margin: '0 auto' }}>
       {/* Header */}
-      <div
-        className="flex items-center gap-3 px-4 pt-4 pb-4"
-        style={{ background: 'white', borderBottom: '0.5px solid #e2e0db' }}
-      >
-        <button
-          onClick={() => router.back()}
-          className="w-[30px] h-[30px] rounded-full flex items-center justify-center shrink-0 transition-all"
-          style={{ background: '#f7f6f3', border: '0.5px solid #e2e0db' }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#141414" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <h1 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 15, color: '#141414' }}>
-          Set destination
-        </h1>
-      </div>
-
-      {/* Pickup / Dropoff fields */}
-      <div style={{ background: 'white', padding: '16px' }}>
-        <div className="flex gap-3">
-          {/* Route indicator */}
-          <div className="flex flex-col items-center shrink-0 pt-3">
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#d4570a' }} />
-            <div style={{ width: 1.5, height: 28, background: 'linear-gradient(to bottom, #d4570a, #a8a8a8)', margin: '2px 0' }} />
-            <div style={{ width: 10, height: 10, background: '#1e2330', borderRadius: 2 }} />
-          </div>
-
-          {/* Fields */}
-          <div className="flex-1 space-y-2">
-            {/* Pickup */}
-            <div
-              className="flex items-center gap-2 px-3"
-              style={{
-                height: 40, borderRadius: 10,
-                background: '#f7f6f3',
-                border: '0.5px solid #e2e0db',
-              }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 500, color: '#717171' }}>{pickup}</span>
+      <div className="bg-white px-4 pt-safe-top" style={{ borderBottom: '0.5px solid #e2e0db' }}>
+        <div className="flex items-center gap-3 py-4">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center justify-center rounded-full transition-all active:scale-95 shrink-0"
+            style={{ width: 36, height: 36, background: '#f0efe9', border: 'none' }}
+            aria-label="Back"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a3a3a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <div className="flex-1 flex flex-col gap-2">
+            {/* Pickup (read-only) */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-[8px]" style={{ background: '#f7f6f3', border: '0.5px solid #e2e0db' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d4570a', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: '#717171' }}>{pickupName}</span>
             </div>
-            {/* Dropoff */}
-            <div
-              className="flex items-center gap-2 px-3"
-              style={{
-                height: 40, borderRadius: 10,
-                background: 'white',
-                border: '1.5px solid #d4570a',
-                boxShadow: '0 0 0 3px rgba(212,87,10,0.08)',
-              }}
-            >
-              <span style={{ fontSize: 13, color: '#a8a8a8', flex: 1 }}>Where to?</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-              </svg>
+            {/* Destination input */}
+            <div className="relative flex items-center">
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: '#1e2330', flexShrink: 0, marginLeft: 8, marginRight: 8 }} />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Where to?"
+                className="flex-1 outline-none text-[13px]"
+                style={{ background: 'transparent', color: '#141414', fontFamily: 'Epilogue, sans-serif', padding: '6px 0' }}
+                onKeyDown={e => e.key === 'Enter' && results[0] && selectPlace(results[0])}
+              />
+              {query && (
+                <button onClick={() => setQuery('')} className="p-1" aria-label="Clear">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a9894" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         </div>
-
-        <div style={{ height: '0.5px', background: '#e2e0db', margin: '16px -16px 0' }} />
       </div>
 
-      {/* Recent destinations */}
-      <div className="flex-1 px-4 pt-4">
-        <p style={{ fontSize: 9, fontWeight: 600, color: '#a8a8a8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
-          Recent Destinations
-        </p>
-        <div className="space-y-0">
-          {RECENT_DESTINATIONS.map((dest, i) => (
-            <button
-              key={dest.key}
-              onClick={() => selectDestination(dest.label)}
-              className="w-full flex items-center gap-3 py-3 text-left transition-all"
-              style={{ borderBottom: i < RECENT_DESTINATIONS.length - 1 ? '0.5px solid #eeece8' : 'none' }}
-            >
-              <div style={{
-                width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                background: 'white',
-                border: '0.5px solid #e2e0db',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#717171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                </svg>
+      {/* Results */}
+      <div className="flex-1 overflow-y-auto">
+        {query.length >= 3 && (
+          <div>
+            {loading && (
+              <div className="flex items-center gap-2 px-4 py-4" style={{ color: '#9a9894', fontSize: 12 }}>
+                <div style={{ width: 14, height: 14, border: '2px solid #e2e0db', borderTopColor: '#d4570a', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                Searching…
               </div>
-              <div className="flex-1 min-w-0">
-                <p style={{ fontSize: 12, fontWeight: 500, color: '#141414' }}>{dest.label}</p>
-                <p style={{ fontSize: 10, color: '#a8a8a8' }}>{dest.address}</p>
-              </div>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.35, flexShrink: 0 }}>
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          ))}
-        </div>
+            )}
+            {!loading && results.length === 0 && (
+              <div className="px-4 py-4" style={{ color: '#9a9894', fontSize: 13 }}>No results for &ldquo;{query}&rdquo;</div>
+            )}
+            {results.map(place => (
+              <button
+                key={place.id}
+                onClick={() => selectPlace(place)}
+                className="w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white active:bg-white"
+                style={{ borderBottom: '0.5px solid #eeece8' }}
+              >
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'white', border: '0.5px solid #e2e0db', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9a9894" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p style={{ fontSize: 13, fontWeight: 500, color: '#141414' }}>{place.text}</p>
+                  <p style={{ fontSize: 11, color: '#9a9894', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.place_name}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Placeholder when no query */}
+        {query.length < 3 && (
+          <div className="px-4 py-6">
+            <p style={{ fontSize: 12, color: '#9a9894' }}>Type at least 3 characters to search</p>
+          </div>
+        )}
       </div>
     </div>
   )
