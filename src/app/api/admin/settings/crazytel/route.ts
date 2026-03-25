@@ -3,7 +3,7 @@ import { getAdminSession } from '@/lib/auth'
 import { query, execute } from '@/lib/db'
 import { sendSms } from '@/lib/sms'
 
-const KEYS = ['crazytel_enabled', 'crazytel_api_key', 'crazytel_from_number', 'crazytel_dispatch_number']
+const KEYS = ['crazytel_enabled', 'crazytel_api_key', 'crazytel_account_api_key', 'crazytel_from_number', 'crazytel_dispatch_number']
 
 export async function GET() {
   const session = await getAdminSession()
@@ -19,6 +19,7 @@ export async function GET() {
   return NextResponse.json({
     enabled: s.crazytel_enabled === '1',
     api_key_set: Boolean(s.crazytel_api_key),
+    account_api_key_set: Boolean(s.crazytel_account_api_key),
     from_number: s.crazytel_from_number ?? '',
     dispatch_number: s.crazytel_dispatch_number ?? '',
   })
@@ -33,6 +34,7 @@ export async function PATCH(req: NextRequest) {
 
   if (body.enabled !== undefined) updates.push(['crazytel_enabled', body.enabled ? '1' : '0'])
   if (body.api_key) updates.push(['crazytel_api_key', body.api_key])
+  if (body.account_api_key) updates.push(['crazytel_account_api_key', body.account_api_key])
   if (body.from_number !== undefined) updates.push(['crazytel_from_number', body.from_number])
   if (body.dispatch_number !== undefined) updates.push(['crazytel_dispatch_number', body.dispatch_number])
 

@@ -19,9 +19,9 @@ export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const apiKeyRow = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ?', ['crazytel_api_key'])
+  const apiKeyRow = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ?', ['crazytel_account_api_key'])
   const apiKey = apiKeyRow?.value?.trim()
-  if (!apiKey) return NextResponse.json({ error: 'API key not set' }, { status: 400 })
+  if (!apiKey) return NextResponse.json({ error: 'Account API key not set' }, { status: 400 })
 
   const [balanceData, numbersData] = await Promise.all([
     crazytelGet('/balance/', apiKey),

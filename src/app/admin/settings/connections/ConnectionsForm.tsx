@@ -16,6 +16,7 @@ interface Props {
   pushConfigured: boolean
   crazytelEnabled: boolean
   crazytelApiKeySet: boolean
+  crazytelAccountKeySet: boolean
   crazytelFromNumber: string
   crazytelDispatchNumber: string
 }
@@ -283,11 +284,12 @@ function SmtpPanel({ smtpConfigured, smtpVars, msConnected }: {
 
 type AccountInfo = { balance: string | null; numbers: string[]; account_found: boolean; numbers_found: boolean }
 
-function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, initialDispatchNumber }: {
-  initialEnabled: boolean; initialApiKeySet: boolean; initialFromNumber: string; initialDispatchNumber: string
+function CrazytelPanel({ initialEnabled, initialApiKeySet, initialAccountKeySet, initialFromNumber, initialDispatchNumber }: {
+  initialEnabled: boolean; initialApiKeySet: boolean; initialAccountKeySet: boolean; initialFromNumber: string; initialDispatchNumber: string
 }) {
   const [enabled, setEnabled] = useState(initialEnabled)
   const [apiKey, setApiKey] = useState('')
+  const [accountKey, setAccountKey] = useState('')
   const [fromNumber, setFromNumber] = useState(initialFromNumber)
   const [dispatchNumber, setDispatchNumber] = useState(initialDispatchNumber)
   const [testNumber, setTestNumber] = useState('')
@@ -312,7 +314,7 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
   }
 
   useEffect(() => {
-    if (initialApiKeySet) fetchAccount()
+    if (initialAccountKeySet) fetchAccount()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSave() {
@@ -320,6 +322,7 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
     try {
       const body: Record<string, unknown> = { enabled, from_number: fromNumber, dispatch_number: dispatchNumber }
       if (apiKey) body.api_key = apiKey
+      if (accountKey) body.account_api_key = accountKey
       const res = await fetch('/api/admin/settings/crazytel', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -327,8 +330,9 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
       if (!res.ok) throw new Error('Save failed')
       flash('CrazyTel settings saved', 'success')
       setApiKey('')
-      // Refresh account info after saving a new key
-      if (apiKey) fetchAccount()
+      setAccountKey('')
+      // Refresh account info after saving a new account key
+      if (accountKey) fetchAccount()
     } catch { flash('Save failed', 'error') }
     finally { setSaving(false) }
   }
@@ -356,8 +360,8 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
       <div className="px-5 py-4 space-y-4">
         {msg && <p className={`text-[13px] rounded-[6px] px-3 py-2 ${msg.type === 'success' ? 'text-success bg-success-bg border border-success/30' : 'text-red-600 bg-red-50 border border-red-200'}`}>{msg.text}</p>}
 
-        {/* Account status (shown when key is saved) */}
-        {initialApiKeySet && (
+        {/* Account status (shown when account key is saved) */}
+        {initialAccountKeySet && (
           <div className={cn('rounded-[6px] px-4 py-3 border text-[13px]', account ? 'bg-success-bg border-success/30' : 'bg-bg border-border')}>
             {accountLoading ? (
               <p className="text-ink-3">Verifying account…</p>
@@ -392,7 +396,7 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
 
         <div className="border-t border-border" />
 
-        {/* API Key */}
+        {/* SMS API Key */}
         <div>
           <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">
             SMS API Key {initialApiKeySet && <span className="font-normal text-ink-3">(saved — enter new value to replace)</span>}
@@ -405,6 +409,23 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialFromNumber, in
             className={inp}
             autoComplete="off"
           />
+          <p className="text-[11px] text-ink-3 mt-1">Used to send SMS via sms.crazytel.net.au</p>
+        </div>
+
+        {/* Account API Key */}
+        <div>
+          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">
+            Account API Key {initialAccountKeySet && <span className="font-normal text-ink-3">(saved — enter new value to replace)</span>}
+          </label>
+          <input
+            type="password"
+            value={accountKey}
+            onChange={e => setAccountKey(e.target.value)}
+            placeholder={initialAccountKeySet ? '••••••••••••••••' : 'Enter CrazyTel account API key…'}
+            className={inp}
+            autoComplete="off"
+          />
+          <p className="text-[11px] text-ink-3 mt-1">Used to fetch account balance and phone numbers from crazytel.io</p>
         </div>
 
         {/* From number — dropdown if numbers available, text input fallback */}
@@ -463,7 +484,7 @@ function ConnectionsFormInner({
   msConfigured, msConnected, msConnectedEmail,
   gcConfigured, gcConnected, gcConnectedEmail,
   pushConfigured,
-  crazytelEnabled, crazytelApiKeySet, crazytelFromNumber, crazytelDispatchNumber,
+  crazytelEnabled, crazytelApiKeySet, crazytelAccountKeySet, crazytelFromNumber, crazytelDispatchNumber,
 }: Props) {
   const searchParams = useSearchParams()
   const [selected, setSelected] = useState<TileId | null>(null)
@@ -585,6 +606,7 @@ function ConnectionsFormInner({
         <CrazytelPanel
           initialEnabled={crazytelEnabled}
           initialApiKeySet={crazytelApiKeySet}
+          initialAccountKeySet={crazytelAccountKeySet}
           initialFromNumber={crazytelFromNumber}
           initialDispatchNumber={crazytelDispatchNumber}
         />
