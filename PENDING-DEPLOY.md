@@ -11,159 +11,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ## 1. Database — run via phpMyAdmin
 
-```sql
--- Feature: Availability & blockout date management
-CREATE TABLE IF NOT EXISTS `VehicleBlockout` (
-  `id` VARCHAR(191) NOT NULL,
-  `vehicle_id` VARCHAR(191) NULL,
-  `start_date` VARCHAR(10) NOT NULL,
-  `end_date` VARCHAR(10) NOT NULL,
-  `reason` VARCHAR(191) NOT NULL DEFAULT '',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `VehicleBlockout_vehicle_idx` (`vehicle_id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Feature: Automated email sequences
-CREATE TABLE IF NOT EXISTS `BookingEmailLog` (
-  `id` INTEGER NOT NULL AUTO_INCREMENT,
-  `booking_id` VARCHAR(191) NOT NULL,
-  `template_key` VARCHAR(191) NOT NULL,
-  `sent_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE INDEX `BookingEmailLog_unique` (`booking_id`, `template_key`),
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Feature: Enquiry pipeline — enquiry_status column
-ALTER TABLE `Booking`
-  ADD COLUMN IF NOT EXISTS `enquiry_status` VARCHAR(20) NULL DEFAULT 'new' AFTER `is_enquiry`;
-
--- Feature: Vehicle visibility controls + licence category (v1.5.x)
-ALTER TABLE `Vehicle`
-  ADD COLUMN IF NOT EXISTS `public_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_available`,
-  ADD COLUMN IF NOT EXISTS `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `public_bookings_enabled`,
-  ADD COLUMN IF NOT EXISTS `licence_category` VARCHAR(10) NOT NULL DEFAULT '' AFTER `fuel`;
-
--- Feature: Customer profiles & internal notes
-CREATE TABLE IF NOT EXISTS `CustomerNote` (
-  `id` VARCHAR(191) NOT NULL,
-  `contact_email` VARCHAR(191) NOT NULL,
-  `text` TEXT NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `CustomerNote_email_idx` (`contact_email`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Feature: Customer profile linking and archiving
-CREATE TABLE IF NOT EXISTS `CustomerArchive` (
-  `email` VARCHAR(191) NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`email`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `CustomerAlias` (
-  `id` VARCHAR(191) NOT NULL,
-  `primary_email` VARCHAR(191) NOT NULL,
-  `alias_email` VARCHAR(191) NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `CustomerAlias_alias_email_unique` (`alias_email`),
-  INDEX `CustomerAlias_primary_email_idx` (`primary_email`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Previously noted — apply if not already done
-CREATE TABLE IF NOT EXISTS `AdminUser` (
-  `id` VARCHAR(191) NOT NULL,
-  `username` VARCHAR(191) NOT NULL,
-  `password_hash` VARCHAR(191) NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE INDEX `AdminUser_username_key` (`username`),
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `Driver` (
-  `id` VARCHAR(191) NOT NULL,
-  `public_id` VARCHAR(191) NOT NULL,
-  `name` VARCHAR(191) NOT NULL,
-  `username` VARCHAR(191) NOT NULL,
-  `password_hash` VARCHAR(191) NOT NULL,
-  `email` VARCHAR(191) NOT NULL DEFAULT '',
-  `phone` VARCHAR(191) NOT NULL DEFAULT '',
-  `is_active` BOOLEAN NOT NULL DEFAULT true,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE INDEX `Driver_public_id_key` (`public_id`),
-  UNIQUE INDEX `Driver_username_key` (`username`),
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `DriverMessage` (
-  `id` VARCHAR(191) NOT NULL,
-  `driver_id` VARCHAR(191) NOT NULL,
-  `body` TEXT NOT NULL,
-  `direction` VARCHAR(20) NOT NULL DEFAULT 'admin_to_driver',
-  `status` VARCHAR(20) NOT NULL DEFAULT 'open',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `DriverMessage_driver_idx` (`driver_id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-ALTER TABLE `Booking`
-  ADD COLUMN IF NOT EXISTS `driver_id` VARCHAR(191) NULL AFTER `vendor_client_id`;
-
--- Feature: CorporateEnquiry (v1.5.7)
-CREATE TABLE IF NOT EXISTS `CorporateEnquiry` (
-  `id` VARCHAR(191) NOT NULL,
-  `public_id` VARCHAR(191) NOT NULL,
-  `name` VARCHAR(191) NOT NULL,
-  `email` VARCHAR(191) NOT NULL,
-  `phone` VARCHAR(50) NULL,
-  `organisation` VARCHAR(191) NULL,
-  `event_type` VARCHAR(100) NULL,
-  `guests` VARCHAR(50) NULL,
-  `message` TEXT NOT NULL,
-  `status` VARCHAR(20) NOT NULL DEFAULT 'new',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `CorporateEnquiry_public_id_unique` (`public_id`),
-  INDEX `CorporateEnquiry_status_idx` (`status`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Feature: Service feature toggles (dispatch settings) + trip ratings (v1.6.0)
-CREATE TABLE IF NOT EXISTS `ServiceFeature` (
-  `id`           VARCHAR(36) NOT NULL,
-  `service_type` VARCHAR(32) NOT NULL,
-  `feature_key`  VARCHAR(64) NOT NULL,
-  `is_enabled`   TINYINT(1) NOT NULL DEFAULT 0,
-  `config`       JSON DEFAULT NULL,
-  `updated_at`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_service_feature` (`service_type`, `feature_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Seed all features as OFF by default
-INSERT IGNORE INTO `ServiceFeature` (`id`, `service_type`, `feature_key`, `is_enabled`, `config`) VALUES
-(UUID(), 'taxi',        'rating',         0, '{"max_stars":5,"mandatory":false}'),
-(UUID(), 'taxi',        'rating_comment', 0, '{"max_length":500}'),
-(UUID(), 'taxi',        'share_trip',     0, NULL),
-(UUID(), 'taxi',        'live_tracking',  0, NULL),
-(UUID(), 'rideshare',   'rating',         0, '{"max_stars":5,"mandatory":true}'),
-(UUID(), 'rideshare',   'rating_comment', 0, '{"max_length":500}'),
-(UUID(), 'rideshare',   'share_trip',     0, NULL),
-(UUID(), 'rideshare',   'live_tracking',  0, NULL),
-(UUID(), 'self_drive',  'rating',         0, '{"max_stars":5,"mandatory":false}'),
-(UUID(), 'chauffeured', 'rating',         0, '{"max_stars":5,"mandatory":false}');
-
-CREATE TABLE IF NOT EXISTS `TripRating` (
-  `id`         VARCHAR(36) NOT NULL,
-  `booking_id` VARCHAR(191) NOT NULL,
-  `stars`      TINYINT NOT NULL,
-  `comment`    TEXT DEFAULT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `TripRating_booking_unique` (`booking_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-```
+✅ All DB migrations up to and including v1.7.0 have been applied on production.
 
 ---
 
@@ -207,30 +55,17 @@ All code changes are in git — build locally, create zip, deploy.
 
 ## 5. Post-deploy checks
 
-- [ ] Admin → Blockouts — confirm page loads, can add fleet-wide and per-vehicle blockouts
-- [ ] Admin → Vehicles → edit a vehicle — confirm Blocked Dates section appears at bottom
-- [ ] Admin → Calendar — confirm blockouts appear as grey bars
-- [ ] Public booking app — select dates overlapping a blockout — confirm vehicle is hidden/blocked
-- [ ] Submit a test booking — confirm customer receives booking received email
-- [ ] Set booking to confirmed — confirm customer + admin receive confirmed email
-- [ ] Admin → Settings → Email Templates — confirm 4 new templates appear (Booking Received, Booking Confirmed, 24hr Reminder, Post-trip Follow-up)
-- [ ] Trigger cron endpoint manually: `curl -X POST https://yourdomain.com/api/cron/email-sequences -H "Authorization: Bearer YOUR_CRON_SECRET"` — confirm JSON response
-- [ ] Admin → Customers — confirm customer list loads, click a customer, confirm booking history and notes section appear
-- [ ] Add and delete a customer note — confirm persists correctly
-- [ ] Archive a customer, confirm they disappear from the list; unarchive and confirm they reappear
-- [ ] Link two email aliases on a customer profile — confirm merged booking counts in the list
-- [ ] Admin → Enquiries — confirm list loads with filter tabs
-- [ ] On a booking with is_enquiry = 1 — confirm Enquiry Manager panel appears with status buttons
-- [ ] Test "Mark Contacted", "Mark Lost", and "Convert to Booking" actions
-- [ ] Test "Notify Customer" button — confirm email is sent
-
----
+- [ ] Admin → Settings → Dispatch — confirm page loads, toggle a feature on/off
+- [ ] /book/taxi — confirm Mapbox map loads, geolocation prompt appears
+- [ ] Type a destination in taxi search — confirm suggestions appear
+- [ ] Complete taxi confirm flow — confirm booking appears in admin panel
+- [ ] Admin → Settings — confirm horizontal tab navigation works
 
 ---
 
 # Changelog / Release Notes
 
-## v1.5.0 — (unreleased)
+## v1.5.0 — released
 
 ### New features
 
@@ -273,12 +108,10 @@ All code changes are in git — build locally, create zip, deploy.
 - New Booking column: `enquiry_status` (VARCHAR 20, default 'new')
 - New env var: `CRON_SECRET`
 - New cron endpoint: `POST /api/cron/email-sequences` (Bearer token auth)
-- Availability check (`/api/vehicles/available`) now excludes blockout date ranges
-- `getAvailability()` in lib/api.ts now includes blockouts for per-vehicle booking calendar
 
 ---
 
-## v1.6.0 — (unreleased)
+## v1.6.0 — released
 
 ### New features
 
@@ -306,7 +139,7 @@ All code changes are in git — build locally, create zip, deploy.
 
 ---
 
-## v1.7.0 — (unreleased)
+## v1.7.0 — released
 
 ### New features
 
