@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     client_name,
     client_email,
     client_phone,
+    trip_details,
   } = await req.json()
 
   // service_type: 'vehicle' | 'taxi' | 'cpv'
@@ -77,9 +78,7 @@ export async function POST(req: Request) {
     }
   }
 
-  if (!contactName) {
-    return NextResponse.json({ error: 'Client name is required' }, { status: 400 })
-  }
+  // contactName is optional for multi-booking flow (vendor_id tracks ownership)
 
   const start = new Date(start_date)
   const end = new Date(end_date)
@@ -92,9 +91,9 @@ export async function POST(req: Request) {
   const serviceLabel = svcType === 'taxi' ? 'Taxi' : svcType === 'cpv' ? 'CPV' : vehicle!.name
 
   await execute(
-    `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, vendor_id, vendor_client_id, created_at, updated_at)
-     VALUES (?, ?, ?, 'chauffeured', ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-    [id, public_id, vehicle?.id ?? null, svcType, start_date, end_date, total_days, daily_rate, total_cost, contactName, contactEmail, contactPhone, session.vendorId, resolvedClientId]
+    `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, vendor_id, vendor_client_id, created_at, updated_at)
+     VALUES (?, ?, ?, 'chauffeured', ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    [id, public_id, vehicle?.id ?? null, svcType, start_date, end_date, total_days, daily_rate, total_cost, contactName || null, contactEmail || null, contactPhone || null, trip_details ?? null, session.vendorId, resolvedClientId]
   )
 
   const booking = await queryOne<{ id: string; public_id: string; status: string; daily_rate: number; total_cost: number; contact_name: string | null; contact_email: string; contact_phone: string; created_at: Date }>(

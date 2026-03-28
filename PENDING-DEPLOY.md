@@ -5,23 +5,48 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.7.2
+## Current pending version: v1.8.0
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
 - [ ] Run NPM Install in cPanel Node.js app
 - [ ] Restart app
-- [ ] No DB migrations required — all new keys use existing `Setting` table
+- [ ] No DB migrations required
 - [ ] No new env vars required
 
 ### Post-deploy verification
-- [ ] Admin → Settings → Connections — CrazyTel tile shows masked email + balance after key saved
+- [ ] Vendor → Bookings — "Book Multiple" button visible next to "+ New Booking"
+- [ ] Click "Book Multiple" → calendar loads with existing booking dots
+- [ ] Click a day → booking row appears; click same day twice → two rows
+- [ ] Fill required fields → "Create X Bookings" enables → submit creates bookings
+- [ ] Admin → Settings → Connections — CrazyTel tile shows balance after account key saved
 - [ ] CrazyTel from number field shows dropdown when numbers are available on the account
 - [ ] Taxi booking confirm → SMS sent using correct CrazyTel endpoint (sms.crazytel.net.au)
 
 ---
 
 # Changelog / Release Notes
+
+## v1.8.0 — pending
+
+### New features
+
+**Vendor — Book Multiple**
+- New "Book Multiple" button on Vendor → Bookings alongside the existing "+ New Booking"
+- Opens `/vendor/bookings/new/multi` — a fast multi-day booking flow
+- Calendar shows existing bookings as amber (pending) / green (confirmed) dot indicators with hover tooltip of booking refs
+- Click any day to add a booking row; click the same day again to add a second booking for that day
+- Each row is independently configurable: service type, pickup address (required), pickup time (required), passengers (required), destination, return trip toggle + return time, optional client, optional notes
+- Red × on each row removes it
+- "Create X Bookings" button submits all rows sequentially with live progress indicator
+- All trip details stored in `trip_details` JSON column on the Booking record
+
+### Technical
+- New component: `src/components/vendor/MultiDayPicker.tsx`
+- New page: `src/app/vendor/bookings/new/multi/page.tsx`
+- API update: `POST /api/vendor/bookings` now accepts and stores `trip_details`; `contact_name` no longer required (optional for multi-booking flow)
+
+---
 
 ## v1.7.2 — pending
 

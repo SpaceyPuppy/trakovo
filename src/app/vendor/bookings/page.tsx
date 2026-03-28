@@ -41,10 +41,16 @@ export default async function VendorBookingsPage() {
           <h1 className="font-display font-bold text-[26px] tracking-tight">Bookings</h1>
           <p className="text-[14px] text-ink-3 mt-0.5">{bookings.length} total booking{bookings.length !== 1 ? 's' : ''}</p>
         </div>
-        <Link href="/vendor/bookings/new"
-          className="bg-accent text-white font-semibold text-[13.5px] px-5 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors">
-          + New Booking
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/vendor/bookings/new/multi"
+            className="border border-border text-ink font-semibold text-[13.5px] px-4 py-2.5 rounded-[6px] hover:border-accent hover:text-accent transition-colors">
+            Book Multiple
+          </Link>
+          <Link href="/vendor/bookings/new"
+            className="bg-accent text-white font-semibold text-[13.5px] px-5 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors">
+            + New Booking
+          </Link>
+        </div>
       </div>
       <VendorBookingsList bookings={bookings as Parameters<typeof VendorBookingsList>[0]['bookings']} />
     </div>
