@@ -62,12 +62,34 @@ const SERVICE_OPTIONS: { type: ServiceType; label: string }[] = [
   { type: 'vehicle', label: 'Specific Vehicle' },
 ]
 
-const inp = 'border border-border rounded-[6px] px-2.5 py-2 text-[13px] bg-white focus:outline-none focus:border-accent w-full'
-const inpErr = 'border border-red-400 rounded-[6px] px-2.5 py-2 text-[13px] bg-white focus:outline-none focus:border-red-500 w-full'
+// Column grid — matches header and row
+const COLS = 'grid grid-cols-[108px_88px_130px_minmax(160px,1fr)_86px_52px_110px_140px_120px_110px_32px] gap-1.5'
+const cell = 'border border-border rounded-[5px] px-2 py-1.5 text-[12.5px] bg-white focus:outline-none focus:border-accent w-full'
+const cellErr = 'border border-red-400 rounded-[5px] px-2 py-1.5 text-[12.5px] bg-white focus:outline-none focus:border-red-500 w-full'
+const lbl = 'text-[10.5px] font-semibold uppercase tracking-wide text-ink-4'
 
-// ─── Booking row card ─────────────────────────────────────────────────────────
-function BookingRowCard({
-  row, vehicles, clients, errors, showErrors,
+// ─── Table header ─────────────────────────────────────────────────────────────
+function BookingTableHeader() {
+  return (
+    <div className={`${COLS} items-center px-3 py-2 bg-bg border-b border-border rounded-t-lg`}>
+      <span className={lbl}>Date</span>
+      <span className={lbl}>Service</span>
+      <span className={lbl}>Vehicle</span>
+      <span className={lbl}>Pickup address <span className="text-red-400 normal-case font-normal">*</span></span>
+      <span className={lbl}>Time <span className="text-red-400 normal-case font-normal">*</span></span>
+      <span className={lbl}>Pax <span className="text-red-400 normal-case font-normal">*</span></span>
+      <span className={lbl}>Destination</span>
+      <span className={lbl}>Return</span>
+      <span className={lbl}>Client</span>
+      <span className={lbl}>Notes</span>
+      <span />
+    </div>
+  )
+}
+
+// ─── Booking table row ────────────────────────────────────────────────────────
+function BookingTableRow({
+  row, vehicles, clients, errors, showErrors, isLast,
   onChange, onDelete,
 }: {
   row: BookingRow
@@ -75,151 +97,97 @@ function BookingRowCard({
   clients: Client[]
   errors: Record<string, boolean>
   showErrors: boolean
+  isLast: boolean
   onChange: (updated: BookingRow) => void
   onDelete: () => void
 }) {
   function set<K extends keyof BookingRow>(key: K, val: BookingRow[K]) {
     onChange({ ...row, [key]: val })
   }
+  const c = (err: boolean) => err ? cellErr : cell
 
   return (
-    <div className="bg-white border border-border rounded-xl overflow-hidden">
-      {/* Card header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg/40">
-        <p className="font-display font-bold text-[13.5px] text-ink">{formatDateLabel(row.date)}</p>
-        <button onClick={onDelete}
-          aria-label="Remove booking"
-          className="text-ink-4 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
+    <div className={`${COLS} items-center px-3 py-1.5 bg-white hover:bg-bg/30 transition-colors ${isLast ? 'rounded-b-lg' : 'border-b border-border'}`}>
+      {/* Date */}
+      <span className="text-[12.5px] font-medium text-ink truncate pr-1">{formatDateLabel(row.date)}</span>
+
+      {/* Service */}
+      <select value={row.service_type}
+        onChange={e => onChange({ ...row, service_type: e.target.value as ServiceType, vehicle_id: '' })}
+        className={cell}>
+        {SERVICE_OPTIONS.map(o => <option key={o.type} value={o.type}>{o.label}</option>)}
+      </select>
+
+      {/* Vehicle */}
+      {row.service_type === 'vehicle' ? (
+        <select value={row.vehicle_id} onChange={e => set('vehicle_id', e.target.value)}
+          className={c(showErrors && errors.vehicle_id)}>
+          <option value="">— select —</option>
+          {vehicles.map(v => <option key={v.id} value={v.id}>{v.name}{v.passengers > 0 ? ` (${v.passengers})` : ''}</option>)}
+        </select>
+      ) : (
+        <span className="text-[12px] text-ink-4 px-2 select-none">—</span>
+      )}
+
+      {/* Pickup address */}
+      <input type="text" value={row.pickup_address}
+        onChange={e => set('pickup_address', e.target.value)}
+        placeholder="Pickup address"
+        className={c(showErrors && errors.pickup_address)} />
+
+      {/* Time */}
+      <input type="time" value={row.pickup_time}
+        onChange={e => set('pickup_time', e.target.value)}
+        className={c(showErrors && errors.pickup_time)} />
+
+      {/* Pax */}
+      <input type="number" min={1} value={row.passengers}
+        onChange={e => set('passengers', e.target.value)}
+        className={c(showErrors && errors.passengers)} />
+
+      {/* Destination */}
+      <input type="text" value={row.destination}
+        onChange={e => set('destination', e.target.value)}
+        placeholder="optional"
+        className={cell} />
+
+      {/* Return toggle + conditional time */}
+      <div className="flex items-center gap-1.5">
+        <button type="button"
+          onClick={() => set('return_trip', !row.return_trip)}
+          title={row.return_trip ? 'Return on' : 'Return off'}
+          className={`relative flex-shrink-0 rounded-full border transition-colors ${row.return_trip ? 'bg-accent border-accent' : 'bg-bg border-border'}`}
+          style={{ width: 30, height: 17 }}>
+          <span className={`absolute top-[1.5px] rounded-full bg-white shadow transition-transform ${row.return_trip ? 'translate-x-[13px]' : 'translate-x-[1.5px]'}`}
+            style={{ width: 13, height: 13 }} />
         </button>
+        <input type="time" value={row.return_time}
+          onChange={e => set('return_time', e.target.value)}
+          disabled={!row.return_trip}
+          className={`${cell} disabled:opacity-30 disabled:cursor-not-allowed flex-1 min-w-0`} />
       </div>
 
-      {/* Fields */}
-      <div className="px-4 py-3 space-y-3">
-        {/* Row 1: service + pickup address + time + pax */}
-        <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr_110px_80px] gap-2.5">
-          {/* Service type */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Service</label>
-            <select value={row.service_type}
-              onChange={e => { set('service_type', e.target.value as ServiceType); set('vehicle_id', '') }}
-              className={inp}>
-              {SERVICE_OPTIONS.map(o => <option key={o.type} value={o.type}>{o.label}</option>)}
-            </select>
-          </div>
+      {/* Client */}
+      <select value={row.vendor_client_id}
+        onChange={e => set('vendor_client_id', e.target.value)}
+        className={cell}>
+        <option value="">— optional —</option>
+        {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.reference ? ` (${c.reference})` : ''}</option>)}
+      </select>
 
-          {/* Pickup address */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Pickup address <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              value={row.pickup_address}
-              onChange={e => set('pickup_address', e.target.value)}
-              placeholder="e.g. 12 Main St, Cohuna"
-              className={showErrors && errors.pickup_address ? inpErr : inp}
-            />
-          </div>
+      {/* Notes */}
+      <input type="text" value={row.notes}
+        onChange={e => set('notes', e.target.value)}
+        placeholder="optional"
+        className={cell} />
 
-          {/* Pickup time */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Pickup time <span className="text-red-500">*</span></label>
-            <input
-              type="time"
-              value={row.pickup_time}
-              onChange={e => set('pickup_time', e.target.value)}
-              className={showErrors && errors.pickup_time ? inpErr : inp}
-            />
-          </div>
-
-          {/* Passengers */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Pax <span className="text-red-500">*</span></label>
-            <input
-              type="number"
-              min={1}
-              value={row.passengers}
-              onChange={e => set('passengers', e.target.value)}
-              className={showErrors && errors.passengers ? inpErr : inp}
-            />
-          </div>
-        </div>
-
-        {/* Vehicle picker — shown only when service = vehicle */}
-        {row.service_type === 'vehicle' && (
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Vehicle <span className="text-red-500">*</span></label>
-            {vehicles.length === 0 ? (
-              <p className="text-[12.5px] text-ink-4">No vehicles available on your account.</p>
-            ) : (
-              <select value={row.vehicle_id} onChange={e => set('vehicle_id', e.target.value)}
-                className={showErrors && errors.vehicle_id ? inpErr : inp}>
-                <option value="">— select vehicle —</option>
-                {vehicles.map(v => (
-                  <option key={v.id} value={v.id}>{v.name}{v.passengers > 0 ? ` (${v.passengers} pax)` : ''}</option>
-                ))}
-              </select>
-            )}
-          </div>
-        )}
-
-        {/* Row 2: destination + return + client + notes */}
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_120px_1fr_1fr] gap-2.5 items-end">
-          {/* Destination */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Destination</label>
-            <input type="text" value={row.destination}
-              onChange={e => set('destination', e.target.value)}
-              placeholder="optional" className={inp} />
-          </div>
-
-          {/* Return trip toggle */}
-          <div className="pb-0.5">
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Return</label>
-            <button
-              type="button"
-              onClick={() => set('return_trip', !row.return_trip)}
-              className={`relative rounded-full transition-colors border ${row.return_trip ? 'bg-accent border-accent' : 'bg-bg border-border'}`}
-              style={{ width: 40, height: 22 }}
-              title={row.return_trip ? 'Return trip on' : 'Return trip off'}
-            >
-              <span className={`absolute top-0.5 rounded-full bg-white shadow transition-transform ${row.return_trip ? 'translate-x-[18px]' : 'translate-x-0.5'}`}
-                style={{ width: 18, height: 18 }} />
-            </button>
-          </div>
-
-          {/* Return time */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Return time</label>
-            <input type="time" value={row.return_time}
-              onChange={e => set('return_time', e.target.value)}
-              disabled={!row.return_trip}
-              className={`${inp} disabled:opacity-40 disabled:cursor-not-allowed`} />
-          </div>
-
-          {/* Client */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Client</label>
-            <select value={row.vendor_client_id}
-              onChange={e => set('vendor_client_id', e.target.value)}
-              className={inp}>
-              <option value="">— optional —</option>
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}{c.reference ? ` (${c.reference})` : ''}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-3 mb-1">Notes</label>
-            <input type="text" value={row.notes}
-              onChange={e => set('notes', e.target.value)}
-              placeholder="optional" className={inp} />
-          </div>
-        </div>
-      </div>
+      {/* Delete */}
+      <button onClick={onDelete} aria-label="Remove booking"
+        className="flex items-center justify-center text-ink-4 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50">
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+          <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+        </svg>
+      </button>
     </div>
   )
 }
@@ -396,18 +364,24 @@ export default function MultiBookingPage() {
               </div>
             )}
 
-            {rows.map(row => (
-              <BookingRowCard
-                key={row._id}
-                row={row}
-                vehicles={vehicles}
-                clients={clients}
-                errors={getRowErrors(row)}
-                showErrors={showErrors}
-                onChange={updated => updateRow(row._id, updated)}
-                onDelete={() => deleteRow(row._id)}
-              />
-            ))}
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <div className="min-w-[1150px]">
+                <BookingTableHeader />
+                {rows.map((row, i) => (
+                  <BookingTableRow
+                    key={row._id}
+                    row={row}
+                    vehicles={vehicles}
+                    clients={clients}
+                    errors={getRowErrors(row)}
+                    showErrors={showErrors}
+                    isLast={i === rows.length - 1}
+                    onChange={updated => updateRow(row._id, updated)}
+                    onDelete={() => deleteRow(row._id)}
+                  />
+                ))}
+              </div>
+            </div>
 
             {/* Bottom submit */}
             {rows.length > 3 && (
