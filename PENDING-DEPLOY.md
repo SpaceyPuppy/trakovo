@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.8.0
+## Current pending version: v1.8.0(b)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -26,6 +26,14 @@ Update it as features are built. Clear it after each successful production deplo
 ---
 
 # Changelog / Release Notes
+
+## v1.8.0(b) — pending
+
+### Fixes
+- **Book Multiple — service type picker**: selecting Taxi/CPV/Vehicle now works correctly (two racing `set()` calls merged into a single `onChange`)
+- **Book Multiple — compact table layout**: replaced tall per-booking cards with a dense single-row-per-booking table; horizontally scrollable on small screens
+
+---
 
 ## v1.8.0 — pending
 
