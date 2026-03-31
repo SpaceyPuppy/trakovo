@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import Map, { Marker, Source, Layer, type MapRef } from 'react-map-gl/mapbox'
 import type { LayerProps } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
@@ -33,6 +33,7 @@ interface TaxiMapProps {
 
 export default function TaxiMap({ pickup, dest, routeGeometry, className, style, children }: TaxiMapProps) {
   const mapRef = useRef<MapRef>(null)
+  const [satellite, setSatellite] = useState(false)
 
   // Fly to user location when pickup is set (no dest yet)
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function TaxiMap({ pickup, dest, routeGeometry, className, style,
         ref={mapRef}
         mapboxAccessToken={TOKEN}
         initialViewState={{ longitude: REGION_LNG, latitude: REGION_LAT, zoom: REGION_ZOOM }}
-        mapStyle="mapbox://styles/mapbox/streets-v12"
+        mapStyle={satellite ? 'mapbox://styles/mapbox/satellite-streets-v12' : 'mapbox://styles/mapbox/streets-v12'}
         style={{ width: '100%', height: '100%' }}
       >
         {routeGeometry && (
@@ -85,6 +86,48 @@ export default function TaxiMap({ pickup, dest, routeGeometry, className, style,
 
         {children}
       </Map>
+
+      {/* Satellite / Map toggle */}
+      <button
+        onClick={() => setSatellite(s => !s)}
+        aria-label={satellite ? 'Switch to map view' : 'Switch to satellite view'}
+        style={{
+          position: 'absolute',
+          bottom: 10,
+          right: 10,
+          zIndex: 10,
+          background: satellite ? 'rgba(30,35,48,0.88)' : 'white',
+          border: satellite ? '1px solid rgba(255,255,255,0.12)' : '0.5px solid rgba(0,0,0,0.1)',
+          borderRadius: 7,
+          padding: '5px 9px',
+          fontSize: 11,
+          fontWeight: 600,
+          color: satellite ? 'rgba(255,255,255,0.9)' : '#3a3a3a',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+          fontFamily: 'Epilogue, sans-serif',
+        }}
+      >
+        {satellite ? (
+          <>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+            </svg>
+            Map
+          </>
+        ) : (
+          <>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            Satellite
+          </>
+        )}
+      </button>
     </div>
   )
 }
