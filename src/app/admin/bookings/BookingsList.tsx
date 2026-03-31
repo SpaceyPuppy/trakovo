@@ -22,8 +22,8 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 function bookingLabel(b: BookingResponse) {
+  if (b.service_type === 'taxi') return 'Taxi Request'
   if (b.vendor_name) {
-    if (b.service_type === 'taxi') return 'B2B – Taxi'
     if (b.service_type === 'cpv')  return 'B2B – CPV'
     return 'B2B Vehicle Choice'
   }
@@ -31,6 +31,7 @@ function bookingLabel(b: BookingResponse) {
 }
 
 function hireTypeLabel(b: BookingResponse) {
+  if (b.service_type === 'taxi') return 'Taxi'
   if (b.vendor_name) return 'Direct Vendor Booking'
   return b.hire_type?.replace('-', ' ') ?? '—'
 }

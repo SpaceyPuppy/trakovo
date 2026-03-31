@@ -2,6 +2,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import { useRoute } from '@/lib/hooks/useRoute'
 
 const TaxiMap = dynamic(() => import('@/components/book/TaxiMap'), { ssr: false })
 
@@ -18,6 +19,7 @@ function ConfirmContent() {
 
   const pickup: [number, number] = [pickupLng, pickupLat]
   const dest: [number, number] = [destLng, destLat]
+  const { route } = useRoute(pickup, dest)
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -65,7 +67,7 @@ function ConfirmContent() {
     <div className="flex flex-col lg:flex-row lg:h-screen" style={{ minHeight: '100dvh' }}>
       {/* Map */}
       <div className="relative lg:flex-1 h-[40vh] lg:h-full">
-        <TaxiMap pickup={pickup} dest={dest} style={{ width: '100%', height: '100%' }} />
+        <TaxiMap pickup={pickup} dest={dest} routeGeometry={route?.geometry ?? null} style={{ width: '100%', height: '100%' }} />
         <button
           onClick={() => router.back()}
           className="absolute top-4 left-4 flex items-center justify-center rounded-full bg-white shadow-md transition-all active:scale-95"

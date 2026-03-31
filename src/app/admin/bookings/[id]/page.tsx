@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BookingDetailPage({ params }: Props) {
   const [booking, activeDrivers, notes] = await Promise.all([
     queryOne<{
-      id: string; public_id: string; status: string; hire_type: string;
+      id: string; public_id: string; status: string; hire_type: string; service_type: string | null;
       is_enquiry: number; enquiry_status: string | null; start_date: string; end_date: string; total_days: number;
       daily_rate: number; total_cost: number; contact_name: string | null;
       contact_email: string; contact_phone: string; driver_name: string | null;
@@ -69,9 +69,9 @@ export default async function BookingDetailPage({ params }: Props) {
               </span>
             )}
           </div>
-          <h1 className="font-display font-bold text-[26px] tracking-tight">{booking.vehicle_name ?? '—'}</h1>
+          <h1 className="font-display font-bold text-[26px] tracking-tight">{booking.service_type === 'taxi' ? 'Taxi Request' : (booking.vehicle_name ?? '—')}</h1>
           <p className="text-[13px] text-ink-3 mt-0.5 capitalize">
-            {booking.hire_type.replace('-', ' ')} · Submitted {new Date(booking.created_at instanceof Date ? booking.created_at : String(booking.created_at)).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {booking.service_type === 'taxi' ? 'Taxi' : booking.hire_type.replace('-', ' ')} · Submitted {new Date(booking.created_at instanceof Date ? booking.created_at : String(booking.created_at)).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

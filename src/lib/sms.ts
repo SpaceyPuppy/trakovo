@@ -28,7 +28,8 @@ export async function sendSms(to: string, message: string): Promise<{ ok: boolea
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      return { ok: false, error: body.message ?? body.error ?? `SMS failed (${res.status})` }
+      const errMsg = body.message ?? body.error
+      return { ok: false, error: errMsg ?? `SMS failed (${res.status}): ${JSON.stringify(body)}` }
     }
     return { ok: true }
   } catch (e) {

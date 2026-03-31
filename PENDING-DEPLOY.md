@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.8.0(c)
+## Current pending version: v1.8.0(d)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -26,6 +26,16 @@ Update it as features are built. Clear it after each successful production deplo
 ---
 
 # Changelog / Release Notes
+
+## v1.8.0(d) — hotfix
+
+### Fixes
+- **Taxi booking confirm — map route**: Route line now displays on the confirmation page (was missing `routeGeometry` prop to `<TaxiMap>`)
+- **Taxi bookings — admin list**: Now show "Taxi Request" instead of "Unknown Vehicle" and "Taxi" instead of "Chauffeured"
+- **Taxi bookings — admin detail**: Heading now shows "Taxi Request" and hire type shows "Taxi"
+- **CrazyTel SMS — error visibility**: When SMS API returns an error without a `message` or `error` field, the raw response body is now shown in the test SMS error message, making it easier to diagnose (bad key, unverified number, etc.)
+
+---
 
 ## v1.8.0(c) — pending
 
