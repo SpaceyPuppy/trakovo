@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.8.0(b)
+## Current pending version: v1.8.0(c)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -26,6 +26,17 @@ Update it as features are built. Clear it after each successful production deplo
 ---
 
 # Changelog / Release Notes
+
+## v1.8.0(c) — pending
+
+### Changes
+- **Booking app — editable pickup**: `/book/taxi` now shows combined pickup+destination card; pickup is editable with address search and a locate-me button to revert to GPS
+- **Booking app — satellite toggle**: Map/Satellite toggle button on all taxi map screens
+- **Booking app — confirm flow simplified**: No ETA or route calculation; map shows pins only; submits directly to Booking Received screen
+- **Booking app — Booking Received screen**: Clean confirmation with booking ref, route summary, phone callback note, and amber info note
+- **API `/api/booking/taxi`**: Removed mandatory `distance_m`/`duration_s`/`fare_cents`; now returns `public_id`
+
+---
 
 ## v1.8.0(b) — pending
 
