@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.8.0(d)
+## Current pending version: v1.8.1
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -15,17 +15,29 @@ Update it as features are built. Clear it after each successful production deplo
 - [ ] No new env vars required
 
 ### Post-deploy verification
-- [ ] Vendor → Bookings — "Book Multiple" button visible next to "+ New Booking"
-- [ ] Click "Book Multiple" → calendar loads with existing booking dots
-- [ ] Click a day → booking row appears; click same day twice → two rows
-- [ ] Fill required fields → "Create X Bookings" enables → submit creates bookings
-- [ ] Admin → Settings → Connections — CrazyTel tile shows balance after account key saved
-- [ ] CrazyTel from number field shows dropdown when numbers are available on the account
-- [ ] Taxi booking confirm → SMS sent using correct CrazyTel endpoint (sms.crazytel.net.au)
+- [ ] Vendor login → nav bar loads immediately (no refresh needed)
+- [ ] Vendor dashboard shows compact stat bar (3 chips) + full bookings list below
+- [ ] /vendor/bookings redirects to /vendor
+- [ ] "Bookings" no longer appears in vendor nav — only Dashboard, Vehicles, Calendar, Clients, Support
+- [ ] "+ Bookings" button in header opens multi-booking flow
 
 ---
 
 # Changelog / Release Notes
+
+## v1.8.1
+
+### Fixes
+- **Vendor login — nav bar loading**: Added `router.refresh()` before navigation to invalidate Server Component cache, preventing stale nav bar on first login
+
+### UX improvements
+- **Vendor dashboard redesign**: Combined dashboard + bookings into a single page
+  - Compact stat bar replaces 4-card grid (Bookings This Month, Pending, Active Clients)
+  - Full bookings list with status tabs always visible instead of 5-row preview
+  - "+ Bookings" button moved to header
+- **Vendor nav cleanup**: Removed redundant "Bookings" link (now redirects to dashboard)
+
+---
 
 ## v1.8.0(d) — hotfix
 

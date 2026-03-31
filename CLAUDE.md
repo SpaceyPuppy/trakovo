@@ -1,7 +1,7 @@
 # Trakovo — Claude Context
 
 Fleet management platform for vehicle hire bookings, drivers, vendors, and dispatch.
-Current version: **v1.8.0(d)**
+Current version: **v1.8.1**
 
 ---
 
