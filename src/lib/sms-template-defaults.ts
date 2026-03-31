@@ -4,7 +4,7 @@ export const SMS_TEMPLATE_META = {
     enabledKey: 'sms_template_taxi_customer_enabled',
     label: 'Taxi Booking — Customer Confirmation',
     description: 'Sent to the customer\'s phone when they confirm a taxi booking.',
-    default: 'Hi {{contact_name}}, your taxi booking has been received. Heading to {{destination}}. ETA approx {{eta_mins}} min. Ref: {{booking_ref}}',
+    default: '{{contact_name}}, your booking has been received to leave from {{pickup}}. We\'ll confirm this with you ASAP. Booking {{booking_ref}} -CKB',
     placeholders: [
       { name: 'contact_name', description: 'Customer\'s name' },
       { name: 'contact_phone', description: 'Customer\'s phone number' },
@@ -19,7 +19,7 @@ export const SMS_TEMPLATE_META = {
     enabledKey: 'sms_template_taxi_dispatch_enabled',
     label: 'Taxi Booking — Dispatch Alert',
     description: 'Sent to the dispatch number when a new taxi booking is created.',
-    default: 'New taxi booking — {{contact_name}} ({{contact_phone}}). From: {{pickup}}. To: {{destination}}. ETA: {{eta_mins}} min. Ref: {{booking_ref}}',
+    default: 'New Taxi Req: {{contact_name}} ({{contact_phone}})\n\nFrom {{pickup}}\nto {{destination}}.\n\n{{booking_ref}}',
     placeholders: [
       { name: 'contact_name', description: 'Customer\'s name' },
       { name: 'contact_phone', description: 'Customer\'s phone number' },

@@ -21,7 +21,7 @@ function DestinationContent() {
       pickup_name: pickupName,
       pickup_lat: String(pickupLat),
       pickup_lng: String(pickupLng),
-      dest_name: place.text || place.place_name,
+      dest_name: place.place_name.replace(', Australia', ''),
       dest_lat: String(place.center[1]),
       dest_lng: String(place.center[0]),
     })
@@ -99,8 +99,7 @@ function DestinationContent() {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p style={{ fontSize: 13, fontWeight: 500, color: '#141414' }}>{place.text}</p>
-                  <p style={{ fontSize: 11, color: '#9a9894', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.place_name}</p>
+                  <p style={{ fontSize: 13, color: '#141414' }}>{place.place_name.replace(', Australia', '')}</p>
                 </div>
               </button>
             ))}

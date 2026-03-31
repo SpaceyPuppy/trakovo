@@ -47,7 +47,7 @@ function TaxiHomeContent() {
             fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?types=address,place&limit=1&access_token=${token}`)
               .then(r => r.json())
               .then(d => {
-                if (d.features?.[0]) setPickupName(d.features[0].text || d.features[0].place_name)
+                if (d.features?.[0]) setPickupName((d.features[0].place_name || d.features[0].text).replace(', Australia', ''))
               })
               .catch(() => {})
           }
@@ -61,7 +61,7 @@ function TaxiHomeContent() {
 
   function selectPickup(place: { center: [number, number]; place_name: string; text: string }) {
     setCoords([place.center[0], place.center[1]])
-    setPickupName(place.text || place.place_name)
+    setPickupName(place.place_name.replace(', Australia', ''))
     setPickupInput('')
     setPickupFocused(false)
   }
@@ -71,7 +71,7 @@ function TaxiHomeContent() {
       pickup_name: pickupName,
       pickup_lat: String(coords?.[1] ?? DEFAULT_LAT),
       pickup_lng: String(coords?.[0] ?? DEFAULT_LNG),
-      dest_name: place.text || place.place_name,
+      dest_name: place.place_name.replace(', Australia', ''),
       dest_lat: String(place.center[1]),
       dest_lng: String(place.center[0]),
     })
@@ -216,8 +216,7 @@ function SearchResults({
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <p style={{ fontSize: 13, fontWeight: 500, color: '#141414', lineHeight: '1.3' }}>{place.text}</p>
-            <p style={{ fontSize: 11, color: '#9a9894', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{place.place_name}</p>
+            <p style={{ fontSize: 13, color: '#141414', lineHeight: '1.3' }}>{place.place_name.replace(', Australia', '')}</p>
           </div>
         </button>
       ))}
