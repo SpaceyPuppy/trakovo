@@ -122,7 +122,7 @@ export default function VendorClientDetailPage() {
           <h1 className="font-display font-bold text-[26px] tracking-tight mt-2">{client.name}</h1>
           <p className="text-[13px] text-ink-4 font-mono mt-0.5">{client.public_id}</p>
         </div>
-        <Link href={`/vendor/bookings/new`}
+        <Link href={`/vendor/bookings/new/multi`}
           className="bg-accent text-white font-semibold text-[13.5px] px-5 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors">
           + Book for this client
         </Link>

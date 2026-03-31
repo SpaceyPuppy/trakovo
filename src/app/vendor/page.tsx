@@ -71,9 +71,9 @@ export default async function VendorDashboard() {
         </Link>
         <div className="bg-accent rounded-xl px-6 py-5 flex flex-col justify-between">
           <p className="text-white/70 text-[13px] font-semibold mb-3">Need transport for a client?</p>
-          <Link href="/vendor/bookings/new"
+          <Link href="/vendor/bookings/new/multi"
             className="bg-white text-accent font-display font-bold text-[13.5px] px-4 py-2.5 rounded-[6px] hover:bg-accent-bg transition-colors text-center">
-            + New Booking
+            + Bookings
           </Link>
         </div>
       </div>
@@ -87,7 +87,7 @@ export default async function VendorDashboard() {
         {recentBookings.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <p className="text-ink-3 text-[14px] mb-4">No bookings yet.</p>
-            <Link href="/vendor/bookings/new" className="bg-accent text-white font-display font-bold text-[13.5px] px-5 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors">
+            <Link href="/vendor/bookings/new/multi" className="bg-accent text-white font-display font-bold text-[13.5px] px-5 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors">
               Create first booking →
             </Link>
           </div>

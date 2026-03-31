@@ -43,12 +43,8 @@ export default async function VendorBookingsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link href="/vendor/bookings/new/multi"
-            className="border border-border text-ink font-semibold text-[13.5px] px-4 py-2.5 rounded-[6px] hover:border-accent hover:text-accent transition-colors">
-            Book Multiple
-          </Link>
-          <Link href="/vendor/bookings/new"
             className="bg-accent text-white font-semibold text-[13.5px] px-5 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors">
-            + New Booking
+            + Bookings
           </Link>
         </div>
       </div>

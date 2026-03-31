@@ -64,7 +64,7 @@ export default function VendorBookingsList({ bookings }: Props) {
       {filtered.length === 0 ? (
         <div className="bg-white border border-border rounded-xl px-8 py-16 text-center">
           <p className="text-ink-3 text-[14px]">No bookings in this category.</p>
-          <Link href="/vendor/bookings/new" className="inline-block mt-4 text-accent hover:underline text-[13.5px] font-semibold">Create a new booking →</Link>
+          <Link href="/vendor/bookings/new/multi" className="inline-block mt-4 text-accent hover:underline text-[13.5px] font-semibold">Create a new booking →</Link>
         </div>
       ) : (
         <div className="bg-white border border-border rounded-xl overflow-hidden">
