@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.8.1
+## Current pending version: v1.8.2
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -15,15 +15,29 @@ Update it as features are built. Clear it after each successful production deplo
 - [ ] No new env vars required
 
 ### Post-deploy verification
-- [ ] Vendor login → nav bar loads immediately (no refresh needed)
-- [ ] Vendor dashboard shows compact stat bar (3 chips) + full bookings list below
-- [ ] /vendor/bookings redirects to /vendor
-- [ ] "Bookings" no longer appears in vendor nav — only Dashboard, Vehicles, Calendar, Clients, Support
-- [ ] "+ Bookings" button in header opens multi-booking flow
+- [ ] Make a test booking from `/book` → confirmation page shows booking details fetched from DB (not URL)
+- [ ] Enter test phone as `0408 597 621` with spaces → SMS still sends correctly (spaces stripped)
+- [ ] Admin → Settings → Connections → CrazyTel SMS: API keys show as masked (••••••••) with Edit button
+- [ ] Admin → Settings → Connections → CrazyTel SMS: Phone numbers show as actual number with Edit button when saved
+- [ ] Click Edit button → input field appears for editing
+- [ ] Save changes → field returns to masked/display mode
 
 ---
 
 # Changelog / Release Notes
+
+## v1.8.2
+
+### Security fixes
+- **Booking confirmation URL privacy**: Customer details (name, email, phone) no longer passed in URL query params; confirmation page now fetches booking from database using only booking ID
+- **Phone number sanitization**: SMS now strips spaces from phone numbers before sending (fixes delivery for numbers entered as `0408 597 621`)
+
+### UX improvements  
+- **CrazyTel settings masking**: API keys display as masked (••••••••) with "Edit" button; phone numbers show actual value with "Edit" button when saved
+- **Settings edit pattern**: Clear separation between view mode (masked/protected) and edit mode (input fields)
+- **Better for white-label**: Non-technical users can see what's configured without risk of accidental changes
+
+---
 
 ## v1.8.1
 
