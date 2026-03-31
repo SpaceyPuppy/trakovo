@@ -21,6 +21,7 @@ export default function VendorLoginForm({ portalName, siteName }: { portalName: 
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Login failed')
+      router.refresh()
       router.push('/vendor')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Login failed')
