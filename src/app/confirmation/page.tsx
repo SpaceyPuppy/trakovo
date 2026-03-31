@@ -2,6 +2,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import NavWrapper from '@/components/ui/NavWrapper'
 import Footer from '@/components/ui/Footer'
+import { queryOne } from '@/lib/db'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import type { Metadata } from 'next'
 
@@ -11,24 +12,53 @@ export const revalidate = 0
 export const metadata: Metadata = { title: 'Booking Confirmed' }
 
 interface Props { searchParams: Record<string, string> }
+interface Booking {
+  id: string
+  public_id: string
+  vehicle_id: string
+  hire_type: string
+  is_enquiry: number
+  start_date: string
+  end_date: string
+  total_cost: number
+  contact_name: string | null
+  contact_email: string
+  contact_phone: string
+}
 
-export default function ConfirmationPage({ searchParams: sp }: Props) {
-  const ref = sp.ref ?? '—'
-  const isDry = sp.type === 'dry-hire'
+export default async function ConfirmationPage({ searchParams: sp }: Props) {
+  const publicId = sp.ref ?? ''
   const isEnquiry = sp.enquiry === 'true'
-  const total = sp.total ? formatCurrency(Number(sp.total)) : null
-  const startDate = sp.start ? formatDate(new Date(sp.start)) : '—'
-  const endDate = sp.end ? formatDate(new Date(sp.end)) : '—'
+
+  let booking: Booking | null = null
+  let vehicleName = '—'
+
+  if (publicId) {
+    const result = await queryOne<Booking & { name: string }>(
+      'SELECT b.*, v.name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.public_id = ? LIMIT 1',
+      [publicId]
+    )
+    if (result) {
+      booking = result
+      vehicleName = result.name || '—'
+    }
+  }
+
+  const ref = publicId || '—'
+  const isDry = booking?.hire_type === 'dry-hire'
+  const startDate = booking ? formatDate(new Date(booking.start_date)) : '—'
+  const endDate = booking ? formatDate(new Date(booking.end_date)) : '—'
+  const total = booking ? formatCurrency(booking.total_cost / 100) : null
 
   const rows = [
-    ['Vehicle', sp.vehicle],
+    ['Vehicle', vehicleName],
     ['Hire Type', isDry ? 'Dry Hire (Self-Drive)' : 'Chauffeured'],
     ['Start Date', startDate],
     ['End Date', endDate],
     total ? ['Estimated Total', total] : null,
-    ['Name', sp.name],
-    ['Email', sp.email],
-    ['Phone', sp.phone],
+    ['Name', booking?.contact_name ?? '—'],
+    ['Email', booking?.contact_email ?? '—'],
+    ['Phone', booking?.contact_phone ?? '—'],
   ].filter(Boolean) as string[][]
 
   return (
@@ -59,7 +89,7 @@ export default function ConfirmationPage({ searchParams: sp }: Props) {
         </div>
 
         {/* Optional ID upload — dry-hire only */}
-        {isDry && !isEnquiry && <ConfirmationUploadCard bookingRef={ref} />}
+        {isDry && !isEnquiry && booking && <ConfirmationUploadCard bookingRef={booking.public_id} />}
 
         {/* Next steps */}
         <div className="bg-bg rounded-xl px-6 py-5 text-left mb-7">

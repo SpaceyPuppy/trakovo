@@ -2,7 +2,12 @@ import { queryOne } from '@/lib/db'
 
 const SMS_API = 'https://sms.crazytel.net.au/api/v1/sms/send'
 
+function sanitizePhoneNumber(phone: string): string {
+  return phone.replace(/\s+/g, '')
+}
+
 export async function sendSms(to: string, message: string): Promise<{ ok: boolean; error?: string }> {
+  to = sanitizePhoneNumber(to)
   try {
     const [apiKeyRow, fromRow, enabledRow] = await Promise.all([
       queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ?', ['crazytel_api_key']),

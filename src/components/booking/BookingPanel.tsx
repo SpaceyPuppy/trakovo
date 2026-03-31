@@ -189,19 +189,8 @@ export default function BookingPanel({ vehicle, availability, vehicleBasePath = 
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? 'Booking failed')
 
-      const displayName = isEnquiry
-        ? (form.contactName || form.driverName)
-        : form.hireType === 'dry-hire' ? form.driverName : form.contactName
-
       router.push(
         `/confirmation?ref=${data.booking.public_id}` +
-        `&vehicle=${encodeURIComponent(vehicle.name)}` +
-        `&start=${startIso}&end=${endIso}` +
-        `&type=${form.hireType}` +
-        `&name=${encodeURIComponent(displayName)}` +
-        `&email=${encodeURIComponent(form.contactEmail)}` +
-        `&phone=${encodeURIComponent(form.contactPhone)}` +
-        `&total=${total}` +
         (isEnquiry ? '&enquiry=true' : '')
       )
     } catch (e: unknown) {

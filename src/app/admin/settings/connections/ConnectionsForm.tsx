@@ -298,6 +298,10 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialAccountKeySet,
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [account, setAccount] = useState<AccountInfo | null>(null)
   const [accountLoading, setAccountLoading] = useState(false)
+  const [editingApiKey, setEditingApiKey] = useState(false)
+  const [editingAccountKey, setEditingAccountKey] = useState(false)
+  const [editingFromNumber, setEditingFromNumber] = useState(false)
+  const [editingDispatchNumber, setEditingDispatchNumber] = useState(false)
 
   function flash(text: string, type: 'success' | 'error') {
     setMsg({ text, type })
@@ -331,6 +335,10 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialAccountKeySet,
       flash('CrazyTel settings saved', 'success')
       setApiKey('')
       setAccountKey('')
+      setEditingApiKey(false)
+      setEditingAccountKey(false)
+      setEditingFromNumber(false)
+      setEditingDispatchNumber(false)
       // Refresh account info after saving a new account key
       if (accountKey) fetchAccount()
     } catch { flash('Save failed', 'error') }
@@ -398,59 +406,152 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialAccountKeySet,
 
         {/* SMS API Key */}
         <div>
-          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">
-            SMS API Key {initialApiKeySet && <span className="font-normal text-ink-3">(saved — enter new value to replace)</span>}
-          </label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            placeholder={initialApiKeySet ? '••••••••••••••••' : 'Enter CrazyTel SMS API key…'}
-            className={inp}
-            autoComplete="off"
-          />
+          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">SMS API Key</label>
+          {!editingApiKey && initialApiKeySet ? (
+            <div className="flex items-center justify-between bg-bg border border-border rounded-[6px] px-3 py-2.5">
+              <span className="font-mono text-[13.5px] text-ink-3">••••••••••••••••</span>
+              <button onClick={() => setEditingApiKey(true)} className="text-[12px] text-accent hover:underline font-medium">
+                Edit
+              </button>
+            </div>
+          ) : editingApiKey ? (
+            <div className="space-y-2">
+              <input
+                type="password"
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                placeholder="Enter new CrazyTel SMS API key…"
+                className={inp}
+                autoComplete="off"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setApiKey(''); setEditingApiKey(false) }} className="text-[12px] text-ink-3 hover:text-ink">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <input
+              type="password"
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              placeholder="Enter CrazyTel SMS API key…"
+              className={inp}
+              autoComplete="off"
+            />
+          )}
           <p className="text-[11px] text-ink-3 mt-1">Used to send SMS via sms.crazytel.net.au</p>
         </div>
 
         {/* Account API Key */}
         <div>
-          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">
-            Account API Key {initialAccountKeySet && <span className="font-normal text-ink-3">(saved — enter new value to replace)</span>}
-          </label>
-          <input
-            type="password"
-            value={accountKey}
-            onChange={e => setAccountKey(e.target.value)}
-            placeholder={initialAccountKeySet ? '••••••••••••••••' : 'Enter CrazyTel account API key…'}
-            className={inp}
-            autoComplete="off"
-          />
+          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">Account API Key</label>
+          {!editingAccountKey && initialAccountKeySet ? (
+            <div className="flex items-center justify-between bg-bg border border-border rounded-[6px] px-3 py-2.5">
+              <span className="font-mono text-[13.5px] text-ink-3">••••••••••••••••</span>
+              <button onClick={() => setEditingAccountKey(true)} className="text-[12px] text-accent hover:underline font-medium">
+                Edit
+              </button>
+            </div>
+          ) : editingAccountKey ? (
+            <div className="space-y-2">
+              <input
+                type="password"
+                value={accountKey}
+                onChange={e => setAccountKey(e.target.value)}
+                placeholder="Enter new CrazyTel account API key…"
+                className={inp}
+                autoComplete="off"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setAccountKey(''); setEditingAccountKey(false) }} className="text-[12px] text-ink-3 hover:text-ink">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <input
+              type="password"
+              value={accountKey}
+              onChange={e => setAccountKey(e.target.value)}
+              placeholder="Enter CrazyTel account API key…"
+              className={inp}
+              autoComplete="off"
+            />
+          )}
           <p className="text-[11px] text-ink-3 mt-1">Used to fetch account balance and phone numbers from crazytel.io</p>
         </div>
 
-        {/* From number — dropdown if numbers available, text input fallback */}
+        {/* From number */}
         <div>
-          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">
-            From Number <span className="font-normal text-ink-3">(sender number on your CrazyTel account)</span>
-          </label>
-          {availableNumbers.length > 0 ? (
-            <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className={inp}>
-              <option value="">Select a number…</option>
-              {availableNumbers.map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
+          <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">From Number <span className="font-normal text-ink-3">(sender number on your CrazyTel account)</span></label>
+          {!editingFromNumber && initialFromNumber ? (
+            <div className="flex items-center justify-between bg-bg border border-border rounded-[6px] px-3 py-2.5">
+              <span className="font-mono text-[13.5px] font-semibold text-ink">{initialFromNumber}</span>
+              <button onClick={() => { setFromNumber(initialFromNumber); setEditingFromNumber(true) }} className="text-[12px] text-accent hover:underline font-medium">
+                Edit
+              </button>
+            </div>
+          ) : editingFromNumber ? (
+            <div className="space-y-2">
+              {availableNumbers.length > 0 ? (
+                <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className={inp}>
+                  <option value="">Select a number…</option>
+                  {availableNumbers.map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              ) : (
+                <input type="tel" value={fromNumber} onChange={e => setFromNumber(e.target.value)}
+                  placeholder="0400000000" className={inp} />
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setEditingFromNumber(false)} className="text-[12px] text-ink-3 hover:text-ink">
+                  Done
+                </button>
+              </div>
+            </div>
           ) : (
-            <input type="tel" value={fromNumber} onChange={e => setFromNumber(e.target.value)}
-              placeholder="0400000000" className={inp} />
+            <div>
+              {availableNumbers.length > 0 ? (
+                <select value={fromNumber} onChange={e => setFromNumber(e.target.value)} className={inp}>
+                  <option value="">Select a number…</option>
+                  {availableNumbers.map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              ) : (
+                <input type="tel" value={fromNumber} onChange={e => setFromNumber(e.target.value)}
+                  placeholder="0400000000" className={inp} />
+              )}
+            </div>
           )}
         </div>
 
         {/* Dispatch number */}
         <div>
           <label className="block text-[12px] font-semibold text-ink-2 mb-1.5">Dispatch Number <span className="font-normal text-ink-3">(receives new booking alerts)</span></label>
-          <input type="tel" value={dispatchNumber} onChange={e => setDispatchNumber(e.target.value)}
-            placeholder="0400000000" className={inp} />
+          {!editingDispatchNumber && initialDispatchNumber ? (
+            <div className="flex items-center justify-between bg-bg border border-border rounded-[6px] px-3 py-2.5">
+              <span className="font-mono text-[13.5px] font-semibold text-ink">{initialDispatchNumber}</span>
+              <button onClick={() => { setDispatchNumber(initialDispatchNumber); setEditingDispatchNumber(true) }} className="text-[12px] text-accent hover:underline font-medium">
+                Edit
+              </button>
+            </div>
+          ) : editingDispatchNumber ? (
+            <div className="space-y-2">
+              <input type="tel" value={dispatchNumber} onChange={e => setDispatchNumber(e.target.value)}
+                placeholder="0400000000" className={inp} />
+              <div className="flex gap-2">
+                <button onClick={() => setEditingDispatchNumber(false)} className="text-[12px] text-ink-3 hover:text-ink">
+                  Done
+                </button>
+              </div>
+            </div>
+          ) : (
+            <input type="tel" value={dispatchNumber} onChange={e => setDispatchNumber(e.target.value)}
+              placeholder="0400000000" className={inp} />
+          )}
         </div>
 
         <button onClick={handleSave} disabled={saving}

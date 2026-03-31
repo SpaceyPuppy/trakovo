@@ -6,37 +6,20 @@ Items are grouped by priority. Top of each group = highest priority.
 
 ## Immediate / launch blockers
 
-- [x] **Availability & blackout date management**
-  Admins can block date ranges per vehicle (maintenance, private events, public holidays).
-  Currently no way to prevent bookings outside of having a confirmed booking — overbooking risk.
-  Needs: admin UI to add/remove blocked ranges per vehicle, block ranges factored into the public
-  availability check (`/api/vehicles/available`), calendar view should display blocked dates.
+- [ ] Refine the address lookup. Show one line which has the landmark, POI name, or street address (such as "16 King Edward St, Cohuna" rather than the current two line display of "King Edward Street" in bold and underneath "16 King Edward Street, Cohuna, VIC, 3568"). I also cannot search for landmark names or points of interest such as "IGA Cohuna" or "Ritchies IGA" which is in Cohuna, VIC. This is an issue as people will search for landmarks by name in the towns.
+
+- [ ] Text messages need to be fixed.
+  Customer SMS: "Booking received. We'll call to confirm. Pickup: <pickup address>, heading to: <landmark name, dest. street address, town (doesn't need postcode, state, etc)>. -CKB.
+
+  Dispatch SMS: "Taxi Rqst: <Name> (<Number>), from: <pickup st address> to: <landmark/POI, full street address>. [note: this should be clickable for a map.]"
+
+- [ ] If a customer enters their mobile as "0408 597 621" they do not receive the customer SMS. 0408597621 works however. Numbers will have to be sanitised and formatted for the API call and passed through without spaces.
 
 ---
 
 ## High priority (build soon after launch)
 
-- [x] **Automated email sequences**
-  Trigger-based emails sent automatically without admin action:
-  - Booking received (immediate, to customer)
-  - Booking confirmed (on status change, to customer)
-  - Reminder 48 hrs before start date (to customer + assigned driver)
-  - Day-of pickup instructions (morning of start date, to customer)
-  - Post-trip follow-up / thank you (day after end date, to customer)
-  Uses the existing email template system. Needs a scheduled job or cron-style trigger
-  (consider a lightweight cron endpoint called by cPanel's cron scheduler).
-
-- [x] **Enquiry pipeline / follow-up workflow**
-  Dedicated Admin → Enquiries view with filter tabs (New, Contacted, Converted, Lost).
-  Status tracking per enquiry, "Convert to Booking" action, "Notify Customer" sends availability email.
-  Managed via EnquiryManager panel on the booking detail page.
-
-- [x] **Customer profile & booking history**
-  Group bookings by contact email to build a customer record.
-  Customer list in admin (Admin → Customers), per-customer view showing all bookings, total spend,
-  first/last booking date. Internal admin notes per customer (CustomerNote table).
-  Admin-facing only — no customer login required.
-
+- [ ] Review the booking app routing
 ---
 
 ## Medium priority
@@ -47,13 +30,6 @@ Items are grouped by priority. Top of each group = highest priority.
   Editable template (header, footer, payment terms, logo).
   Admin can download from booking detail page; optionally email to customer.
   Consider: `@react-pdf/renderer` or `pdfkit` (pure JS, no binary deps — important for cPanel).
-
-- [ ] **SMS notifications via CrazyTel API**
-  CrazyTel (Australian VOIP) provides a documented REST API for outbound SMS.
-  Triggers: booking confirmed, 24-hr reminder, driver assigned, day-of pickup.
-  Needs: CrazyTel API key in settings/env, opt-in flag per booking (or default on),
-  SMS templates editable in admin settings (similar to email templates).
-  Admin setting to enable/disable SMS globally.
 
 ---
 
