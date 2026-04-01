@@ -153,3 +153,71 @@ export async function sendTestEmail(to: string): Promise<void> {
 
   await sendEmail(to, subject, html)
 }
+
+export async function sendBulkVendorBookingSummary(
+  bookings: BookingResponse[],
+  vendorName: string,
+  authorisedBy: string,
+  tripMode: 'taxi' | 'vehicle_hire'
+): Promise<void> {
+  if (!await isEmailEnabled('email_on_new_booking')) return
+  const setting = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['notification_email'])
+  if (!setting?.value?.trim()) return
+
+  const siteName = await getSiteName()
+  const subject = `New Batch Booking (${bookings.length}) — ${vendorName}`
+
+  const rows = bookings
+    .map((b) => {
+      const vehicleOrService = b.vehicle?.name || (b.service_type === 'taxi' ? 'Taxi' : b.service_type === 'cpv' ? 'CPV' : '—')
+      return `
+        <tr>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px;">${b.public_id}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px;">${vehicleOrService}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px;">${b.start_date}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px;">${b.end_date}</td>
+          <td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: center;">${b.total_days}</td>
+        </tr>
+      `
+    })
+    .join('')
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f2937; line-height: 1.5;">
+      <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 16px;">New Batch Booking — ${vendorName}</h2>
+
+      <p style="margin: 0 0 12px; font-size: 14px;">
+        <strong>${bookings.length} booking${bookings.length !== 1 ? 's' : ''}</strong> submitted (${tripMode === 'vehicle_hire' ? 'Vehicle Hire' : 'Taxi'})
+      </p>
+
+      <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;">
+        <thead>
+          <tr style="background-color: #f3f4f6;">
+            <th style="padding: 8px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db;">Ref</th>
+            <th style="padding: 8px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db;">Vehicle / Service</th>
+            <th style="padding: 8px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db;">Start Date</th>
+            <th style="padding: 8px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #d1d5db;">End Date</th>
+            <th style="padding: 8px 12px; text-align: center; font-weight: 600; border-bottom: 2px solid #d1d5db;">Days</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+
+      <div style="padding: 12px; background-color: #f9fafb; border-left: 4px solid #3b82f6; margin: 16px 0; font-size: 13px;">
+        <strong>Authorised By:</strong> ${authorisedBy}
+      </div>
+
+      <p style="margin: 16px 0 0; font-size: 12px; color: #6b7280;">
+        ${siteName} Admin
+      </p>
+    </div>
+  `
+
+  try {
+    await sendEmail(setting.value.trim(), subject, html)
+  } catch (err) {
+    console.error('[email] Bulk booking summary not sent for', vendorName, err)
+  }
+}
