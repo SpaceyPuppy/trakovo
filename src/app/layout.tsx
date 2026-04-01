@@ -7,6 +7,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { default: siteName, template: `%s | ${siteName}` },
     description: 'Professional vehicle hire — chauffeured and self-drive options available.',
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: siteName,
+    },
   }
 }
 

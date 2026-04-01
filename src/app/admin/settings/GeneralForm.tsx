@@ -43,11 +43,13 @@ export default function GeneralForm({ initial }: Props) {
   const [contactPhone, setContactPhone] = useState(initial.contact_phone ?? '')
   const [logoUrl, setLogoUrl] = useState<string | null>(initial.logo_path ? '/api/logo' : null)
   const [heroUrl, setHeroUrl] = useState<string | null>(initial.hero_image_path ? '/api/hero' : null)
+  const [pwaIconUrl, setPwaIconUrl] = useState<string | null>(initial.pwa_icon_path ? `/api/uploads/${initial.pwa_icon_path}` : null)
   const [saving, setSaving] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const heroInputRef = useRef<HTMLInputElement>(null)
+  const pwaIconInputRef = useRef<HTMLInputElement>(null)
 
   function flash(msg: string, type: 'success' | 'error') {
     if (type === 'success') { setSuccess(msg); setError(null) }
@@ -117,6 +119,33 @@ export default function GeneralForm({ initial }: Props) {
       await fetch('/api/admin/settings/hero', { method: 'DELETE' })
       setHeroUrl(null)
       flash('Hero image removed', 'success')
+    } catch {
+      flash('Remove failed', 'error')
+    } finally { setSaving(null) }
+  }
+
+  async function handlePwaIconUpload(file: File) {
+    setSaving('pwa-icon')
+    try {
+      const fd = new FormData()
+      fd.append('pwa_icon', file)
+      const res = await fetch('/api/admin/settings/pwa-icon', { method: 'POST', body: fd })
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? 'Upload failed') }
+      const d = await res.json()
+      setPwaIconUrl(`/api/uploads/${d.pwa_icon_path}?t=${Date.now()}`)
+      flash('App icon uploaded', 'success')
+    } catch (e: unknown) {
+      flash(e instanceof Error ? e.message : 'Upload failed', 'error')
+    } finally { setSaving(null) }
+  }
+
+  async function handlePwaIconRemove() {
+    if (!confirm('Remove the app icon?')) return
+    setSaving('pwa-icon')
+    try {
+      await fetch('/api/admin/settings/pwa-icon', { method: 'DELETE' })
+      setPwaIconUrl(null)
+      flash('App icon removed', 'success')
     } catch {
       flash('Remove failed', 'error')
     } finally { setSaving(null) }
@@ -345,6 +374,49 @@ export default function GeneralForm({ initial }: Props) {
           }}
         />
         {saving === 'hero' && <p className="text-[12.5px] text-ink-3">Uploading…</p>}
+      </Card>
+
+      <Card title="App Icon" description="Icon shown when customers install the booking app to their home screen. If not set, the site logo is used. PNG, JPG, or WebP — 512x512px recommended.">
+        {pwaIconUrl ? (
+          <div className="flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pwaIconUrl} alt="Current app icon" className="h-16 w-16 object-contain border border-border rounded-xl p-1.5 bg-[#1e2330]" />
+            <div className="flex gap-2">
+              <button
+                onClick={() => pwaIconInputRef.current?.click()}
+                disabled={saving === 'pwa-icon'}
+                className="border border-border text-ink-3 font-medium text-[13px] px-4 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-all disabled:opacity-50">
+                Replace
+              </button>
+              <button
+                onClick={handlePwaIconRemove}
+                disabled={saving === 'pwa-icon'}
+                className="border border-red-200 text-red-600 font-medium text-[13px] px-4 py-2 rounded-[6px] hover:bg-red-50 transition-all disabled:opacity-50">
+                {saving === 'pwa-icon' ? 'Removing…' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="border-2 border-dashed border-border rounded-[8px] p-8 text-center cursor-pointer hover:border-ink-3 transition-colors"
+            onClick={() => pwaIconInputRef.current?.click()}>
+            <p className="text-[24px] mb-2">📱</p>
+            <p className="text-[13.5px] font-medium text-ink-3">Click to upload app icon</p>
+            <p className="text-[12px] text-ink-4 mt-1">PNG, JPG, or WebP · 512x512px recommended</p>
+          </div>
+        )}
+        <input
+          ref={pwaIconInputRef}
+          type="file"
+          accept=".png,.jpg,.jpeg,.webp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (file) handlePwaIconUpload(file)
+            e.target.value = ''
+          }}
+        />
+        {saving === 'pwa-icon' && <p className="text-[12.5px] text-ink-3">Uploading…</p>}
       </Card>
     </div>
   )

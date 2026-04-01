@@ -4,7 +4,7 @@ import { getSiteName } from '@/lib/site'
 export async function generateMetadata(): Promise<Metadata> {
   const siteName = await getSiteName()
   return {
-    title: { default: 'Book a Ride', template: '%s | CKB' },
+    title: { default: 'Book a Ride', template: `%s | ${siteName}` },
     description: 'Book a taxi, hire a vehicle, or schedule a chauffeur.',
     appleWebApp: {
       capable: true,
