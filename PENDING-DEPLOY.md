@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.8.2
+## Current pending version: v1.9.0
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -15,16 +15,59 @@ Update it as features are built. Clear it after each successful production deplo
 - [ ] No new env vars required
 
 ### Post-deploy verification
-- [ ] Make a test booking from `/book` → confirmation page shows booking details fetched from DB (not URL)
-- [ ] Enter test phone as `0408 597 621` with spaces → SMS still sends correctly (spaces stripped)
-- [ ] Admin → Settings → Connections → CrazyTel SMS: API keys show as masked (••••••••) with Edit button
-- [ ] Admin → Settings → Connections → CrazyTel SMS: Phone numbers show as actual number with Edit button when saved
-- [ ] Click Edit button → input field appears for editing
-- [ ] Save changes → field returns to masked/display mode
+- [ ] Log into vendor portal → nav bar appears immediately (no refresh required)
+- [ ] Visit Vendor → Bookings → New → Multiple
+- [ ] See trip mode toggle: "Taxi Trips" vs "Vehicle Hire"
+- [ ] Click "Vehicle Hire" → table shows Start Date, End Date, Vehicle*, Client, Notes columns
+- [ ] Click calendar day → adds a vehicle hire row with start_date = end_date = clicked day
+- [ ] Edit start_date and end_date → separate date pickers work
+- [ ] Click "Taxi Trips" → table switches to original format (Date, Service, Vehicle, Pickup address*, Time*, Pax*, Destination, Return, Client, Notes)
+- [ ] Click calendar day → adds a taxi row with date = clicked day
+- [ ] Add at least 2 rows in either mode → "Authorised By" field appears below table (required field with validation)
+- [ ] Submit without "Authorised By" → error message shows "Authorised By is required"
+- [ ] Fill in "Authorised By" → error clears
+- [ ] Submit bookings → redirected to bookings list
+- [ ] Check admin email → ONE summary email received (not N individual emails) with table of all bookings, "Authorised By" footer
 
 ---
 
 # Changelog / Release Notes
+
+## v1.9.0
+
+### New features
+
+**Vendor Portal — Trip Type Picker & Vehicle Hire Mode**
+- Multi-booking form now has trip mode toggle: Taxi Trips vs Vehicle Hire
+- **Vehicle Hire mode**: simplified form collecting only vehicle, start/end dates, optional client, notes
+- **Taxi mode**: existing flow (pickup address, time, passengers, destination, return trip)
+- Both modes use the shared calendar to select booking dates
+- Switching modes resets all entered rows (safety against mixing trip types)
+
+**Vendor Portal — Booking Audit Trail**
+- New "Authorised By" field (required) on multi-booking form
+- Captures the name of the person authorising the bookings
+- Stored in each booking's `trip_details` JSON for audit purposes
+- Validation prevents submission if field is empty
+
+**Vendor Portal — Bulk Booking Email**
+- Multi-booking submissions now send a single consolidated summary email instead of N individual emails
+- Summary email includes:
+  - Booking count and trip type
+  - Table of all bookings (Ref, Vehicle/Service, Start Date, End Date, Days)
+  - "Authorised By" footer with the authoriser's name
+- New `POST /api/vendor/bookings/bulk` endpoint handles batch creation + single summary email
+
+### Bug fixes
+
+**Vendor Portal — Nav Bar on Login**
+- Fixed nav bar not appearing until manual refresh after login
+- Root cause: `router.refresh()` was called before `router.push()`, causing the Next.js router cache to be invalidated after navigation completed
+- Solution: replaced sequential refresh+push with hard `window.location.href` redirect, guaranteeing full page load with fresh cookie
+
+---
+
+## v1.8.2
 
 ## v1.8.2
 
