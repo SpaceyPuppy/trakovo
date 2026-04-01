@@ -506,8 +506,11 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialAccountKeySet,
                   placeholder="0400000000" className={inp} />
               )}
               <div className="flex gap-2">
-                <button onClick={() => setEditingFromNumber(false)} className="text-[12px] text-ink-3 hover:text-ink">
-                  Done
+                <button onClick={() => { setEditingFromNumber(false); handleSave() }} className="text-[12px] text-accent hover:underline font-medium">
+                  Save
+                </button>
+                <button onClick={() => { setFromNumber(initialFromNumber); setEditingFromNumber(false) }} className="text-[12px] text-ink-3 hover:text-ink">
+                  Cancel
                 </button>
               </div>
             </div>
@@ -543,8 +546,11 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialAccountKeySet,
               <input type="tel" value={dispatchNumber} onChange={e => setDispatchNumber(e.target.value)}
                 placeholder="0400000000" className={inp} />
               <div className="flex gap-2">
-                <button onClick={() => setEditingDispatchNumber(false)} className="text-[12px] text-ink-3 hover:text-ink">
-                  Done
+                <button onClick={() => { setEditingDispatchNumber(false); handleSave() }} className="text-[12px] text-accent hover:underline font-medium">
+                  Save
+                </button>
+                <button onClick={() => { setDispatchNumber(initialDispatchNumber); setEditingDispatchNumber(false) }} className="text-[12px] text-ink-3 hover:text-ink">
+                  Cancel
                 </button>
               </div>
             </div>

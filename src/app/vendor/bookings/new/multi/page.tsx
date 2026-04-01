@@ -6,6 +6,7 @@ import MultiDayPicker from '@/components/vendor/MultiDayPicker'
 
 type ServiceType = 'taxi' | 'cpv' | 'vehicle'
 type TripMode = 'taxi' | 'vehicle_hire'
+type VehicleMode = 'same' | 'individual'
 
 interface Vehicle { id: string; name: string; passengers: number }
 interface Client  { id: string; name: string; reference: string }
@@ -36,14 +37,6 @@ interface VehicleHireRow {
 }
 
 type BookingRow = TaxiBookingRow | VehicleHireRow
-
-function isTaxiRow(row: BookingRow): row is TaxiBookingRow {
-  return 'date' in row && 'pickup_address' in row
-}
-
-function isVehicleHireRow(row: BookingRow): row is VehicleHireRow {
-  return 'start_date' in row && !('pickup_address' in row)
-}
 
 function makeTaxiRow(date: string): TaxiBookingRow {
   return {
@@ -78,19 +71,21 @@ function formatDateLabel(ymd: string): string {
   return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-function isRowValid(row: BookingRow, tripMode: TripMode): boolean {
-  if (tripMode === 'vehicle_hire') {
-    const hireRow = row as VehicleHireRow
-    return hireRow.vehicle_id.length > 0 && hireRow.start_date.length > 0 && hireRow.end_date.length > 0
-  } else {
-    const taxiRow = row as TaxiBookingRow
-    return (
-      taxiRow.pickup_address.trim().length > 0 &&
-      taxiRow.pickup_time.length > 0 &&
-      parseInt(taxiRow.passengers) >= 1 &&
-      (taxiRow.service_type !== 'vehicle' || taxiRow.vehicle_id.length > 0)
-    )
-  }
+function isTaxiRowValid(row: TaxiBookingRow): boolean {
+  return (
+    row.pickup_address.trim().length > 0 &&
+    row.pickup_time.length > 0 &&
+    parseInt(row.passengers) >= 1 &&
+    (row.service_type !== 'vehicle' || row.vehicle_id.length > 0)
+  )
+}
+
+function isVehicleHireRowValid(row: VehicleHireRow, vehicleMode: VehicleMode): boolean {
+  return (
+    row.start_date.length > 0 &&
+    row.end_date.length > 0 &&
+    (vehicleMode === 'same' || row.vehicle_id.length > 0)
+  )
 }
 
 const SERVICE_OPTIONS: { type: ServiceType; label: string }[] = [
@@ -99,14 +94,15 @@ const SERVICE_OPTIONS: { type: ServiceType; label: string }[] = [
   { type: 'vehicle', label: 'Specific Vehicle' },
 ]
 
-// Column grids — matches header and row for each mode
+// Column grids
 const TAXI_COLS = 'grid grid-cols-[108px_88px_130px_minmax(160px,1fr)_86px_52px_110px_140px_120px_110px_32px] gap-1.5'
-const VEHICLE_HIRE_COLS = 'grid grid-cols-[140px_140px_130px_120px_minmax(160px,1fr)_32px] gap-1.5'
+const HIRE_COLS_INDIVIDUAL = 'grid grid-cols-[140px_140px_150px_140px_minmax(160px,1fr)_32px] gap-1.5'
+const HIRE_COLS_SAME = 'grid grid-cols-[140px_140px_140px_minmax(160px,1fr)_32px] gap-1.5'
 const cell = 'border border-border rounded-[5px] px-2 py-1.5 text-[12.5px] bg-white focus:outline-none focus:border-accent w-full'
 const cellErr = 'border border-red-400 rounded-[5px] px-2 py-1.5 text-[12.5px] bg-white focus:outline-none focus:border-red-500 w-full'
 const lbl = 'text-[10.5px] font-semibold uppercase tracking-wide text-ink-4'
 
-// ─── Table header ─────────────────────────────────────────────────────────────
+// ─── Table headers ───────────────────────────────────────────────────────────
 function TaxiBookingTableHeader() {
   return (
     <div className={`${TAXI_COLS} items-center px-3 py-2 bg-bg border-b border-border rounded-t-lg`}>
@@ -125,12 +121,15 @@ function TaxiBookingTableHeader() {
   )
 }
 
-function VehicleHireBookingTableHeader() {
+function VehicleHireTableHeader({ vehicleMode }: { vehicleMode: VehicleMode }) {
+  const cols = vehicleMode === 'same' ? HIRE_COLS_SAME : HIRE_COLS_INDIVIDUAL
   return (
-    <div className={`${VEHICLE_HIRE_COLS} items-center px-3 py-2 bg-bg border-b border-border rounded-t-lg`}>
+    <div className={`${cols} items-center px-3 py-2 bg-bg border-b border-border rounded-t-lg`}>
       <span className={lbl}>Start Date <span className="text-red-400 normal-case font-normal">*</span></span>
       <span className={lbl}>End Date <span className="text-red-400 normal-case font-normal">*</span></span>
-      <span className={lbl}>Vehicle <span className="text-red-400 normal-case font-normal">*</span></span>
+      {vehicleMode === 'individual' && (
+        <span className={lbl}>Vehicle <span className="text-red-400 normal-case font-normal">*</span></span>
+      )}
       <span className={lbl}>Client</span>
       <span className={lbl}>Notes</span>
       <span />
@@ -159,17 +158,14 @@ function TaxiBookingTableRow({
 
   return (
     <div className={`${TAXI_COLS} items-center px-3 py-1.5 bg-white hover:bg-bg/30 transition-colors ${isLast ? 'rounded-b-lg' : 'border-b border-border'}`}>
-      {/* Date */}
       <span className="text-[12.5px] font-medium text-ink truncate pr-1">{formatDateLabel(row.date)}</span>
 
-      {/* Service */}
       <select value={row.service_type}
         onChange={e => onChange({ ...row, service_type: e.target.value as ServiceType, vehicle_id: '' })}
         className={cell}>
         {SERVICE_OPTIONS.map(o => <option key={o.type} value={o.type}>{o.label}</option>)}
       </select>
 
-      {/* Vehicle */}
       {row.service_type === 'vehicle' ? (
         <select value={row.vehicle_id} onChange={e => set('vehicle_id', e.target.value)}
           className={c(showErrors && errors.vehicle_id)}>
@@ -180,29 +176,24 @@ function TaxiBookingTableRow({
         <span className="text-[12px] text-ink-4 px-2 select-none">—</span>
       )}
 
-      {/* Pickup address */}
       <input type="text" value={row.pickup_address}
         onChange={e => set('pickup_address', e.target.value)}
         placeholder="Pickup address"
         className={c(showErrors && errors.pickup_address)} />
 
-      {/* Time */}
       <input type="time" value={row.pickup_time}
         onChange={e => set('pickup_time', e.target.value)}
         className={c(showErrors && errors.pickup_time)} />
 
-      {/* Pax */}
       <input type="number" min={1} value={row.passengers}
         onChange={e => set('passengers', e.target.value)}
         className={c(showErrors && errors.passengers)} />
 
-      {/* Destination */}
       <input type="text" value={row.destination}
         onChange={e => set('destination', e.target.value)}
         placeholder="optional"
         className={cell} />
 
-      {/* Return toggle + conditional time */}
       <div className="flex items-center gap-1.5">
         <button type="button"
           onClick={() => set('return_trip', !row.return_trip)}
@@ -218,7 +209,6 @@ function TaxiBookingTableRow({
           className={`${cell} disabled:opacity-30 disabled:cursor-not-allowed flex-1 min-w-0`} />
       </div>
 
-      {/* Client */}
       <select value={row.vendor_client_id}
         onChange={e => set('vendor_client_id', e.target.value)}
         className={cell}>
@@ -226,13 +216,11 @@ function TaxiBookingTableRow({
         {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.reference ? ` (${c.reference})` : ''}</option>)}
       </select>
 
-      {/* Notes */}
       <input type="text" value={row.notes}
         onChange={e => set('notes', e.target.value)}
         placeholder="optional"
         className={cell} />
 
-      {/* Delete */}
       <button onClick={onDelete} aria-label="Remove booking"
         className="flex items-center justify-center text-ink-4 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50">
         <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
@@ -245,7 +233,7 @@ function TaxiBookingTableRow({
 
 // ─── Vehicle Hire Booking Table Row ──────────────────────────────────────────
 function VehicleHireBookingTableRow({
-  row, vehicles, clients, errors, showErrors, isLast,
+  row, vehicles, clients, errors, showErrors, isLast, vehicleMode,
   onChange, onDelete,
 }: {
   row: VehicleHireRow
@@ -254,6 +242,7 @@ function VehicleHireBookingTableRow({
   errors: Record<string, boolean>
   showErrors: boolean
   isLast: boolean
+  vehicleMode: VehicleMode
   onChange: (updated: VehicleHireRow) => void
   onDelete: () => void
 }) {
@@ -261,27 +250,26 @@ function VehicleHireBookingTableRow({
     onChange({ ...row, [key]: val })
   }
   const c = (err: boolean) => err ? cellErr : cell
+  const cols = vehicleMode === 'same' ? HIRE_COLS_SAME : HIRE_COLS_INDIVIDUAL
 
   return (
-    <div className={`${VEHICLE_HIRE_COLS} items-center px-3 py-1.5 bg-white hover:bg-bg/30 transition-colors ${isLast ? 'rounded-b-lg' : 'border-b border-border'}`}>
-      {/* Start Date */}
+    <div className={`${cols} items-center px-3 py-1.5 bg-white hover:bg-bg/30 transition-colors ${isLast ? 'rounded-b-lg' : 'border-b border-border'}`}>
       <input type="date" value={row.start_date}
         onChange={e => set('start_date', e.target.value)}
         className={c(showErrors && errors.start_date)} />
 
-      {/* End Date */}
       <input type="date" value={row.end_date}
         onChange={e => set('end_date', e.target.value)}
         className={c(showErrors && errors.end_date)} />
 
-      {/* Vehicle */}
-      <select value={row.vehicle_id} onChange={e => set('vehicle_id', e.target.value)}
-        className={c(showErrors && errors.vehicle_id)}>
-        <option value="">— select —</option>
-        {vehicles.map(v => <option key={v.id} value={v.id}>{v.name}{v.passengers > 0 ? ` (${v.passengers})` : ''}</option>)}
-      </select>
+      {vehicleMode === 'individual' && (
+        <select value={row.vehicle_id} onChange={e => set('vehicle_id', e.target.value)}
+          className={c(showErrors && errors.vehicle_id)}>
+          <option value="">— select —</option>
+          {vehicles.map(v => <option key={v.id} value={v.id}>{v.name}{v.passengers > 0 ? ` (${v.passengers})` : ''}</option>)}
+        </select>
+      )}
 
-      {/* Client */}
       <select value={row.vendor_client_id}
         onChange={e => set('vendor_client_id', e.target.value)}
         className={cell}>
@@ -289,13 +277,11 @@ function VehicleHireBookingTableRow({
         {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.reference ? ` (${c.reference})` : ''}</option>)}
       </select>
 
-      {/* Notes */}
       <input type="text" value={row.notes}
         onChange={e => set('notes', e.target.value)}
         placeholder="optional"
         className={cell} />
 
-      {/* Delete */}
       <button onClick={onDelete} aria-label="Remove booking"
         className="flex items-center justify-center text-ink-4 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50">
         <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
@@ -315,6 +301,8 @@ export default function MultiBookingPage() {
   const [loading, setLoading] = useState(true)
 
   const [tripMode, setTripMode] = useState<TripMode>('taxi')
+  const [vehicleMode, setVehicleMode] = useState<VehicleMode>('same')
+  const [sameVehicleId, setSameVehicleId] = useState('')
   const [rows, setRows] = useState<BookingRow[]>([])
   const [authorisedBy, setAuthorisedBy] = useState('')
   const [showErrors, setShowErrors] = useState(false)
@@ -357,7 +345,7 @@ export default function MultiBookingPage() {
       return {
         start_date: !hireRow.start_date,
         end_date: !hireRow.end_date,
-        vehicle_id: !hireRow.vehicle_id,
+        vehicle_id: vehicleMode === 'individual' && !hireRow.vehicle_id,
       }
     } else {
       const taxiRow = row as TaxiBookingRow
@@ -370,7 +358,14 @@ export default function MultiBookingPage() {
     }
   }
 
-  const allValid = rows.length > 0 && rows.every(r => isRowValid(r, tripMode)) && authorisedBy.trim().length > 0
+  const rowsValid = rows.length > 0 && rows.every(r => {
+    if (tripMode === 'vehicle_hire') return isVehicleHireRowValid(r as VehicleHireRow, vehicleMode)
+    return isTaxiRowValid(r as TaxiBookingRow)
+  })
+
+  const vehicleValid = tripMode !== 'vehicle_hire' || vehicleMode !== 'same' || sameVehicleId.length > 0
+  const authorisedByValid = authorisedBy.trim().length > 0
+  const allValid = rowsValid && vehicleValid && authorisedByValid
 
   // Existing bookings formatted for MultiDayPicker
   const pickerBookings = existingBookings.map(b => ({
@@ -382,9 +377,7 @@ export default function MultiBookingPage() {
   async function handleSubmit() {
     if (!allValid) {
       setShowErrors(true)
-      if (!authorisedBy.trim()) {
-        setShowAuthorisedByError(true)
-      }
+      if (!authorisedByValid) setShowAuthorisedByError(true)
       return
     }
     setSubmitting(true)
@@ -395,11 +388,12 @@ export default function MultiBookingPage() {
       const bookings = rows.map((row) => {
         if (tripMode === 'vehicle_hire') {
           const hireRow = row as VehicleHireRow
+          const resolvedVehicleId = vehicleMode === 'same' ? sameVehicleId : hireRow.vehicle_id
           return {
             service_type: 'vehicle' as const,
             start_date: hireRow.start_date,
             end_date: hireRow.end_date,
-            vehicle_id: hireRow.vehicle_id,
+            vehicle_id: resolvedVehicleId,
             vendor_client_id: hireRow.vendor_client_id || undefined,
             trip_details: JSON.stringify({ notes: hireRow.notes || null }),
           }
@@ -447,10 +441,26 @@ export default function MultiBookingPage() {
         }),
       })
       const d = await res.json()
+
+      // Show errors from the API (partial or total failure)
+      if (d.errors?.length) {
+        const createdCount = d.created?.length ?? 0
+        if (createdCount === 0) {
+          throw new Error(d.errors[0])
+        }
+        // Partial success — redirect but note the errors
+        router.push(`/vendor/bookings?created=${createdCount}`)
+        return
+      }
+
       if (!res.ok) {
         throw new Error(d.error ?? 'Submission failed')
       }
+
       const created = d.created?.length ?? 0
+      if (created === 0) {
+        throw new Error('No bookings were created. Please check vehicle access and try again.')
+      }
       router.push(`/vendor/bookings?created=${created}`)
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'An error occurred.')
@@ -458,6 +468,13 @@ export default function MultiBookingPage() {
       setSubmitting(false)
       setProgress('')
     }
+  }
+
+  function switchTripMode(mode: TripMode) {
+    setTripMode(mode)
+    setRows([])
+    setShowErrors(false)
+    setSubmitError('')
   }
 
   if (loading) {
@@ -471,10 +488,10 @@ export default function MultiBookingPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8 gap-4">
+      <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           <h1 className="font-display font-bold text-[26px] tracking-tight">Book Multiple</h1>
-          <p className="text-[14px] text-ink-3 mt-0.5">Click days on the calendar to add booking rows, then fill in the details.</p>
+          <p className="text-[14px] text-ink-3 mt-0.5">Select a booking type, click days on the calendar, then fill in the details.</p>
         </div>
         <Link href="/vendor/bookings"
           className="text-[13px] text-ink-3 hover:text-ink transition-colors mt-1 whitespace-nowrap">
@@ -482,37 +499,79 @@ export default function MultiBookingPage() {
         </Link>
       </div>
 
-      <div className="space-y-6">
-        {/* Trip Mode Toggle */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              setTripMode('taxi')
-              setRows([])
-              setShowErrors(false)
-            }}
-            className={`px-4 py-2.5 rounded-[6px] font-display font-bold text-[13px] transition-colors ${
-              tripMode === 'taxi'
-                ? 'bg-accent text-white'
-                : 'bg-white border border-border text-ink-3 hover:bg-bg'
-            }`}>
-            Taxi Trips
-          </button>
-          <button
-            onClick={() => {
-              setTripMode('vehicle_hire')
-              setRows([])
-              setShowErrors(false)
-            }}
-            className={`px-4 py-2.5 rounded-[6px] font-display font-bold text-[13px] transition-colors ${
-              tripMode === 'vehicle_hire'
-                ? 'bg-accent text-white'
-                : 'bg-white border border-border text-ink-3 hover:bg-bg'
-            }`}>
-            Vehicle Hire
-          </button>
-        </div>
+      {/* ── Trip Mode Toggle ─────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <button
+          onClick={() => switchTripMode('taxi')}
+          className={`px-6 py-3 rounded-lg font-display font-bold text-[15px] transition-all border-2 ${
+            tripMode === 'taxi'
+              ? 'bg-accent text-white border-accent shadow-sm'
+              : 'bg-white text-ink-3 border-border hover:border-ink-4 hover:text-ink'
+          }`}>
+          Taxi Trips
+        </button>
+        <button
+          onClick={() => switchTripMode('vehicle_hire')}
+          className={`px-6 py-3 rounded-lg font-display font-bold text-[15px] transition-all border-2 ${
+            tripMode === 'vehicle_hire'
+              ? 'bg-accent text-white border-accent shadow-sm'
+              : 'bg-white text-ink-3 border-border hover:border-ink-4 hover:text-ink'
+          }`}>
+          Vehicle Hire
+        </button>
 
+        {/* Vehicle mode selector — only for Vehicle Hire */}
+        {tripMode === 'vehicle_hire' && (
+          <div className="flex items-center gap-2 ml-4 pl-4 border-l border-border">
+            <span className="text-[12px] font-semibold text-ink-4 uppercase tracking-wide">Vehicle:</span>
+            <button
+              onClick={() => setVehicleMode('same')}
+              className={`px-3 py-1.5 rounded-[5px] text-[12.5px] font-semibold transition-colors ${
+                vehicleMode === 'same'
+                  ? 'bg-slate text-white'
+                  : 'bg-bg text-ink-3 hover:text-ink'
+              }`}>
+              Same for all
+            </button>
+            <button
+              onClick={() => setVehicleMode('individual')}
+              className={`px-3 py-1.5 rounded-[5px] text-[12.5px] font-semibold transition-colors ${
+                vehicleMode === 'individual'
+                  ? 'bg-slate text-white'
+                  : 'bg-bg text-ink-3 hover:text-ink'
+              }`}>
+              Choose per row
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Same-vehicle picker (when vehicleMode === 'same') ──── */}
+      {tripMode === 'vehicle_hire' && vehicleMode === 'same' && (
+        <div className="mb-6 bg-white border border-border rounded-xl px-5 py-4">
+          <label className="block text-[12.5px] font-semibold text-ink-3 mb-2">
+            Vehicle for all bookings <span className="text-red-400">*</span>
+          </label>
+          <select
+            value={sameVehicleId}
+            onChange={e => setSameVehicleId(e.target.value)}
+            className={`w-full max-w-md border rounded-[6px] px-3 py-2.5 text-[13.5px] focus:outline-none transition-all ${
+              showErrors && !sameVehicleId
+                ? 'border-red-400 focus:ring-2 focus:ring-red-200'
+                : 'border-border focus:ring-2 focus:ring-accent/30 focus:border-accent'
+            }`}>
+            <option value="">— Select a vehicle —</option>
+            {vehicles.map(v => (
+              <option key={v.id} value={v.id}>{v.name}{v.passengers > 0 ? ` (${v.passengers} pax)` : ''}</option>
+            ))}
+          </select>
+          {showErrors && !sameVehicleId && (
+            <p className="text-[12px] text-red-600 mt-1.5">Please select a vehicle</p>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-6">
         {/* Calendar */}
         <MultiDayPicker onDayClick={handleDayClick} existingBookings={pickerBookings} />
 
@@ -523,20 +582,7 @@ export default function MultiBookingPage() {
             <p className="text-ink-4 text-[13px] mt-1">Click a day on the calendar above to get started.</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {/* Row count + submit */}
-            <div className="flex items-center justify-between">
-              <p className="text-[13.5px] font-semibold text-ink">
-                {rows.length} booking{rows.length !== 1 ? 's' : ''} queued
-              </p>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting || !allValid && showErrors}
-                className="bg-accent text-white font-display font-bold text-[14px] px-6 py-2.5 rounded-[6px] hover:bg-accent-dark disabled:opacity-50 transition-colors">
-                {submitting ? progress || 'Creating…' : `Create ${rows.length} Booking${rows.length !== 1 ? 's' : ''}`}
-              </button>
-            </div>
-
+          <div className="space-y-4">
             {submitError && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-[13px] px-4 py-3 rounded-[6px]">
                 {submitError}
@@ -549,11 +595,57 @@ export default function MultiBookingPage() {
               </div>
             )}
 
-            {/* Authorised By field */}
-            {rows.length > 0 && (
-              <div className="space-y-2">
-                <label htmlFor="authorised-by" className="block text-[12.5px] font-semibold text-ink-3">
-                  Authorised By <span className="text-red-400 normal-case font-normal">*</span>
+            {/* Row count */}
+            <p className="text-[13.5px] font-semibold text-ink">
+              {rows.length} booking{rows.length !== 1 ? 's' : ''} queued
+            </p>
+
+            <div className={`overflow-x-auto rounded-lg border border-border ${tripMode === 'vehicle_hire' ? '' : ''}`}>
+              <div className={tripMode === 'vehicle_hire' ? '' : 'min-w-[1150px]'}>
+                {tripMode === 'vehicle_hire' ? (
+                  <>
+                    <VehicleHireTableHeader vehicleMode={vehicleMode} />
+                    {rows.map((row, i) => (
+                      <VehicleHireBookingTableRow
+                        key={row._id}
+                        row={row as VehicleHireRow}
+                        vehicles={vehicles}
+                        clients={clients}
+                        errors={getRowErrors(row)}
+                        showErrors={showErrors}
+                        isLast={i === rows.length - 1}
+                        vehicleMode={vehicleMode}
+                        onChange={updated => updateRow(row._id, updated)}
+                        onDelete={() => deleteRow(row._id)}
+                      />
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <TaxiBookingTableHeader />
+                    {rows.map((row, i) => (
+                      <TaxiBookingTableRow
+                        key={row._id}
+                        row={row as TaxiBookingRow}
+                        vehicles={vehicles}
+                        clients={clients}
+                        errors={getRowErrors(row)}
+                        showErrors={showErrors}
+                        isLast={i === rows.length - 1}
+                        onChange={updated => updateRow(row._id, updated)}
+                        onDelete={() => deleteRow(row._id)}
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Authorised By + Submit */}
+            <div className="bg-white border border-border rounded-xl px-5 py-4 space-y-4">
+              <div>
+                <label htmlFor="authorised-by" className="block text-[12.5px] font-semibold text-ink-3 mb-2">
+                  Authorised By <span className="text-red-400">*</span>
                 </label>
                 <input
                   id="authorised-by"
@@ -564,75 +656,24 @@ export default function MultiBookingPage() {
                     if (e.target.value.trim()) setShowAuthorisedByError(false)
                   }}
                   placeholder="Name of person authorising these bookings"
-                  className={`w-full border rounded-[6px] px-3 py-2.5 text-[13.5px] focus:outline-none transition-all ${
+                  className={`w-full max-w-md border rounded-[6px] px-3 py-2.5 text-[13.5px] focus:outline-none transition-all ${
                     showAuthorisedByError && !authorisedBy.trim()
                       ? 'border-red-400 focus:ring-2 focus:ring-red-200 focus:border-red-500'
                       : 'border-border focus:ring-2 focus:ring-accent/30 focus:border-accent'
                   }`}
                 />
                 {showAuthorisedByError && !authorisedBy.trim() && (
-                  <p className="text-[12px] text-red-600">Authorised By is required</p>
+                  <p className="text-[12px] text-red-600 mt-1.5">Authorised By is required</p>
                 )}
               </div>
-            )}
 
-            <div className={`overflow-x-auto rounded-lg border border-border ${tripMode === 'vehicle_hire' ? '' : 'min-w-max'}`}>
-              <div className={tripMode === 'vehicle_hire' ? '' : `min-w-[1150px]`}>
-                {tripMode === 'vehicle_hire' ? (
-                  <>
-                    <VehicleHireBookingTableHeader />
-                    {rows.map((row, i) => {
-                      const hireRow = row as VehicleHireRow
-                      return (
-                        <VehicleHireBookingTableRow
-                          key={row._id}
-                          row={hireRow}
-                          vehicles={vehicles}
-                          clients={clients}
-                          errors={getRowErrors(row)}
-                          showErrors={showErrors}
-                          isLast={i === rows.length - 1}
-                          onChange={updated => updateRow(row._id, updated as BookingRow)}
-                          onDelete={() => deleteRow(row._id)}
-                        />
-                      )
-                    })}
-                  </>
-                ) : (
-                  <>
-                    <TaxiBookingTableHeader />
-                    {rows.map((row, i) => {
-                      const taxiRow = row as TaxiBookingRow
-                      return (
-                        <TaxiBookingTableRow
-                          key={row._id}
-                          row={taxiRow}
-                          vehicles={vehicles}
-                          clients={clients}
-                          errors={getRowErrors(row)}
-                          showErrors={showErrors}
-                          isLast={i === rows.length - 1}
-                          onChange={updated => updateRow(row._id, updated as BookingRow)}
-                          onDelete={() => deleteRow(row._id)}
-                        />
-                      )
-                    })}
-                  </>
-                )}
-              </div>
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="bg-accent text-white font-display font-bold text-[15px] px-8 py-3 rounded-lg hover:bg-accent-dark disabled:opacity-50 transition-colors shadow-sm">
+                {submitting ? progress || 'Creating…' : `Confirm ${rows.length} Booking${rows.length !== 1 ? 's' : ''}`}
+              </button>
             </div>
-
-            {/* Bottom submit */}
-            {rows.length > 3 && (
-              <div className="flex justify-end pt-2">
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                  className="bg-accent text-white font-display font-bold text-[14px] px-6 py-2.5 rounded-[6px] hover:bg-accent-dark disabled:opacity-50 transition-colors">
-                  {submitting ? progress || 'Creating…' : `Create ${rows.length} Booking${rows.length !== 1 ? 's' : ''}`}
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>

@@ -165,10 +165,19 @@ export async function POST(req: Request) {
     }).catch(() => {})
   }
 
+  if (errors.length > 0 && created.length === 0) {
+    // All bookings failed — return 400 so client sees the error
+    return NextResponse.json(
+      { created: [], errors, error: errors[0] },
+      { status: 400 }
+    )
+  }
+
   if (errors.length > 0) {
+    // Partial success
     return NextResponse.json(
       { created, errors, message: `${created.length} of ${bookings.length} bookings created` },
-      { status: 207 }
+      { status: 201 }
     )
   }
 

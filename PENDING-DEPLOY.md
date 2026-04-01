@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.9.0
+## Current pending version: v1.9.1
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -32,6 +32,33 @@ Update it as features are built. Clear it after each successful production deplo
 ---
 
 # Changelog / Release Notes
+
+## v1.9.1
+
+### Bug fixes
+
+**Vehicle Hire bulk submission not saving bookings**
+- Bulk API was returning HTTP 207 (Multi-Status) when bookings failed, which the client treated as success (`res.ok === true` for 2xx), silently swallowing errors and redirecting with 0 created
+- Fix: return 400 when all bookings fail; client now checks `d.errors` and shows messages instead of blindly redirecting
+
+**CrazyTel dispatch number not saving**
+- "Done" button on dispatch number (and from number) edit only toggled edit state, never triggered `handleSave()`
+- Fix: "Done" replaced with "Save" (triggers save) + "Cancel" (reverts to original value)
+
+### UX improvements
+
+**Vehicle Hire — "Same vehicle for all" mode**
+- New toggle next to Vehicle Hire button: "Same for all" vs "Choose per row"
+- "Same for all": single vehicle dropdown above the table; vehicle column removed from rows
+- "Choose per row": vehicle dropdown appears per row (original behavior)
+
+**Trip mode buttons redesigned**
+- Taxi Trips / Vehicle Hire buttons now larger (15px font, padded, border-2) and positioned above calendar for prominence
+
+**Authorised By + Submit consolidated**
+- "Authorised By" field and submit button now grouped in a card below the booking table for clear visual flow
+
+---
 
 ## v1.9.0
 
