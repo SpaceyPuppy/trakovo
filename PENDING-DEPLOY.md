@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.9.1
+## Current pending version: v1.9.2
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -15,6 +15,16 @@ Update it as features are built. Clear it after each successful production deplo
 - [ ] No new env vars required
 
 ### Post-deploy verification
+- [ ] Visit `/book` on mobile → browser offers "Add to Home Screen"
+- [ ] Install app → opens in standalone mode (no browser chrome)
+- [ ] `/api/icons/192` and `/api/icons/512` → return PNG images
+- [ ] Admin → Settings → General → "App Icon" card visible, upload works
+- [ ] After uploading app icon, `/api/icons/192` reflects uploaded image
+- [ ] `/manifest.webmanifest` → valid JSON with `display: standalone`
+
+---
+
+### Previous v1.9.1 post-deploy verification
 - [ ] Log into vendor portal → nav bar appears immediately (no refresh required)
 - [ ] Visit Vendor → Bookings → New → Multiple
 - [ ] See trip mode toggle: "Taxi Trips" vs "Vehicle Hire"
@@ -32,6 +42,18 @@ Update it as features are built. Clear it after each successful production deplo
 ---
 
 # Changelog / Release Notes
+
+## v1.9.2
+
+### New features
+- **PWA / installable booking app**: Customers can now add `/book` to their home screen on iOS and Android — opens in standalone mode (no browser chrome) like a native app
+- **Dynamic app icon**: Icon is generated server-side from the configured PWA icon, falling back to site logo, then first letter of site name — fully white-label
+- **App Icon upload**: New field in Admin → Settings → General to upload a dedicated app icon (PNG/JPG/WebP, 512×512 recommended)
+- **Web app manifest** auto-injected into all pages (`display: standalone`, `scope: /book`, `start_url: /book`)
+- **iOS standalone support**: `apple-mobile-web-app-capable` meta added to root layout
+- **Fix**: Title template in `/book` layout was hardcoded to `CKB` — now uses dynamic site name
+
+---
 
 ## v1.9.1
 
