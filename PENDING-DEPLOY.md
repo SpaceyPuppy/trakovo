@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.14.1 (unreleased)
+## Current pending version: v1.14.2 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -60,6 +60,19 @@ None.
 ---
 
 # Changelog / Release Notes
+
+## v1.14.2
+
+### Bug fix
+
+**Calendar not syncing for bookings created directly as confirmed**
+- Bookings created via Admin → Quick Add were never synced to Microsoft Calendar because the `syncBookingToCalendar` call was missing from the creation route — it only existed on the status-change route
+- Fixed: `syncBookingToCalendar(id)` is now called immediately after INSERT in `POST /api/admin/bookings` whenever a `vehicle_id` is present, matching the pattern already used by the vendor single and bulk booking routes
+- No changes needed for vendor routes — they already called `syncBookingToCalendar` on creation
+
+No DB changes required.
+
+---
 
 ## v1.14.1
 

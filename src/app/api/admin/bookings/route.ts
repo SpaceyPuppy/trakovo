@@ -3,6 +3,7 @@ import { getAdminSession } from '@/lib/auth'
 import { queryOne, execute, newId, generatePublicId } from '@/lib/db'
 import { getDailyRate } from '@/lib/utils'
 import { sendBookingConfirmed } from '@/lib/email-sequences'
+import { syncBookingToCalendar } from '@/lib/calendar'
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession()
@@ -80,6 +81,11 @@ export async function POST(req: NextRequest) {
     // Send booking confirmed email (skip "received" notification — admin created it directly)
     if (status === 'confirmed') {
       sendBookingConfirmed(id).catch(err => console.error('[email] Quick Add confirmed email failed:', err))
+    }
+
+    // Sync to calendar immediately on creation (don't wait for a status change)
+    if (resolved_vehicle_id) {
+      syncBookingToCalendar(id).catch(err => console.error('[calendar] Quick Add sync failed:', err))
     }
 
     return NextResponse.json({ ok: true, id, public_id })
