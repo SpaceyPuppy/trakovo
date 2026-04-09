@@ -46,7 +46,7 @@ export default async function CustomersPage() {
     const aliasCustomer = customers.find(c => c.contact_email === alias.alias_email)
     if (aliasCustomer) {
       aliasStatsByPrimary[alias.primary_email].bookings += aliasCustomer.total_bookings
-      aliasStatsByPrimary[alias.primary_email].spend += aliasCustomer.total_spend
+      aliasStatsByPrimary[alias.primary_email].spend += Number(aliasCustomer.total_spend)
     }
   }
 
@@ -81,7 +81,7 @@ export default async function CustomersPage() {
               {visible.map(c => {
                 const extra = aliasStatsByPrimary[c.contact_email]
                 const totalBookings = c.total_bookings + (extra?.bookings ?? 0)
-                const totalSpend = c.total_spend + (extra?.spend ?? 0)
+                const totalSpend = Number(c.total_spend) + (extra?.spend ?? 0)
                 return (
                   <tr key={c.contact_email} className="border-t border-border hover:bg-bg/50 transition-colors">
                     <td className="px-6 py-3 font-medium">

@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import BugReportModal from './BugReportModal'
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -17,6 +18,7 @@ interface Props {
 
 export default function AdminTopBar({ adminName, logoUrl, username }: Props) {
   const [open, setOpen] = useState(false)
+  const [bugOpen, setBugOpen] = useState(false)
   const router = useRouter()
   const initials = getInitials(username)
 
@@ -42,6 +44,21 @@ export default function AdminTopBar({ adminName, logoUrl, username }: Props) {
 
       {/* Centre — reserved for future section links (Dispatch, Fleet, etc.) */}
       <div className="flex-1" />
+
+      {/* Bug report button */}
+      <button
+        onClick={() => setBugOpen(true)}
+        title="Report a bug"
+        className="flex items-center gap-1.5 h-full px-3 text-white/50 hover:text-white hover:bg-white/8 transition-colors text-[12.5px] font-medium"
+      >
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+          <path d="M10 2a4 4 0 00-4 4v1H4a1 1 0 000 2h1.1A6.002 6.002 0 0010 16a6.002 6.002 0 004.9-7H16a1 1 0 000-2h-2V6a4 4 0 00-4-4zM8 6a2 2 0 114 0v1H8V6z" fill="currentColor"/>
+          <path d="M3 9h1M16 9h1M4.5 14.5l1-1M15.5 14.5l-1-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+        <span className="hidden xl:block">Report Bug</span>
+      </button>
+
+      <BugReportModal open={bugOpen} onClose={() => setBugOpen(false)} />
 
       {/* Profile dropdown — right */}
       <div className="relative h-full flex items-center px-3">
