@@ -24,6 +24,17 @@ export async function getDriverName(): Promise<string> {
   return 'DriveMaster'
 }
 
+export async function getVendorPortalName(): Promise<string> {
+  try {
+    const row = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['vendor_name'])
+    if (row?.value) return row.value
+    // Fall back to admin_name for backwards compatibility
+    const adminRow = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['admin_name'])
+    if (adminRow?.value) return adminRow.value
+  } catch { /* DB not ready */ }
+  return process.env.NEXT_PUBLIC_ADMIN_NAME ?? 'Hire Manager'
+}
+
 export async function getLogoUrl(): Promise<string | undefined> {
   try {
     const row = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])

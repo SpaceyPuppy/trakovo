@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
       vehicle_id, service_type, hire_type,
       start_date, end_date,
       contact_name, contact_email, contact_phone,
+      vendor_id,
       status = 'confirmed',
       daily_rate_override,
       trip_details,
@@ -57,8 +58,8 @@ export async function POST(req: NextRequest) {
     const public_id = await generatePublicId('VHB')
 
     await execute(
-      `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, is_enquiry, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW(), NOW())`,
+      `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, is_enquiry, vendor_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NOW(), NOW())`,
       [
         id, public_id,
         resolved_vehicle_id,
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
         contact_email,
         contact_phone,
         notes ?? trip_details ?? null,
+        vendor_id ?? null,
       ]
     )
 

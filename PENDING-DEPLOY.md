@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.10.0 (unreleased)
+## Current pending version: v1.11.0 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -16,33 +16,27 @@ Update it as features are built. Clear it after each successful production deplo
 ### Pending SQL
 
 ```sql
--- Add MS Calendar event ID column to Booking table
+-- Add MS Calendar event ID column to Booking table (if not already applied from v1.10.0)
 ALTER TABLE `Booking` ADD COLUMN `ms_event_id` VARCHAR(191) NULL AFTER `google_event_id`;
 
--- Remove unused Google Calendar event ID column (Google Calendar integration removed)
+-- Remove unused Google Calendar event ID column (if not already applied from v1.10.0)
 ALTER TABLE `Booking` DROP COLUMN `google_event_id`;
 ```
 
+### New env vars
+None.
+
 ### Post-deploy steps
-1. Apply the SQL above in phpMyAdmin
-2. In Admin → Settings → Connections, **disconnect and reconnect Microsoft 365** to grant the new `Calendars.ReadWrite` scope — existing tokens will not have calendar access
+1. Apply any pending SQL above in phpMyAdmin (only if not already applied)
+2. In Admin → Settings → Connections, **disconnect and reconnect Microsoft 365** if not already done (required for `Calendars.ReadWrite` scope)
+3. In Admin → Settings → General → Site Branding: set a **Vendor Portal Name** to distinguish it from the Admin portal in browser tabs
 
 ### Post-deploy verification
-- [ ] Admin → Settings → Connections → disconnect MS 365, reconnect → grants Calendar access
-- [ ] Create or update a booking → event appears in connected Outlook calendar
-- [ ] Change booking status → calendar event colour updates
-- [ ] Delete a booking → calendar event is removed
-- [ ] Remember Me checkbox visible on all three login pages (Admin, Vendor, Driver)
-- [ ] Login with Remember Me checked → session lasts 30 days (cookie `max-age` = 2592000)
-- [ ] Dates show in DD Mon YYYY format across admin and driver portal pages
-
-### Post-deploy verification
-- [ ] Visit `/book` on mobile → browser offers "Add to Home Screen"
-- [ ] Install app → opens in standalone mode (no browser chrome)
-- [ ] `/api/icons/192` and `/api/icons/512` → return PNG images
-- [ ] Admin → Settings → General → "App Icon" card visible, upload works
-- [ ] After uploading app icon, `/api/icons/192` reflects uploaded image
-- [ ] `/manifest.webmanifest` → valid JSON with `display: standalone`
+- [ ] Vendor portal creates a booking with no client selected → no `contact_email cannot be null` error
+- [ ] Vendor portal bulk booking form → Vehicle Hire mode shows no Client column; Taxi Trips mode still shows Client column
+- [ ] Admin → Quick Add Booking → Vendor dropdown appears below Dates; selecting a vendor pre-fills email and phone
+- [ ] Booking created via Quick Add with vendor selected → booking appears in vendor's portal
+- [ ] Admin → Settings → General → Vendor Portal Name field present; save works; vendor portal header reflects new name
 
 ---
 
@@ -64,6 +58,37 @@ ALTER TABLE `Booking` DROP COLUMN `google_event_id`;
 ---
 
 # Changelog / Release Notes
+
+## v1.11.0
+
+### New features
+
+**Admin Quick Add — Vendor assignment**
+- Vendor dropdown added to the Quick Add Booking form (below Dates)
+- Selecting a vendor pre-fills the contact email and phone from the vendor's account details
+- Booking is tagged to the vendor's account and appears in their portal
+
+**Vendor portal name — separate from admin portal**
+- Admin → Settings → General now has a dedicated "Vendor Portal Name" field
+- Allows different names to show in the header of the admin vs vendor portals (useful when both are open in tabs)
+- Falls back to Admin Portal Name if blank, preserving existing behaviour
+
+### Bug fixes
+
+**Vendor portal — `contact_email cannot be null` on booking creation**
+- When a vendor created a booking without linking a client, `contact_email` was inserted as `null`, causing a DB constraint error
+- Fixed: both the single (`POST /api/vendor/bookings`) and bulk (`POST /api/vendor/bookings/bulk`) routes now fetch the vendor's own `contact_email` and `contact_phone` as a final fallback
+
+**Vendor portal — Client column removed from Vehicle Hire bulk form**
+- Vehicle Hire rows in the multi-booking table previously showed a Client dropdown that had no effect (contact details were not sourced from client for hire bookings)
+- Removed from Vehicle Hire table header and row; client dropdown remains in Taxi Trips rows as before
+
+### Technical
+- `src/lib/site.ts` — new `getVendorPortalName()` exported function; reads `vendor_name` setting, falls back to `admin_name`
+- `src/app/vendor/layout.tsx` — uses `getVendorPortalName()` instead of `getAdminName()`
+- `src/app/admin/settings/GeneralForm.tsx` / `page.tsx` — `vendor_name` key added to settings query and save
+
+---
 
 ## v1.10.0
 

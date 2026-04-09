@@ -12,6 +12,13 @@ interface Vehicle {
   day_rates: Array<{ days_from: number; days_to: number | null; price: number; chauffeur_price: number }>
 }
 
+interface Vendor {
+  id: string
+  name: string
+  contact_email: string
+  contact_phone: string
+}
+
 const inp = 'w-full border border-border rounded-[6px] px-3 py-2.5 text-[13.5px] text-ink bg-white outline-none focus:border-ink focus:ring-2 focus:ring-ink/5 transition-all'
 const lbl = 'block text-[11px] font-semibold text-ink-3 uppercase tracking-wider mb-1'
 
@@ -24,6 +31,7 @@ export default function AdminNewBookingPage() {
   const router = useRouter()
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [vendors, setVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +43,7 @@ export default function AdminNewBookingPage() {
   const [status, setStatus] = useState('confirmed')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [vendorId, setVendorId] = useState('')
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
@@ -42,21 +51,34 @@ export default function AdminNewBookingPage() {
   const [notes, setNotes] = useState('')
 
   useEffect(() => {
-    fetch('/api/admin/vehicles')
-      .then(r => r.json())
-      .then((data: (Vehicle & { day_rates: unknown })[]) => setVehicles(
-        data
-          .filter(v => (v as unknown as { is_available: boolean }).is_available !== false)
+    Promise.all([
+      fetch('/api/admin/vehicles').then(r => r.json()),
+      fetch('/api/admin/vendors').then(r => r.json()),
+    ]).then(([vData, vendorData]) => {
+      setVehicles(
+        (vData as (Vehicle & { day_rates: unknown; is_available?: boolean })[])
+          .filter(v => v.is_available !== false)
           .map(v => ({
             ...v,
             day_rates: typeof v.day_rates === 'string'
               ? (v.day_rates ? JSON.parse(v.day_rates) : [])
               : (Array.isArray(v.day_rates) ? v.day_rates : []),
           }))
-      ))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      )
+      setVendors((vendorData.vendors ?? []).filter((v: Vendor & { is_active: boolean }) => v.is_active))
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [])
+
+  function handleVendorChange(id: string) {
+    setVendorId(id)
+    if (id) {
+      const v = vendors.find(v => v.id === id)
+      if (v) {
+        if (v.contact_email) setContactEmail(v.contact_email)
+        if (v.contact_phone) setContactPhone(v.contact_phone)
+      }
+    }
+  }
 
   const selectedVehicle = vehicles.find(v => v.id === vehicleId) ?? null
   const days = calcDays(startDate, endDate)
@@ -90,6 +112,7 @@ export default function AdminNewBookingPage() {
       }
       if (serviceType === 'vehicle' && vehicleId) payload.vehicle_id = vehicleId
       if (rateOverride !== '') payload.daily_rate_override = parseFloat(rateOverride) || 0
+      if (vendorId) payload.vendor_id = vendorId
 
       const res = await fetch('/api/admin/bookings', {
         method: 'POST',
@@ -170,6 +193,18 @@ export default function AdminNewBookingPage() {
             </div>
             {days > 0 && <p className="text-[12.5px] text-ink-3">{days} day{days !== 1 ? 's' : ''}</p>}
           </div>
+
+          {/* Vendor */}
+          {vendors.length > 0 && (
+            <div className="bg-white border border-border rounded-xl p-5 space-y-2">
+              <p className="font-display font-bold text-[14px]">Vendor <span className="text-ink-4 font-normal text-[13px]">(optional)</span></p>
+              <select className={inp} value={vendorId} onChange={e => handleVendorChange(e.target.value)}>
+                <option value="">— No vendor —</option>
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+              <p className="text-[11.5px] text-ink-4">Selecting a vendor pre-fills contact details and tags this booking to their account.</p>
+            </div>
+          )}
 
           {/* Customer */}
           <div className="bg-white border border-border rounded-xl p-5 space-y-4">

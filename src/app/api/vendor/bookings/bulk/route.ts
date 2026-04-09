@@ -34,6 +34,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'authorised_by is required' }, { status: 400 })
   }
 
+  // Fetch vendor's own contact details as fallback for bookings without a client
+  const vendorRow = await queryOne<{ contact_email: string; contact_phone: string }>(
+    'SELECT contact_email, contact_phone FROM Vendor WHERE id = ? LIMIT 1',
+    [session.vendorId]
+  )
+  const vendorEmail = vendorRow?.contact_email || ''
+  const vendorPhone = vendorRow?.contact_phone || ''
+
   const created: BookingResponse[] = []
   const errors: string[] = []
 
@@ -105,7 +113,7 @@ export async function POST(req: Request) {
       await execute(
         `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, vendor_id, vendor_client_id, created_at, updated_at)
          VALUES (?, ?, ?, 'chauffeured', ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-        [id, public_id, vehicle?.id ?? null, svcType, start_date, end_date, total_days, daily_rate, total_cost, null, null, null, trip_details, session.vendorId, vendor_client_id ?? null]
+        [id, public_id, vehicle?.id ?? null, svcType, start_date, end_date, total_days, daily_rate, total_cost, null, vendorEmail || null, vendorPhone || null, trip_details, session.vendorId, vendor_client_id ?? null]
       )
 
       const booking = await queryOne<{

@@ -1,5 +1,5 @@
 import { getVendorSession } from '@/lib/vendor-auth'
-import { getAdminName, getLogoUrl } from '@/lib/site'
+import { getVendorPortalName, getLogoUrl } from '@/lib/site'
 import VendorNav from './VendorNav'
 
 // Auth is enforced by middleware for all /vendor/* except /vendor/login.
@@ -15,7 +15,7 @@ export default async function VendorLayout({ children }: { children: React.React
     return <div className="min-h-screen bg-[#f0efe9]">{children}</div>
   }
 
-  const [portalName, logoUrl] = await Promise.all([getAdminName(), getLogoUrl()])
+  const [portalName, logoUrl] = await Promise.all([getVendorPortalName(), getLogoUrl()])
 
   return (
     <div className="min-h-screen bg-[#f0efe9]">

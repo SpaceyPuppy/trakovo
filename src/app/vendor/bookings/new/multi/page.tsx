@@ -31,7 +31,6 @@ interface VehicleHireRow {
   start_date: string
   end_date: string
   vehicle_id: string
-  vendor_client_id: string
   notes: string
 }
 
@@ -60,7 +59,6 @@ function makeVehicleHireRow(date: string): VehicleHireRow {
     start_date: date,
     end_date: date,
     vehicle_id: '',
-    vendor_client_id: '',
     notes: '',
   }
 }
@@ -95,8 +93,8 @@ const SERVICE_OPTIONS: { type: ServiceType; label: string }[] = [
 
 // Column grids
 const TAXI_COLS = 'grid grid-cols-[108px_88px_130px_minmax(160px,1fr)_86px_52px_110px_140px_120px_110px_32px] gap-1.5'
-const HIRE_COLS_INDIVIDUAL = 'grid grid-cols-[140px_140px_150px_140px_minmax(160px,1fr)_32px] gap-1.5'
-const HIRE_COLS_SAME = 'grid grid-cols-[140px_140px_140px_minmax(160px,1fr)_32px] gap-1.5'
+const HIRE_COLS_INDIVIDUAL = 'grid grid-cols-[140px_140px_150px_minmax(160px,1fr)_32px] gap-1.5'
+const HIRE_COLS_SAME = 'grid grid-cols-[140px_140px_minmax(160px,1fr)_32px] gap-1.5'
 const cell = 'border border-border rounded-[5px] px-2 py-1.5 text-[12.5px] bg-white focus:outline-none focus:border-accent w-full'
 const cellErr = 'border border-red-400 rounded-[5px] px-2 py-1.5 text-[12.5px] bg-white focus:outline-none focus:border-red-500 w-full'
 const lbl = 'text-[10.5px] font-semibold uppercase tracking-wide text-ink-4'
@@ -129,7 +127,6 @@ function VehicleHireTableHeader({ vehicleMode }: { vehicleMode: VehicleMode }) {
       {vehicleMode === 'individual' && (
         <span className={lbl}>Vehicle <span className="text-red-400 normal-case font-normal">*</span></span>
       )}
-      <span className={lbl}>Client</span>
       <span className={lbl}>Notes</span>
       <span />
     </div>
@@ -232,12 +229,11 @@ function TaxiBookingTableRow({
 
 // ─── Vehicle Hire Booking Table Row ──────────────────────────────────────────
 function VehicleHireBookingTableRow({
-  row, vehicles, clients, errors, showErrors, isLast, vehicleMode,
+  row, vehicles, errors, showErrors, isLast, vehicleMode,
   onChange, onDelete,
 }: {
   row: VehicleHireRow
   vehicles: Vehicle[]
-  clients: Client[]
   errors: Record<string, boolean>
   showErrors: boolean
   isLast: boolean
@@ -268,13 +264,6 @@ function VehicleHireBookingTableRow({
           {vehicles.map(v => <option key={v.id} value={v.id}>{v.name}{v.passengers > 0 ? ` (${v.passengers})` : ''}</option>)}
         </select>
       )}
-
-      <select value={row.vendor_client_id}
-        onChange={e => set('vendor_client_id', e.target.value)}
-        className={cell}>
-        <option value="">— optional —</option>
-        {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.reference ? ` (${c.reference})` : ''}</option>)}
-      </select>
 
       <input type="text" value={row.notes}
         onChange={e => set('notes', e.target.value)}
@@ -393,7 +382,6 @@ export default function MultiBookingPage() {
             start_date: hireRow.start_date,
             end_date: hireRow.end_date,
             vehicle_id: resolvedVehicleId,
-            vendor_client_id: hireRow.vendor_client_id || undefined,
             trip_details: JSON.stringify({ notes: hireRow.notes || null }),
           }
         } else {
@@ -631,7 +619,6 @@ export default function MultiBookingPage() {
                         key={row._id}
                         row={row as VehicleHireRow}
                         vehicles={vehicles}
-                        clients={clients}
                         errors={getRowErrors(row)}
                         showErrors={showErrors}
                         isLast={i === rows.length - 1}

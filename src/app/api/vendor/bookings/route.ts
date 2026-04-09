@@ -59,10 +59,16 @@ export async function POST(req: Request) {
     vehicle = { id: vendorVehicle.vehicle_id, name: vendorVehicle.vname, chauffeur_price: vendorVehicle.chauffeur_price }
   }
 
-  // Resolve contact details — prefer linked client, fall back to ad-hoc fields
+  // Fetch vendor's own contact details as final fallback
+  const vendorRow = await queryOne<{ contact_email: string; contact_phone: string }>(
+    'SELECT contact_email, contact_phone FROM Vendor WHERE id = ? LIMIT 1',
+    [session.vendorId]
+  )
+
+  // Resolve contact details — prefer linked client, fall back to ad-hoc fields, then vendor account details
   let contactName = client_name ?? ''
-  let contactEmail = client_email ?? ''
-  let contactPhone = client_phone ?? ''
+  let contactEmail = client_email || vendorRow?.contact_email || ''
+  let contactPhone = client_phone || vendorRow?.contact_phone || ''
   let resolvedClientId: string | null = null
 
   if (vendor_client_id) {
