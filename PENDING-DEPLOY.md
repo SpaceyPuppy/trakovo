@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.12.0 (unreleased)
+## Current pending version: v1.13.0 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -16,27 +16,29 @@ Update it as features are built. Clear it after each successful production deplo
 ### Pending SQL
 
 ```sql
--- Add MS Calendar event ID column to Booking table (if not already applied from v1.10.0)
+-- v1.12.0 (apply if not already done)
 ALTER TABLE `Booking` ADD COLUMN `ms_event_id` VARCHAR(191) NULL AFTER `google_event_id`;
-
--- Remove unused Google Calendar event ID column (if not already applied from v1.10.0)
 ALTER TABLE `Booking` DROP COLUMN `google_event_id`;
+
+-- v1.13.0 — Vendor service type toggles
+ALTER TABLE `Vendor` ADD COLUMN `taxi_enabled` TINYINT(1) NOT NULL DEFAULT 0 AFTER `vehicle_hire_enabled`;
+ALTER TABLE `Vendor` ADD COLUMN `vehicle_hire_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_active`;
 ```
 
 ### New env vars
 None.
 
 ### Post-deploy steps
-1. Apply any pending SQL above in phpMyAdmin (only if not already applied)
+1. Apply all pending SQL above in phpMyAdmin (skip any already applied)
 2. In Admin → Settings → Connections, **disconnect and reconnect Microsoft 365** if not already done (required for `Calendars.ReadWrite` scope)
 3. In Admin → Settings → General → Site Branding: set a **Vendor Portal Name** to distinguish it from the Admin portal in browser tabs
 
 ### Post-deploy verification
-- [ ] Vendor portal creates a booking with no client selected → no `contact_email cannot be null` error
-- [ ] Vendor portal bulk booking form → Vehicle Hire mode shows no Client column; Taxi Trips mode still shows Client column
-- [ ] Admin → Quick Add Booking → Vendor dropdown appears below Dates; selecting a vendor pre-fills email and phone
-- [ ] Booking created via Quick Add with vendor selected → booking appears in vendor's portal
-- [ ] Admin → Settings → General → Vendor Portal Name field present; save works; vendor portal header reflects new name
+- [ ] Admin → Vendor detail page → Username shows Edit button; clicking it allows username change with uniqueness validation
+- [ ] Admin → Vendor detail page → Taxi Trips toggle defaults to off; Vehicle Hire defaults to on
+- [ ] Vendor portal → Book Multiple → only enabled trip modes show as buttons
+- [ ] Bulk booking with conflicting dates → amber conflict prompt appears with "Submit as Waitlist Enquiry" option
+- [ ] Submitting conflicts as enquiries → creates enquiry-status bookings, success screen shows enquiry count
 
 ---
 
@@ -58,6 +60,34 @@ None.
 ---
 
 # Changelog / Release Notes
+
+## v1.13.0
+
+### New features
+
+**Vendor username editing**
+- Admins can now change a vendor's username directly from the vendor detail page
+- Click Edit next to the username field, enter the new username, then Confirm
+- Uniqueness is validated server-side — duplicate usernames are rejected with a clear error
+
+**Per-vendor service type toggles**
+- Each vendor now has independent on/off toggles for Taxi Trips and Vehicle Hire
+- Taxi Trips defaults to off; Vehicle Hire defaults to on
+- Vendor portal → Book Multiple respects these toggles — disabled modes are hidden from the trip type selector
+
+**Bulk booking conflict → waitlist enquiry prompt**
+- When bulk bookings fail because a vehicle is already booked, a single amber prompt now appears offering to submit all conflicting bookings as waitlist enquiries
+- Previously the user saw individual error messages with no follow-up action
+- Submitting as enquiries uses the same `is_enquiry = 1` flag; these are handled as standard waitlist bookings
+- Partial batches (some succeeded, some conflicted) are handled gracefully — confirmed bookings are recorded, conflict prompt appears for the rest
+
+### Technical
+- `src/app/api/admin/vendors/[id]/route.ts` — PATCH now handles `username` (uniqueness check), `taxi_enabled`, `vehicle_hire_enabled`
+- `src/app/api/vendor/settings/route.ts` — new endpoint returning `taxi_enabled`/`vehicle_hire_enabled` for the logged-in vendor
+- `src/app/vendor/bookings/new/multi/page.tsx` — refactored submit into `buildBookingPayloads`, `handleSubmit`, `submitConflictsAsEnquiries`; conflict prompt UI added
+- New DB columns: `Vendor.taxi_enabled` (TINYINT DEFAULT 0), `Vendor.vehicle_hire_enabled` (TINYINT DEFAULT 1)
+
+---
 
 ## v1.12.0
 

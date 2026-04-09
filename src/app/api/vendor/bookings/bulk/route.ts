@@ -15,6 +15,7 @@ interface BulkBookingRequest {
     vehicle_id?: string
     vendor_client_id?: string
     trip_details?: string
+    is_enquiry?: boolean
   }>
   authorised_by: string
   trip_mode: 'taxi' | 'vehicle_hire'
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
         end_date,
         vendor_client_id,
         trip_details: rawTripDetails,
+        is_enquiry: isEnquiry = false,
       } = bookings[i]
 
       const svcType: 'vehicle' | 'taxi' | 'cpv' =
@@ -85,13 +87,15 @@ export async function POST(req: Request) {
         }
         vehicle = { id: vendorVehicle.vehicle_id, name: vendorVehicle.vname, chauffeur_price: vendorVehicle.chauffeur_price }
 
-        // Check for conflicting bookings
-        const conflict = await queryOne<{ id: string }>(
-          `SELECT id FROM Booking WHERE vehicle_id = ? AND status NOT IN ('cancelled') AND start_date <= ? AND end_date >= ? LIMIT 1`,
-          [vehicle.id, end_date, start_date]
-        )
-        if (conflict) {
-          throw new Error(`Vehicle is already booked for ${start_date} to ${end_date}`)
+        // Check for conflicting bookings (skip for enquiries)
+        if (!isEnquiry) {
+          const conflict = await queryOne<{ id: string }>(
+            `SELECT id FROM Booking WHERE vehicle_id = ? AND status NOT IN ('cancelled', 'enquiry') AND start_date <= ? AND end_date >= ? LIMIT 1`,
+            [vehicle.id, end_date, start_date]
+          )
+          if (conflict) {
+            throw new Error(`Vehicle is already booked for ${start_date} to ${end_date}`)
+          }
         }
       }
 
@@ -120,9 +124,9 @@ export async function POST(req: Request) {
       const serviceLabel = svcType === 'taxi' ? 'Taxi' : svcType === 'cpv' ? 'CPV' : vehicle!.name
 
       await execute(
-        `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, vendor_id, vendor_client_id, created_at, updated_at)
-         VALUES (?, ?, ?, 'chauffeured', ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-        [id, public_id, vehicle?.id ?? null, svcType, start_date, end_date, total_days, daily_rate, total_cost, null, vendorEmail || null, vendorPhone || null, trip_details, session.vendorId, vendor_client_id ?? null]
+        `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, is_enquiry, vendor_id, vendor_client_id, created_at, updated_at)
+         VALUES (?, ?, ?, 'chauffeured', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [id, public_id, vehicle?.id ?? null, svcType, isEnquiry ? 'enquiry' : 'confirmed', start_date, end_date, total_days, daily_rate, total_cost, null, vendorEmail || null, vendorPhone || null, trip_details, isEnquiry ? 1 : 0, session.vendorId, vendor_client_id ?? null]
       )
 
       const booking = await queryOne<{

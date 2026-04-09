@@ -63,20 +63,33 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
   const body = await req.json()
-  const allowed = ['name', 'contact_email', 'contact_phone', 'is_active']
+
+  // Handle username change separately — requires uniqueness check
+  if ('username' in body) {
+    const newUsername = String(body.username).trim()
+    if (!newUsername) return NextResponse.json({ error: 'Username cannot be empty' }, { status: 400 })
+    const existing = await queryOne('SELECT id FROM Vendor WHERE username = ? AND id != ? LIMIT 1', [newUsername, params.id])
+    if (existing) return NextResponse.json({ error: 'Username already taken' }, { status: 409 })
+    await execute('UPDATE Vendor SET username = ?, updated_at = NOW() WHERE id = ?', [newUsername, params.id])
+    if (Object.keys(body).length === 1) {
+      return NextResponse.json({ ok: true })
+    }
+  }
+
+  const allowed = ['name', 'contact_email', 'contact_phone', 'is_active', 'taxi_enabled', 'vehicle_hire_enabled']
   const setClauses: string[] = []
   const values: unknown[] = []
   for (const key of allowed) {
     if (key in body) {
-      setClauses.push(`${key} = ?`)
+      setClauses.push(`\`${key}\` = ?`)
       values.push(body[key])
     }
   }
-  if (setClauses.length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
+  if (setClauses.length === 0) return NextResponse.json({ ok: true })
   values.push(params.id)
 
   await execute(`UPDATE Vendor SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = ?`, values)
-  const vendor = await queryOne('SELECT id, name, username, contact_email, contact_phone, is_active, created_at FROM Vendor WHERE id = ? LIMIT 1', [params.id])
+  const vendor = await queryOne('SELECT id, name, username, contact_email, contact_phone, is_active, taxi_enabled, vehicle_hire_enabled, created_at FROM Vendor WHERE id = ? LIMIT 1', [params.id])
   return NextResponse.json({ vendor: { ...vendor, is_active: Boolean((vendor as { is_active: number }).is_active) } })
 }
 

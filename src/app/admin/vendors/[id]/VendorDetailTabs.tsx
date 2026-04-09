@@ -15,6 +15,8 @@ interface VendorForTabs {
   contact_email: string
   contact_phone: string
   is_active: boolean
+  taxi_enabled: boolean
+  vehicle_hire_enabled: boolean
   vehicles: {
     vehicle_id: string
     is_enabled: boolean
@@ -59,9 +61,37 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
     contact_email: vendor.contact_email,
     contact_phone: vendor.contact_phone,
     is_active: vendor.is_active,
+    taxi_enabled: vendor.taxi_enabled,
+    vehicle_hire_enabled: vendor.vehicle_hire_enabled,
   })
   const [detailSaving, setDetailSaving] = useState(false)
   const [detailMsg, setDetailMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+
+  // Username edit state
+  const [username, setUsername] = useState(vendor.username)
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [newUsername, setNewUsername] = useState(vendor.username)
+  const [usernameSaving, setUsernameSaving] = useState(false)
+
+  async function saveUsername() {
+    if (!newUsername.trim() || newUsername.trim() === username) { setEditingUsername(false); return }
+    setUsernameSaving(true)
+    try {
+      const res = await fetch(`/api/admin/vendors/${vendor.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: newUsername.trim() }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed')
+      setUsername(newUsername.trim())
+      setEditingUsername(false)
+      flash(setDetailMsg, 'Username updated', 'success')
+    } catch (e: unknown) {
+      flash(setDetailMsg, e instanceof Error ? e.message : 'Error', 'error')
+    } finally {
+      setUsernameSaving(false)
+    }
+  }
 
   // Password reset state
   const [newPassword, setNewPassword] = useState('')
@@ -184,8 +214,33 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
               </div>
               <div>
                 <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Username</label>
-                <input className={inp + ' opacity-50 cursor-not-allowed'} value={vendor.username} disabled />
-                <p className="text-[11.5px] text-ink-4 mt-1">Username cannot be changed after creation.</p>
+                {editingUsername ? (
+                  <div className="flex gap-2">
+                    <input
+                      className={inp + ' flex-1'}
+                      value={newUsername}
+                      onChange={e => setNewUsername(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveUsername(); if (e.key === 'Escape') { setNewUsername(username); setEditingUsername(false) } }}
+                      autoFocus
+                    />
+                    <button onClick={saveUsername} disabled={usernameSaving}
+                      className="bg-accent text-white font-semibold text-[13px] px-3 py-2 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50 whitespace-nowrap">
+                      {usernameSaving ? '…' : 'Confirm'}
+                    </button>
+                    <button onClick={() => { setNewUsername(username); setEditingUsername(false) }}
+                      className="border border-border text-ink-3 font-medium text-[13px] px-3 py-2 rounded-[6px] hover:text-ink transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <input className={inp + ' flex-1 opacity-60 cursor-default'} value={username} readOnly />
+                    <button onClick={() => { setNewUsername(username); setEditingUsername(true) }}
+                      className="border border-border text-ink-3 font-medium text-[13px] px-3 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-colors whitespace-nowrap">
+                      Edit
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Contact Email</label>
@@ -203,6 +258,26 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
                 <button onClick={() => setDetails(d => ({ ...d, is_active: !d.is_active }))}
                   className={`w-10 h-6 rounded-full transition-colors ${details.is_active ? 'bg-accent' : 'bg-ink-4'}`}>
                   <span className={`block w-4 h-4 bg-white rounded-full mx-1 transition-transform ${details.is_active ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between border border-border rounded-[6px] px-4 py-3">
+                <div>
+                  <p className="text-[13.5px] font-semibold">Taxi Trips</p>
+                  <p className="text-[12px] text-ink-3">Allow this vendor to create taxi trip bookings.</p>
+                </div>
+                <button onClick={() => setDetails(d => ({ ...d, taxi_enabled: !d.taxi_enabled }))}
+                  className={`w-10 h-6 rounded-full transition-colors ${details.taxi_enabled ? 'bg-accent' : 'bg-ink-4'}`}>
+                  <span className={`block w-4 h-4 bg-white rounded-full mx-1 transition-transform ${details.taxi_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between border border-border rounded-[6px] px-4 py-3">
+                <div>
+                  <p className="text-[13.5px] font-semibold">Vehicle Hire</p>
+                  <p className="text-[12px] text-ink-3">Allow this vendor to create vehicle hire bookings.</p>
+                </div>
+                <button onClick={() => setDetails(d => ({ ...d, vehicle_hire_enabled: !d.vehicle_hire_enabled }))}
+                  className={`w-10 h-6 rounded-full transition-colors ${details.vehicle_hire_enabled ? 'bg-accent' : 'bg-ink-4'}`}>
+                  <span className={`block w-4 h-4 bg-white rounded-full mx-1 transition-transform ${details.vehicle_hire_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
                 </button>
               </div>
               <button onClick={saveDetails} disabled={detailSaving}

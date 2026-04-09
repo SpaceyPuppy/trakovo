@@ -286,6 +286,8 @@ export default function MultiBookingPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([])
   const [loading, setLoading] = useState(true)
+  const [taxiEnabled, setTaxiEnabled] = useState(false)
+  const [vehicleHireEnabled, setVehicleHireEnabled] = useState(true)
 
   const [tripMode, setTripMode] = useState<TripMode>('taxi')
   const [vehicleMode, setVehicleMode] = useState<VehicleMode>('same')
@@ -297,17 +299,26 @@ export default function MultiBookingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [progress, setProgress] = useState('')
   const [submitError, setSubmitError] = useState('')
-  const [successResult, setSuccessResult] = useState<{ created: number; errors: string[] } | null>(null)
+  const [successResult, setSuccessResult] = useState<{ created: number; enquiries: number; errors: string[] } | null>(null)
+  // Conflict enquiry prompt — holds the indices of conflicting bookings
+  const [conflictPrompt, setConflictPrompt] = useState<{ indices: number[]; rows: BookingRow[] } | null>(null)
 
   useEffect(() => {
     Promise.all([
       fetch('/api/vendor/vehicles').then(r => r.json()),
       fetch('/api/vendor/clients').then(r => r.json()),
       fetch('/api/vendor/bookings').then(r => r.json()),
-    ]).then(([v, c, b]) => {
+      fetch('/api/vendor/settings').then(r => r.json()),
+    ]).then(([v, c, b, s]) => {
       setVehicles(v.vehicles ?? [])
       setClients(c.clients ?? [])
       setExistingBookings(b.bookings ?? [])
+      const taxi = Boolean(s.taxi_enabled)
+      const hire = s.vehicle_hire_enabled !== false
+      setTaxiEnabled(taxi)
+      setVehicleHireEnabled(hire)
+      // Default to whichever mode is enabled; prefer vehicle_hire if both enabled
+      setTripMode(hire ? 'vehicle_hire' : 'taxi')
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -362,85 +373,137 @@ export default function MultiBookingPage() {
     public_id: b.public_id,
   }))
 
+  function buildBookingPayloads(rowsToSend: BookingRow[], asEnquiry = false) {
+    return rowsToSend.map((row) => {
+      if (tripMode === 'vehicle_hire') {
+        const hireRow = row as VehicleHireRow
+        const resolvedVehicleId = vehicleMode === 'same' ? sameVehicleId : hireRow.vehicle_id
+        return {
+          service_type: 'vehicle' as const,
+          start_date: hireRow.start_date,
+          end_date: hireRow.end_date,
+          vehicle_id: resolvedVehicleId,
+          trip_details: JSON.stringify({ notes: hireRow.notes || null }),
+          ...(asEnquiry ? { is_enquiry: true } : {}),
+        }
+      } else {
+        const taxiRow = row as TaxiBookingRow
+        const trip_details = JSON.stringify({
+          pickup_address: taxiRow.pickup_address,
+          pickup_time: taxiRow.pickup_time,
+          passengers: parseInt(taxiRow.passengers),
+          destination: taxiRow.destination || null,
+          return_trip: taxiRow.return_trip,
+          return_time: taxiRow.return_trip ? taxiRow.return_time : null,
+          notes: taxiRow.notes || null,
+        })
+        const payload: Record<string, unknown> = {
+          service_type: taxiRow.service_type,
+          start_date: taxiRow.date,
+          end_date: taxiRow.date,
+          trip_details,
+          ...(asEnquiry ? { is_enquiry: true } : {}),
+        }
+        if (taxiRow.service_type === 'vehicle' && taxiRow.vehicle_id) {
+          payload.vehicle_id = taxiRow.vehicle_id
+        }
+        if (taxiRow.vendor_client_id) {
+          payload.vendor_client_id = taxiRow.vendor_client_id
+        }
+        return payload as {
+          service_type: ServiceType
+          start_date: string
+          end_date: string
+          vehicle_id?: string
+          vendor_client_id?: string
+          trip_details: string
+          is_enquiry?: boolean
+        }
+      }
+    })
+  }
+
   async function handleSubmit() {
+    if (!authorisedBy.trim()) {
+      setShowAuthorisedByError(true)
+      return
+    }
     if (!allValid) {
       setShowErrors(true)
-      if (!authorisedByValid) setShowAuthorisedByError(true)
       return
     }
     setSubmitting(true)
     setSubmitError('')
-    setProgress(`Creating ${rows.length} booking${rows.length !== 1 ? 's' : ''}…`)
-
+    setConflictPrompt(null)
+    setProgress('Submitting bookings…')
     try {
-      const bookings = rows.map((row) => {
-        if (tripMode === 'vehicle_hire') {
-          const hireRow = row as VehicleHireRow
-          const resolvedVehicleId = vehicleMode === 'same' ? sameVehicleId : hireRow.vehicle_id
-          return {
-            service_type: 'vehicle' as const,
-            start_date: hireRow.start_date,
-            end_date: hireRow.end_date,
-            vehicle_id: resolvedVehicleId,
-            trip_details: JSON.stringify({ notes: hireRow.notes || null }),
-          }
-        } else {
-          const taxiRow = row as TaxiBookingRow
-          const trip_details = JSON.stringify({
-            pickup_address: taxiRow.pickup_address,
-            pickup_time: taxiRow.pickup_time,
-            passengers: parseInt(taxiRow.passengers),
-            destination: taxiRow.destination || null,
-            return_trip: taxiRow.return_trip,
-            return_time: taxiRow.return_trip ? taxiRow.return_time : null,
-            notes: taxiRow.notes || null,
-          })
-          const payload: Record<string, unknown> = {
-            service_type: taxiRow.service_type,
-            start_date: taxiRow.date,
-            end_date: taxiRow.date,
-            trip_details,
-          }
-          if (taxiRow.service_type === 'vehicle' && taxiRow.vehicle_id) {
-            payload.vehicle_id = taxiRow.vehicle_id
-          }
-          if (taxiRow.vendor_client_id) {
-            payload.vendor_client_id = taxiRow.vendor_client_id
-          }
-          return payload as {
-            service_type: ServiceType
-            start_date: string
-            end_date: string
-            vehicle_id?: string
-            vendor_client_id?: string
-            trip_details: string
-          }
-        }
-      })
-
+      const bookings = buildBookingPayloads(rows)
       const res = await fetch('/api/vendor/bookings/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookings,
-          authorised_by: authorisedBy,
-          trip_mode: tripMode,
-        }),
+        body: JSON.stringify({ bookings, authorised_by: authorisedBy, trip_mode: tripMode }),
       })
       const d = await res.json()
 
-      if (!res.ok && !(d.errors?.length && (d.created?.length ?? 0) > 0)) {
-        throw new Error(d.error ?? d.errors?.[0] ?? 'Submission failed')
-      }
+      // Detect which failures are due to date conflicts
+      const allErrors: string[] = d.errors ?? []
+      const conflictErrors = allErrors.filter((e: string) => /already booked/i.test(e))
+      const conflictIndices = conflictErrors
+        .map((e: string) => { const m = e.match(/Booking (\d+) failed/); return m ? parseInt(m[1]) - 1 : -1 })
+        .filter((i: number) => i >= 0)
 
       const createdCount = d.created?.length ?? 0
-      if (createdCount === 0) {
-        throw new Error('No bookings were created. Please check vehicle access and try again.')
+
+      if (conflictIndices.length > 0) {
+        const conflictRows = conflictIndices.map((i: number) => rows[i]).filter(Boolean)
+        setConflictPrompt({ indices: conflictIndices, rows: conflictRows })
+        if (createdCount > 0) {
+          // Partial success — show what was created, keep conflict prompt for re-submission
+          setSuccessResult({
+            created: createdCount,
+            enquiries: 0,
+            errors: allErrors.filter((e: string) => !/already booked/i.test(e)),
+          })
+        }
+        return
       }
 
-      setSuccessResult({ created: createdCount, errors: d.errors ?? [] })
+      if (!res.ok && createdCount === 0) {
+        throw new Error(d.error ?? allErrors[0] ?? 'Submission failed')
+      }
+
+      setSuccessResult({ created: createdCount, enquiries: 0, errors: allErrors })
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'An error occurred.')
+    } finally {
+      setSubmitting(false)
+      setProgress('')
+    }
+  }
+
+  async function submitConflictsAsEnquiries() {
+    if (!conflictPrompt) return
+    setSubmitting(true)
+    setSubmitError('')
+    setProgress('Submitting waitlist enquiries…')
+    try {
+      const bookings = buildBookingPayloads(conflictPrompt.rows, true)
+      const res = await fetch('/api/vendor/bookings/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookings, authorised_by: authorisedBy, trip_mode: tripMode }),
+      })
+      const d = await res.json()
+      const enquiryCount = d.created?.length ?? 0
+      const prevCreated = successResult?.created ?? 0
+      setConflictPrompt(null)
+      setSuccessResult({
+        created: prevCreated,
+        enquiries: enquiryCount,
+        errors: successResult?.errors ?? [],
+      })
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Failed to submit enquiries.')
     } finally {
       setSubmitting(false)
       setProgress('')
@@ -462,7 +525,8 @@ export default function MultiBookingPage() {
     )
   }
 
-  if (successResult) {
+  if (successResult && !conflictPrompt) {
+    const totalEnquiries = successResult.enquiries
     return (
       <div className="max-w-xl mx-auto py-16 text-center">
         <div className="bg-white border border-border rounded-2xl px-8 py-10 shadow-sm">
@@ -470,13 +534,24 @@ export default function MultiBookingPage() {
             <span className="text-success text-2xl font-bold">✓</span>
           </div>
           <h1 className="font-display font-bold text-[24px] tracking-tight mb-2">
-            {successResult.created} Booking{successResult.created !== 1 ? 's' : ''} Submitted
+            {successResult.created > 0
+              ? `${successResult.created} Booking${successResult.created !== 1 ? 's' : ''} Confirmed`
+              : totalEnquiries > 0
+                ? `${totalEnquiries} Waitlist Enquir${totalEnquiries !== 1 ? 'ies' : 'y'} Submitted`
+                : 'Submitted'}
           </h1>
-          <p className="text-[14px] text-ink-3 mb-6">
-            Your booking request{successResult.created !== 1 ? 's have' : ' has'} been received. Our team will review and confirm shortly.
-          </p>
+          {successResult.created > 0 && (
+            <p className="text-[14px] text-ink-3 mb-2">
+              {successResult.created} booking{successResult.created !== 1 ? 's have' : ' has'} been confirmed.
+            </p>
+          )}
+          {totalEnquiries > 0 && (
+            <p className="text-[14px] text-ink-3 mb-2">
+              {totalEnquiries} waitlist enquir{totalEnquiries !== 1 ? 'ies have' : 'y has'} been submitted — we&apos;ll be in touch if availability opens up.
+            </p>
+          )}
           {successResult.errors.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 mb-6 text-left">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 mb-6 mt-4 text-left">
               <p className="text-[12.5px] font-semibold text-yellow-800 mb-1">Some bookings could not be created:</p>
               <ul className="list-disc list-inside space-y-0.5">
                 {successResult.errors.map((e, i) => (
@@ -486,7 +561,7 @@ export default function MultiBookingPage() {
             </div>
           )}
           <a href="/vendor"
-            className="inline-block bg-accent text-white font-display font-bold text-[15px] px-8 py-3 rounded-lg hover:bg-accent-dark transition-colors">
+            className="inline-block mt-6 bg-accent text-white font-display font-bold text-[15px] px-8 py-3 rounded-lg hover:bg-accent-dark transition-colors">
             Go to Dashboard
           </a>
         </div>
@@ -510,24 +585,28 @@ export default function MultiBookingPage() {
 
       {/* ── Trip Mode Toggle ─────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <button
-          onClick={() => switchTripMode('taxi')}
-          className={`px-6 py-3 rounded-lg font-display font-bold text-[15px] transition-all border-2 ${
-            tripMode === 'taxi'
-              ? 'bg-accent text-white border-accent shadow-sm'
-              : 'bg-white text-ink-3 border-border hover:border-ink-4 hover:text-ink'
-          }`}>
-          Taxi Trips
-        </button>
-        <button
-          onClick={() => switchTripMode('vehicle_hire')}
-          className={`px-6 py-3 rounded-lg font-display font-bold text-[15px] transition-all border-2 ${
-            tripMode === 'vehicle_hire'
-              ? 'bg-accent text-white border-accent shadow-sm'
-              : 'bg-white text-ink-3 border-border hover:border-ink-4 hover:text-ink'
-          }`}>
-          Vehicle Hire
-        </button>
+        {taxiEnabled && (
+          <button
+            onClick={() => switchTripMode('taxi')}
+            className={`px-6 py-3 rounded-lg font-display font-bold text-[15px] transition-all border-2 ${
+              tripMode === 'taxi'
+                ? 'bg-accent text-white border-accent shadow-sm'
+                : 'bg-white text-ink-3 border-border hover:border-ink-4 hover:text-ink'
+            }`}>
+            Taxi Trips
+          </button>
+        )}
+        {vehicleHireEnabled && (
+          <button
+            onClick={() => switchTripMode('vehicle_hire')}
+            className={`px-6 py-3 rounded-lg font-display font-bold text-[15px] transition-all border-2 ${
+              tripMode === 'vehicle_hire'
+                ? 'bg-accent text-white border-accent shadow-sm'
+                : 'bg-white text-ink-3 border-border hover:border-ink-4 hover:text-ink'
+            }`}>
+            Vehicle Hire
+          </button>
+        )}
 
         {/* Vehicle mode selector — only for Vehicle Hire */}
         {tripMode === 'vehicle_hire' && (
@@ -649,6 +728,44 @@ export default function MultiBookingPage() {
               </div>
             </div>
 
+            {/* Conflict / waitlist enquiry prompt */}
+            {conflictPrompt && (
+              <div className="bg-amber-50 border border-amber-300 rounded-xl px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center mt-0.5">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                      <path d="M10 3L18 17H2L10 3Z" stroke="#B45309" strokeWidth="1.8" strokeLinejoin="round"/>
+                      <path d="M10 9v4M10 14.5v.5" stroke="#B45309" strokeWidth="1.8" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[13.5px] font-semibold text-amber-900 mb-1">
+                      {conflictPrompt.rows.length === 1
+                        ? '1 date is already booked'
+                        : `${conflictPrompt.rows.length} dates are already booked`}
+                    </p>
+                    <p className="text-[12.5px] text-amber-800 mb-3">
+                      These dates aren&apos;t currently available, but you can join the waitlist. We&apos;ll contact you if a space opens up — no commitment is made until we confirm.
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={submitConflictsAsEnquiries}
+                        disabled={submitting}
+                        className="bg-amber-700 text-white text-[12.5px] font-semibold px-4 py-2 rounded-[6px] hover:bg-amber-800 disabled:opacity-50 transition-colors">
+                        {submitting ? progress || 'Submitting…' : `Submit ${conflictPrompt.rows.length} as Waitlist Enquir${conflictPrompt.rows.length !== 1 ? 'ies' : 'y'}`}
+                      </button>
+                      <button
+                        onClick={() => setConflictPrompt(null)}
+                        disabled={submitting}
+                        className="text-[12.5px] text-amber-700 hover:text-amber-900 underline disabled:opacity-50">
+                        No thanks
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Authorised By + Submit */}
             <div className="bg-white border border-border rounded-xl px-5 py-4 space-y-4">
               <div>
@@ -675,12 +792,14 @@ export default function MultiBookingPage() {
                 )}
               </div>
 
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="bg-accent text-white font-display font-bold text-[15px] px-8 py-3 rounded-lg hover:bg-accent-dark disabled:opacity-50 transition-colors shadow-sm">
-                {submitting ? progress || 'Creating…' : `Confirm ${rows.length} Booking${rows.length !== 1 ? 's' : ''}`}
-              </button>
+              {!conflictPrompt && (
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="bg-accent text-white font-display font-bold text-[15px] px-8 py-3 rounded-lg hover:bg-accent-dark disabled:opacity-50 transition-colors shadow-sm">
+                  {submitting ? progress || 'Creating…' : `Confirm ${rows.length} Booking${rows.length !== 1 ? 's' : ''}`}
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -14,8 +14,8 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function AdminVendorDetailPage({ params }: { params: { id: string } }) {
   const [rawVendor, allVehicles] = await Promise.all([
-    queryOne<{ id: string; name: string; public_id: string; username: string; contact_email: string; contact_phone: string; is_active: number }>(
-      'SELECT id, name, public_id, username, contact_email, contact_phone, is_active FROM Vendor WHERE id = ? LIMIT 1',
+    queryOne<{ id: string; name: string; public_id: string; username: string; contact_email: string; contact_phone: string; is_active: number; taxi_enabled: number; vehicle_hire_enabled: number }>(
+      'SELECT id, name, public_id, username, contact_email, contact_phone, is_active, taxi_enabled, vehicle_hire_enabled FROM Vendor WHERE id = ? LIMIT 1',
       [params.id]
     ),
     adminGetVehicles(),
@@ -50,6 +50,8 @@ export default async function AdminVendorDetailPage({ params }: { params: { id: 
   const vendor = {
     ...rawVendor,
     is_active: Boolean(rawVendor.is_active),
+    taxi_enabled: Boolean(rawVendor.taxi_enabled),
+    vehicle_hire_enabled: Boolean(rawVendor.vehicle_hire_enabled),
     vehicles: vendorVehicles.map((vv) => ({
       vendor_id: vv.vendor_id,
       vehicle_id: vv.vehicle_id,
