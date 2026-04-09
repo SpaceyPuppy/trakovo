@@ -5,25 +5,30 @@ import { createToken, COOKIE_NAME } from '@/lib/auth'
 import { queryOne } from '@/lib/db'
 import { verifyPassword } from '@/lib/password'
 
-const COOKIE_OPTS = {
-  httpOnly: true,
-  secure: process.env.COOKIE_SECURE !== 'false',
-  sameSite: 'lax' as const,
-  maxAge: 60 * 60 * 8,
-  path: '/',
-}
+const THIRTY_DAYS_S = 60 * 60 * 24 * 30
 
 export async function POST(req: NextRequest) {
-  const { username, password } = await req.json()
+  const { username, password, rememberMe } = await req.json()
+
+  const durationMs = rememberMe ? THIRTY_DAYS_S * 1000 : 1000 * 60 * 60 * 8
+  const maxAge = rememberMe ? THIRTY_DAYS_S : 60 * 60 * 8
+
+  const cookieOpts = {
+    httpOnly: true,
+    secure: process.env.COOKIE_SECURE !== 'false',
+    sameSite: 'lax' as const,
+    maxAge,
+    path: '/',
+  }
 
   // Master credentials from env vars always take priority
   if (
     username === process.env.ADMIN_USERNAME &&
     password === process.env.ADMIN_PASSWORD
   ) {
-    const token = await createToken(username)
+    const token = await createToken(username, durationMs)
     const res = NextResponse.json({ ok: true, token, username })
-    res.cookies.set(COOKIE_NAME, token, COOKIE_OPTS)
+    res.cookies.set(COOKIE_NAME, token, cookieOpts)
     return res
   }
 
@@ -37,8 +42,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
   }
 
-  const token = await createToken(username)
+  const token = await createToken(username, durationMs)
   const res = NextResponse.json({ ok: true, token, username })
-  res.cookies.set(COOKIE_NAME, token, COOKIE_OPTS)
+  res.cookies.set(COOKIE_NAME, token, cookieOpts)
   return res
 }

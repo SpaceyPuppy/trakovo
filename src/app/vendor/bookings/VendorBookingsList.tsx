@@ -2,6 +2,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
+function fmtDate(d: string) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 interface Booking {
   id: string
   public_id: string
@@ -85,7 +89,7 @@ export default function VendorBookingsList({ bookings }: Props) {
                     }
                   </td>
                   <td className="px-6 py-4 text-ink-3">{b.vendor_client?.name ?? b.contact_name ?? '—'}</td>
-                  <td className="px-6 py-4 text-ink-3 text-[12px]">{b.start_date} → {b.end_date}</td>
+                  <td className="px-6 py-4 text-ink-3 text-[12px]">{fmtDate(b.start_date)} → {fmtDate(b.end_date)}</td>
                   <td className="px-6 py-4 text-ink-3">{b.total_days}d</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${STATUS_COLORS[b.status] ?? 'bg-bg text-ink-3 border-border'}`}>

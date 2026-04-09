@@ -5,14 +5,36 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.9.2
+## Current pending version: v1.10.0 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
 - [ ] Run NPM Install in cPanel Node.js app
+- [ ] Apply DB migration (see SQL below)
 - [ ] Restart app
-- [ ] No DB migrations required
-- [ ] No new env vars required
+
+### Pending SQL
+
+```sql
+-- Add MS Calendar event ID column to Booking table
+ALTER TABLE `Booking` ADD COLUMN `ms_event_id` VARCHAR(191) NULL AFTER `google_event_id`;
+
+-- Remove unused Google Calendar event ID column (Google Calendar integration removed)
+ALTER TABLE `Booking` DROP COLUMN `google_event_id`;
+```
+
+### Post-deploy steps
+1. Apply the SQL above in phpMyAdmin
+2. In Admin → Settings → Connections, **disconnect and reconnect Microsoft 365** to grant the new `Calendars.ReadWrite` scope — existing tokens will not have calendar access
+
+### Post-deploy verification
+- [ ] Admin → Settings → Connections → disconnect MS 365, reconnect → grants Calendar access
+- [ ] Create or update a booking → event appears in connected Outlook calendar
+- [ ] Change booking status → calendar event colour updates
+- [ ] Delete a booking → calendar event is removed
+- [ ] Remember Me checkbox visible on all three login pages (Admin, Vendor, Driver)
+- [ ] Login with Remember Me checked → session lasts 30 days (cookie `max-age` = 2592000)
+- [ ] Dates show in DD Mon YYYY format across admin and driver portal pages
 
 ### Post-deploy verification
 - [ ] Visit `/book` on mobile → browser offers "Add to Home Screen"
@@ -42,6 +64,59 @@ Update it as features are built. Clear it after each successful production deplo
 ---
 
 # Changelog / Release Notes
+
+## v1.10.0
+
+### New features
+
+**Microsoft 365 Calendar Sync**
+- Bookings now sync automatically to the connected Outlook calendar when created, updated, or deleted
+- Events are colour-coded by status: Yellow = Pending, Green = Confirmed, Red = Cancelled, Blue = Completed, Purple = Enquiry
+- Create and update use MS Graph API (`POST /me/events`, `PATCH /me/events/{id}`)
+- 404 recovery: if an event was deleted from Outlook, a new one is created automatically on next sync
+- Requires reconnecting MS 365 in Admin → Settings → Connections to grant the new `Calendars.ReadWrite` scope
+
+**Google Calendar removed**
+- Google Calendar integration has been removed; Microsoft 365 is the sole calendar integration
+- `gc-auth`, `gc-callback`, `gc-disconnect` API routes removed
+- Google Calendar tile removed from Settings → Connections
+
+**Remember Me — 30-day persistent login**
+- All three portals (Admin, Vendor, Driver) now show a "Remember me for 30 days" checkbox on the login page
+- When checked, the session cookie `max-age` is set to 30 days instead of the default 8 hours
+- JWT expiry is extended to match the cookie lifetime
+
+**Date format standardisation (en-AU)**
+- All dates across admin and driver portals now display in Australian format (e.g. "9 Apr 2026")
+- Fixed 5 pages that were missing the `'en-AU'` locale on `toLocaleDateString` / `toLocaleString`
+- Fixed 3 list views that were showing raw `YYYY-MM-DD` database strings instead of formatted dates
+
+### Bug fixes
+
+**Vendor portal — bookings showing from other vendors**
+- Dashboard and booking list were including bookings from all vendors due to an overly broad SQL filter
+- Fixed: query now strictly filters by `vendor_id = ?`
+
+**Vendor portal — View button returning 404**
+- Was a downstream effect of the above — foreign bookings failing the detail page auth check
+- Resolved by the vendor isolation fix above
+
+**Vendor portal — multi-booking form not saving**
+- Bookings were being created in the DB but the success redirect hit a redirect stub, giving zero feedback
+- Fixed: replaced redirect with an in-page success screen showing created count and any errors
+
+**CrazyTel dispatch number not persisting**
+- SQL `IN` clause had 6 placeholders for 7 values — `crazytel_dispatch_number` was silently dropped from the query
+- Fixed: corrected to 7 placeholders
+
+### Technical
+
+- `src/lib/calendar.ts` — rewritten to MS Graph only; `syncBookingToCalendar` and `deleteCalendarEvent` updated
+- MS OAuth scope updated: `Calendars.ReadWrite offline_access` added to both auth and callback routes
+- `Booking.ms_event_id` column added to schema
+- `Booking.google_event_id` column removed from schema
+
+---
 
 ## v1.9.2
 

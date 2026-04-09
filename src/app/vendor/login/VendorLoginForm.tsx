@@ -6,6 +6,7 @@ export default function VendorLoginForm({ portalName, siteName }: { portalName: 
   const router = useRouter()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -17,7 +18,7 @@ export default function VendorLoginForm({ portalName, siteName }: { portalName: 
       const res = await fetch('/api/vendor/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, rememberMe }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Login failed')
@@ -75,6 +76,15 @@ export default function VendorLoginForm({ portalName, siteName }: { portalName: 
               <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Password</label>
               <input className={inp} type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" required />
             </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="accent-accent w-4 h-4 rounded"
+              />
+              <span className="text-[13px] text-ink-3">Remember me for 30 days</span>
+            </label>
             <button type="submit" disabled={loading}
               className="w-full bg-accent hover:bg-accent-dark text-white font-display font-bold text-[14px] py-3 rounded-[6px] transition-colors disabled:opacity-50 mt-2">
               {loading ? 'Signing in…' : 'Sign In'}

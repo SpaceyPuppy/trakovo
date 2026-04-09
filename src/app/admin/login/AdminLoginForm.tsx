@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 export default function AdminLoginForm({ siteName }: { siteName: string }) {
   const [creds, setCreds] = useState({ username: '', password: '' })
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -14,7 +15,7 @@ export default function AdminLoginForm({ siteName }: { siteName: string }) {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(creds),
+        body: JSON.stringify({ ...creds, rememberMe }),
       })
       if (res.ok) {
         // Hard redirect — ensures middleware sees the cookie on a fresh request
@@ -128,6 +129,16 @@ export default function AdminLoginForm({ siteName }: { siteName: string }) {
                 className="w-full border border-border bg-white rounded-[8px] px-4 py-3 text-[14px] outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all"
               />
             </div>
+
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="accent-accent w-4 h-4 rounded"
+              />
+              <span className="text-[13px] text-ink-3">Remember me for 30 days</span>
+            </label>
 
             <button
               type="submit"

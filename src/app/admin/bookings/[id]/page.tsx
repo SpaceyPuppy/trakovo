@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { queryOne, query } from '@/lib/db'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import BookingStatusUpdater from '../BookingStatusUpdater'
 import BookingDetailEditor from './BookingDetailEditor'
 import BookingNotes from './BookingNotes'
@@ -97,8 +97,8 @@ export default async function BookingDetailPage({ params }: Props) {
           </div>
           <div className="px-5 py-5 grid grid-cols-2 md:grid-cols-3 gap-5">
             <Info label="Hire Type" value={isDryHire ? 'Dry Hire (Self-Drive)' : 'Chauffeured Hire'} />
-            <Info label="Start Date" value={booking.start_date} />
-            <Info label="End Date" value={booking.end_date} />
+            <Info label="Start Date" value={formatDate(booking.start_date, { day: 'numeric', month: 'short', year: 'numeric' })} />
+            <Info label="End Date" value={formatDate(booking.end_date, { day: 'numeric', month: 'short', year: 'numeric' })} />
             <Info label="Duration" value={`${booking.total_days} day${booking.total_days !== 1 ? 's' : ''}`} />
             <Info label="Daily Rate" value={formatCurrency(booking.daily_rate / 100)} />
             <Info label="Total Cost" value={formatCurrency(booking.total_cost / 100)} accent />

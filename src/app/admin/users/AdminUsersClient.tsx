@@ -116,7 +116,7 @@ export default function AdminUsersClient() {
               {users.map(u => (
                 <tr key={u.id} className="border-t border-border hover:bg-bg/50 transition-colors">
                   <td className="px-6 py-4 font-mono text-[12.5px]">{u.username}</td>
-                  <td className="px-6 py-4 text-ink-3">{new Date(u.created_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-ink-3">{new Date(u.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                   <td className="px-6 py-4 text-right">
                     <button onClick={() => handleDelete(u.id, u.username)}
                       className="text-red-500 hover:text-red-700 font-medium text-[13px] transition-colors">

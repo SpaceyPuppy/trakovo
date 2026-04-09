@@ -60,7 +60,7 @@ CREATE TABLE `Booking` (
     `licence_document_path` VARCHAR(191) NULL,
     `trip_details` TEXT NULL,
     `is_enquiry` BOOLEAN NOT NULL DEFAULT false,
-    `google_event_id` VARCHAR(191) NULL,
+    `ms_event_id` VARCHAR(191) NULL,
     `vendor_id` VARCHAR(191) NULL,
     `vendor_client_id` VARCHAR(191) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

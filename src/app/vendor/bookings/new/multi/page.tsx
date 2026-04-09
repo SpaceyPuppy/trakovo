@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import MultiDayPicker from '@/components/vendor/MultiDayPicker'
 
@@ -294,7 +293,6 @@ function VehicleHireBookingTableRow({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function MultiBookingPage() {
-  const router = useRouter()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([])
@@ -310,6 +308,7 @@ export default function MultiBookingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [progress, setProgress] = useState('')
   const [submitError, setSubmitError] = useState('')
+  const [successResult, setSuccessResult] = useState<{ created: number; errors: string[] } | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -442,26 +441,16 @@ export default function MultiBookingPage() {
       })
       const d = await res.json()
 
-      // Show errors from the API (partial or total failure)
-      if (d.errors?.length) {
-        const createdCount = d.created?.length ?? 0
-        if (createdCount === 0) {
-          throw new Error(d.errors[0])
-        }
-        // Partial success — redirect but note the errors
-        router.push(`/vendor/bookings?created=${createdCount}`)
-        return
+      if (!res.ok && !(d.errors?.length && (d.created?.length ?? 0) > 0)) {
+        throw new Error(d.error ?? d.errors?.[0] ?? 'Submission failed')
       }
 
-      if (!res.ok) {
-        throw new Error(d.error ?? 'Submission failed')
-      }
-
-      const created = d.created?.length ?? 0
-      if (created === 0) {
+      const createdCount = d.created?.length ?? 0
+      if (createdCount === 0) {
         throw new Error('No bookings were created. Please check vehicle access and try again.')
       }
-      router.push(`/vendor/bookings?created=${created}`)
+
+      setSuccessResult({ created: createdCount, errors: d.errors ?? [] })
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'An error occurred.')
     } finally {
@@ -481,6 +470,38 @@ export default function MultiBookingPage() {
     return (
       <div className="flex items-center justify-center py-24">
         <span className="text-ink-3 text-[14px]">Loading…</span>
+      </div>
+    )
+  }
+
+  if (successResult) {
+    return (
+      <div className="max-w-xl mx-auto py-16 text-center">
+        <div className="bg-white border border-border rounded-2xl px-8 py-10 shadow-sm">
+          <div className="w-14 h-14 bg-success-bg border border-success/30 rounded-full flex items-center justify-center mx-auto mb-5">
+            <span className="text-success text-2xl font-bold">✓</span>
+          </div>
+          <h1 className="font-display font-bold text-[24px] tracking-tight mb-2">
+            {successResult.created} Booking{successResult.created !== 1 ? 's' : ''} Submitted
+          </h1>
+          <p className="text-[14px] text-ink-3 mb-6">
+            Your booking request{successResult.created !== 1 ? 's have' : ' has'} been received. Our team will review and confirm shortly.
+          </p>
+          {successResult.errors.length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 mb-6 text-left">
+              <p className="text-[12.5px] font-semibold text-yellow-800 mb-1">Some bookings could not be created:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                {successResult.errors.map((e, i) => (
+                  <li key={i} className="text-[12.5px] text-yellow-700">{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <a href="/vendor"
+            className="inline-block bg-accent text-white font-display font-bold text-[15px] px-8 py-3 rounded-lg hover:bg-accent-dark transition-colors">
+            Go to Dashboard
+          </a>
+        </div>
       </div>
     )
   }

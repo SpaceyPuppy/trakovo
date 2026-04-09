@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         client_secret: clientSecret,
         code,
         redirect_uri: redirectUri,
-        scope: 'Mail.Send User.Read offline_access',
+        scope: 'Mail.Send User.Read Calendars.ReadWrite offline_access',
       }),
     }
   )

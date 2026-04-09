@@ -40,7 +40,7 @@ function formatBytes(bytes: number) {
 }
 
 function formatDate(iso: string) {
-  try { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) }
+  try { return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) }
   catch { return iso }
 }
 

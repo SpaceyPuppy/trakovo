@@ -40,11 +40,11 @@ async function hmac(data: string): Promise<string> {
   return toBase64Url(new Uint8Array(sig))
 }
 
-export async function createDriverToken(driverId: string, driverName: string): Promise<string> {
+export async function createDriverToken(driverId: string, driverName: string, durationMs = 1000 * 60 * 60 * 8): Promise<string> {
   const payload = toBase64Url(JSON.stringify({
     driverId,
     driverName,
-    exp: Date.now() + 1000 * 60 * 60 * 8, // 8 hours
+    exp: Date.now() + durationMs,
   }))
   const sig = await hmac(payload)
   return `${payload}.${sig}`
@@ -73,12 +73,12 @@ export async function getDriverSession(): Promise<DriverSession | null> {
   return verifyDriverToken(token)
 }
 
-export function setDriverSessionCookie(token: string): void {
+export function setDriverSessionCookie(token: string, maxAge = 60 * 60 * 8): void {
   cookies().set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.COOKIE_SECURE !== 'false',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 8,
+    maxAge,
     path: '/',
   })
 }

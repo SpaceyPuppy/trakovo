@@ -15,16 +15,14 @@ export default async function VendorDashboard() {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
 
-  const vendorFilter = `(b.vendor_id = ? OR b.vehicle_id IN (SELECT vehicle_id FROM VendorVehicle WHERE vendor_id = ? AND is_enabled = 1))`
-
   const [bookingsThisMonthRow, pendingCountRow, clientCountRow, allBookings] = await Promise.all([
     queryOne<{ count: number }>(
-      `SELECT COUNT(DISTINCT b.id) as count FROM Booking b WHERE ${vendorFilter} AND b.created_at >= ?`,
-      [session.vendorId, session.vendorId, startOfMonth]
+      `SELECT COUNT(*) as count FROM Booking b WHERE b.vendor_id = ? AND b.created_at >= ?`,
+      [session.vendorId, startOfMonth]
     ),
     queryOne<{ count: number }>(
-      `SELECT COUNT(DISTINCT b.id) as count FROM Booking b WHERE ${vendorFilter} AND b.status = ?`,
-      [session.vendorId, session.vendorId, 'pending']
+      `SELECT COUNT(*) as count FROM Booking b WHERE b.vendor_id = ? AND b.status = ?`,
+      [session.vendorId, 'pending']
     ),
     queryOne<{ count: number }>('SELECT COUNT(*) as count FROM VendorClient WHERE vendor_id = ? AND is_active = 1', [session.vendorId]),
     query<{
@@ -35,10 +33,9 @@ export default async function VendorDashboard() {
        FROM Booking b
        LEFT JOIN Vehicle v ON b.vehicle_id = v.id
        LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id
-       WHERE ${vendorFilter}
-       GROUP BY b.id
+       WHERE b.vendor_id = ?
        ORDER BY b.created_at DESC`,
-      [session.vendorId, session.vendorId]
+      [session.vendorId]
     ),
   ])
   const bookingsThisMonth = bookingsThisMonthRow?.count ?? 0

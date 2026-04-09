@@ -132,7 +132,7 @@ export default function DriverBookingDetailPage() {
             <div key={n.id} className="px-5 py-4">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[12px] font-semibold text-ink-3">{n.author}</span>
-                <span className="text-[11px] text-ink-4">{new Date(n.created_at).toLocaleString()}</span>
+                <span className="text-[11px] text-ink-4">{new Date(n.created_at).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               <p className="text-[13.5px] text-ink whitespace-pre-wrap">{n.text}</p>
             </div>

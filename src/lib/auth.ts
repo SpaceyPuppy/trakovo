@@ -34,10 +34,10 @@ async function hmac(data: string): Promise<string> {
   return toBase64Url(new Uint8Array(sig))
 }
 
-export async function createToken(username: string): Promise<string> {
+export async function createToken(username: string, durationMs = 1000 * 60 * 60 * 8): Promise<string> {
   const payload = toBase64Url(JSON.stringify({
     username,
-    exp: Date.now() + 1000 * 60 * 60 * 8, // 8 hours
+    exp: Date.now() + durationMs,
   }))
   const sig = await hmac(payload)
   return `${payload}.${sig}`

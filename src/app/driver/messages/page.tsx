@@ -98,7 +98,7 @@ export default function DriverMessagesPage() {
             >
               <div>
                 <p className="font-semibold text-[14px]">{m.subject}</p>
-                <p className="text-[12px] text-ink-4 mt-0.5">{new Date(m.created_at).toLocaleDateString()}</p>
+                <p className="text-[12px] text-ink-4 mt-0.5">{new Date(m.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${m.status === 'open' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-success-bg text-success border-success/30'}`}>

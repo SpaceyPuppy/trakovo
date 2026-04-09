@@ -40,11 +40,11 @@ async function hmac(data: string): Promise<string> {
   return toBase64Url(new Uint8Array(sig))
 }
 
-export async function createVendorToken(vendorId: string, vendorName: string): Promise<string> {
+export async function createVendorToken(vendorId: string, vendorName: string, durationMs = 1000 * 60 * 60 * 8): Promise<string> {
   const payload = toBase64Url(JSON.stringify({
     vendorId,
     vendorName,
-    exp: Date.now() + 1000 * 60 * 60 * 8, // 8 hours
+    exp: Date.now() + durationMs,
   }))
   const sig = await hmac(payload)
   return `${payload}.${sig}`
@@ -73,12 +73,12 @@ export async function getVendorSession(): Promise<VendorSession | null> {
   return verifyVendorToken(token)
 }
 
-export function setVendorSessionCookie(token: string): void {
+export function setVendorSessionCookie(token: string, maxAge = 60 * 60 * 8): void {
   cookies().set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.COOKIE_SECURE !== 'false',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 8,
+    maxAge,
     path: '/',
   })
 }

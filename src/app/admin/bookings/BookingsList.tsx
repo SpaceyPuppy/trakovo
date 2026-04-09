@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import type { BookingResponse } from '@/types'
 
+function fmtDate(d: string) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 const STATUS_TABS = [
   { key: 'all', label: 'All' },
   { key: 'pending', label: 'Pending' },
@@ -156,7 +160,7 @@ export default function BookingsList({ bookings: initial }: { bookings: (Booking
 
                 <div className="px-6 pb-5 grid grid-cols-2 md:grid-cols-4 gap-4 text-[13px]">
                   <InfoBlock label="Hire Type" value={hireTypeLabel(b)} capitalize />
-                  <InfoBlock label="Dates" value={`${b.start_date} → ${b.end_date}`} />
+                  <InfoBlock label="Dates" value={`${fmtDate(b.start_date)} → ${fmtDate(b.end_date)}`} />
                   <InfoBlock label="Duration" value={`${b.total_days} day${b.total_days !== 1 ? 's' : ''}`} />
                   <InfoBlock label="Total" value={b.total_cost ? formatCurrency(b.total_cost) : '—'} />
                   <InfoBlock label="Name" value={b.contact_name ?? b.driver_name ?? '—'} />
@@ -198,7 +202,7 @@ export default function BookingsList({ bookings: initial }: { bookings: (Booking
                     <td className="px-4 py-3 font-medium text-ink max-w-[180px] truncate">{bookingLabel(b)}</td>
                     <td className="px-4 py-3 text-ink-3 capitalize">{hireTypeLabel(b)}</td>
                     <td className="px-4 py-3 text-ink-3 max-w-[140px] truncate">{b.contact_name ?? b.driver_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-ink-3 whitespace-nowrap text-[12px]">{b.start_date} → {b.end_date}</td>
+                    <td className="px-4 py-3 text-ink-3 whitespace-nowrap text-[12px]">{fmtDate(b.start_date)} → {fmtDate(b.end_date)}</td>
                     <td className="px-4 py-3 text-ink-3 whitespace-nowrap">{b.total_cost ? formatCurrency(b.total_cost) : '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border capitalize ${STATUS_STYLES[b.status] ?? 'bg-bg text-ink-3 border-border'}`}>

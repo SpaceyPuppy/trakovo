@@ -4,7 +4,7 @@ import { createDriverToken, setDriverSessionCookie } from '@/lib/driver-auth'
 import { verifyPassword } from '@/lib/password'
 
 export async function POST(req: Request) {
-  const { username, password } = await req.json()
+  const { username, password, rememberMe } = await req.json()
   if (!username || !password) {
     return NextResponse.json({ error: 'Username and password required' }, { status: 400 })
   }
@@ -22,7 +22,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
   }
 
-  const token = await createDriverToken(driver.id, driver.name)
-  setDriverSessionCookie(token)
+  const durationMs = rememberMe ? 1000 * 60 * 60 * 24 * 30 : undefined
+  const maxAge = rememberMe ? 60 * 60 * 24 * 30 : undefined
+  const token = await createDriverToken(driver.id, driver.name, durationMs)
+  setDriverSessionCookie(token, maxAge)
   return NextResponse.json({ ok: true, driverName: driver.name })
 }
