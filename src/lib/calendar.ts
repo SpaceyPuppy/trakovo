@@ -29,7 +29,7 @@ async function upsertSetting(key: string, value: string) {
 
 // ─── Microsoft Graph Calendar ─────────────────────────────────────────────────
 
-async function getMsAccessToken(): Promise<string | null> {
+export async function getMsAccessToken(): Promise<string | null> {
   const [tokenRow, expiryRow, refreshRow] = await Promise.all([
     queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_access_token']),
     queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_token_expiry']),
@@ -112,8 +112,17 @@ export async function syncBookingToCalendar(bookingId: string): Promise<void> {
     `${siteUrl}/admin/bookings/${booking.id}`,
   ].join('\n')
 
-  const msToken = await getMsAccessToken()
+  const [msToken, calendarRow] = await Promise.all([
+    getMsAccessToken(),
+    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_calendar_id']),
+  ])
   if (!msToken) return
+
+  const calendarId = calendarRow?.value?.trim() || null
+  // Create URL: use selected calendar if set, otherwise default calendar
+  const createUrl = calendarId
+    ? `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}/events`
+    : 'https://graph.microsoft.com/v1.0/me/events'
 
   try {
     const msEvent = {
@@ -142,7 +151,7 @@ export async function syncBookingToCalendar(bookingId: string): Promise<void> {
             'SELECT ms_event_id FROM Booking WHERE id = ? LIMIT 1', [bookingId]
           )
           if (fresh && !fresh.ms_event_id) {
-            const createRes = await fetch('https://graph.microsoft.com/v1.0/me/events', {
+            const createRes = await fetch(createUrl, {
               method: 'POST',
               headers: { Authorization: `Bearer ${msToken}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(msEvent),
@@ -158,7 +167,7 @@ export async function syncBookingToCalendar(bookingId: string): Promise<void> {
         }
       }
     } else {
-      const res = await fetch('https://graph.microsoft.com/v1.0/me/events', {
+      const res = await fetch(createUrl, {
         method: 'POST',
         headers: { Authorization: `Bearer ${msToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(msEvent),

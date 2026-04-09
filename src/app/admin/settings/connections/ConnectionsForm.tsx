@@ -10,6 +10,8 @@ interface Props {
   msConfigured: boolean
   msConnected: boolean
   msConnectedEmail: string
+  msCalendarId: string
+  msCalendarName: string
   pushConfigured: boolean
   crazytelEnabled: boolean
   crazytelApiKeySet: boolean
@@ -66,25 +68,40 @@ function SectionHeader({ title, description }: { title: string; description?: st
 
 // ─── Microsoft 365 panel ─────────────────────────────────────────────────────
 
-function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: initEmail }: {
+type MsCalendar = { id: string; name: string }
+
+function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: initEmail, msCalendarId: initCalendarId, msCalendarName: initCalendarName }: {
   msConfigured: boolean; msConnected: boolean; msConnectedEmail: string
+  msCalendarId: string; msCalendarName: string
 }) {
   const [connected, setConnected] = useState(initConnected)
   const [email, setEmail] = useState(initEmail)
   const [testEmail, setTestEmail] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [calendars, setCalendars] = useState<MsCalendar[]>([])
+  const [calendarId, setCalendarId] = useState(initCalendarId)
+  const [calendarName, setCalendarName] = useState(initCalendarName)
+  const [calendarSaving, setCalendarSaving] = useState(false)
 
   function flash(text: string, type: 'success' | 'error') {
     setMsg({ text, type })
     setTimeout(() => setMsg(null), 4000)
   }
 
+  useEffect(() => {
+    if (!connected) return
+    fetch('/api/admin/settings/ms-calendars')
+      .then(r => r.json())
+      .then(d => { if (d.calendars?.length) setCalendars(d.calendars) })
+      .catch(() => null)
+  }, [connected])
+
   async function handleDisconnect() {
     setSaving(true)
     try {
       await fetch('/api/admin/settings/ms-disconnect', { method: 'DELETE' })
-      setConnected(false); setEmail('')
+      setConnected(false); setEmail(''); setCalendars([])
       flash('Microsoft 365 disconnected', 'success')
     } catch { flash('Disconnect failed', 'error') }
     finally { setSaving(false) }
@@ -105,9 +122,28 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
     finally { setSaving(false) }
   }
 
+  async function handleCalendarSave() {
+    setCalendarSaving(true)
+    try {
+      const selected = calendars.find(c => c.id === calendarId)
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ms_calendar_id: calendarId,
+          ms_calendar_name: selected?.name ?? '',
+        }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      setCalendarName(selected?.name ?? '')
+      flash('Calendar saved', 'success')
+    } catch { flash('Save failed', 'error') }
+    finally { setCalendarSaving(false) }
+  }
+
   return (
     <div className="bg-white border border-border rounded-xl overflow-hidden">
-      <SectionHeader title="Microsoft 365 Email" description="Send emails directly from your Outlook mailbox using OAuth — no SMTP password needed." />
+      <SectionHeader title="Microsoft 365" description="Email and Calendar sync via Outlook OAuth." />
       <div className="px-5 py-4 space-y-4">
         {msg && <p className={`text-[13px] rounded-[6px] px-3 py-2 ${msg.type === 'success' ? 'text-success bg-success-bg border border-success/30' : 'text-red-600 bg-red-50 border border-red-200'}`}>{msg.text}</p>}
         {!msConfigured ? (
@@ -115,7 +151,7 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
             Add <code className="font-mono text-[12px]">MS_CLIENT_ID</code>, <code className="font-mono text-[12px]">MS_CLIENT_SECRET</code>, and <code className="font-mono text-[12px]">MS_TENANT_ID</code> to your <code className="font-mono text-[12px]">.env.local</code> to enable this.
           </div>
         ) : connected ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="bg-success-bg border border-success/30 rounded-[6px] px-4 py-3 flex items-center justify-between gap-4">
               <div>
                 <p className="text-[13px] text-success font-semibold">Connected</p>
@@ -126,19 +162,51 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
                 {saving ? 'Disconnecting…' : 'Disconnect'}
               </button>
             </div>
-            <p className="text-[12px] text-ink-4">Microsoft 365 is active. Outgoing emails use your Outlook account — SMTP is ignored while connected.</p>
-            <div className="flex items-center gap-3">
-              <input className={cn(inp, 'flex-1')} type="email" value={testEmail}
-                onChange={e => setTestEmail(e.target.value)} placeholder="test@email.com" />
-              <button onClick={handleTest} disabled={!testEmail || saving}
-                className="border border-border text-ink-3 font-semibold text-[13px] px-4 py-2.5 rounded-[6px] hover:border-ink-3 hover:text-ink transition-all whitespace-nowrap disabled:opacity-40">
-                {saving ? 'Sending…' : 'Send Test Email'}
-              </button>
+
+            {/* Calendar picker */}
+            <div className="border-t border-border pt-4">
+              <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-2">Sync calendar</p>
+              {calendars.length > 0 ? (
+                <div className="flex items-center gap-3">
+                  <select
+                    value={calendarId}
+                    onChange={e => setCalendarId(e.target.value)}
+                    className={cn(inp, 'flex-1')}
+                  >
+                    <option value="">Default calendar</option>
+                    {calendars.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <button onClick={handleCalendarSave} disabled={calendarSaving}
+                    className="bg-accent text-white font-semibold text-[13px] px-4 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50 whitespace-nowrap">
+                    {calendarSaving ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-[12.5px] text-ink-3">
+                  {calendarName ? `Using: ${calendarName}` : 'Loading calendars…'}
+                </p>
+              )}
+              <p className="text-[11.5px] text-ink-4 mt-1.5">Bookings will be synced to the selected calendar. Leave as "Default calendar" to use your primary Outlook calendar.</p>
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-2">Test email</p>
+              <p className="text-[12px] text-ink-4 mb-2">Microsoft 365 is active. Outgoing emails use your Outlook account — SMTP is ignored while connected.</p>
+              <div className="flex items-center gap-3">
+                <input className={cn(inp, 'flex-1')} type="email" value={testEmail}
+                  onChange={e => setTestEmail(e.target.value)} placeholder="test@email.com" />
+                <button onClick={handleTest} disabled={!testEmail || saving}
+                  className="border border-border text-ink-3 font-semibold text-[13px] px-4 py-2.5 rounded-[6px] hover:border-ink-3 hover:text-ink transition-all whitespace-nowrap disabled:opacity-40">
+                  {saving ? 'Sending…' : 'Send Test Email'}
+                </button>
+              </div>
             </div>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-[13px] text-ink-3">Connect your Microsoft 365 account to send booking notifications and customer emails directly from Outlook.</p>
+            <p className="text-[13px] text-ink-3">Connect your Microsoft 365 account to send booking notifications and sync bookings to Outlook Calendar.</p>
             <a href="/api/admin/settings/ms-auth"
               className="inline-flex items-center gap-2 bg-[#0078d4] hover:bg-[#106ebe] text-white font-semibold text-[13px] px-4 py-2.5 rounded-[6px] transition-colors">
               <svg width="16" height="16" viewBox="0 0 23 23" fill="none">
@@ -153,8 +221,6 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
     </div>
   )
 }
-
-// ─── SMTP panel ───────────────────────────────────────────────────────────────
 
 // ─── SMTP panel ───────────────────────────────────────────────────────────────
 
@@ -519,7 +585,7 @@ function CrazytelPanel({ initialEnabled, initialApiKeySet, initialAccountKeySet,
 
 function ConnectionsFormInner({
   smtpConfigured, smtpVars,
-  msConfigured, msConnected, msConnectedEmail,
+  msConfigured, msConnected, msConnectedEmail, msCalendarId, msCalendarName,
   pushConfigured,
   crazytelEnabled, crazytelApiKeySet, crazytelAccountKeySet, crazytelFromNumber, crazytelDispatchNumber,
 }: Props) {
@@ -608,7 +674,7 @@ function ConnectionsFormInner({
 
       {/* Detail panel */}
       {selected === 'ms' && (
-        <MsPanel msConfigured={msConfigured} msConnected={msConnected} msConnectedEmail={msConnectedEmail} />
+        <MsPanel msConfigured={msConfigured} msConnected={msConnected} msConnectedEmail={msConnectedEmail} msCalendarId={msCalendarId} msCalendarName={msCalendarName} />
       )}
       {selected === 'smtp' && (
         <SmtpPanel smtpConfigured={smtpConfigured} smtpVars={smtpVars} msConnected={msConnected} />
