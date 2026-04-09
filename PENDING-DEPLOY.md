@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.14.0 (unreleased)
+## Current pending version: v1.14.1 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -60,6 +60,32 @@ None.
 ---
 
 # Changelog / Release Notes
+
+## v1.14.1
+
+### Changes
+
+**Vendor multi-booking — calendar availability indicators**
+
+*"Choose per row" (individual vehicle) mode:*
+- Dates where any of the vendor's vehicles are already booked now show a subtle orange tint and an orange dot indicator
+- Hovering over such a date shows a styled tooltip bubble listing each unavailable vehicle by name in bold red text under "Vehicles Unavailable"
+- Vendors can still click and add a booking on those dates (different vehicles may still be available)
+
+*"Same for all" (same vehicle) mode:*
+- Once a vehicle is selected, dates where that specific vehicle is already booked are highlighted in red with a strikethrough date number
+- Those dates are unclickable — attempting to select them has no effect
+- A "Booked" indicator is added to the calendar legend
+
+**Removed: waitlist enquiry prompt on conflict**
+- The amber "submit as waitlist enquiry" prompt has been removed
+- Conflicts are now surfaced visually on the calendar before booking is attempted, making the prompt redundant
+
+### Technical
+- `src/components/vendor/MultiDayPicker.tsx` — new `unavailableVehiclesByDate` and `blockedDates` props; fixed-position hover tooltip; blocked date tile styling
+- `src/app/vendor/bookings/new/multi/page.tsx` — `ExistingBooking` interface now includes `end_date`, `vehicle_id`, `vehicle_name`; `expandDateRange` helper; `unavailableVehiclesByDate` and `blockedDates` computed per mode; `conflictPrompt` and `submitConflictsAsEnquiries` removed
+
+---
 
 ## v1.14.0
 

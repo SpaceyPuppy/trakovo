@@ -9,7 +9,22 @@ type VehicleMode = 'same' | 'individual'
 
 interface Vehicle { id: string; name: string; passengers: number }
 interface Client  { id: string; name: string; reference: string }
-interface ExistingBooking { id: string; public_id: string; status: string; start_date: string }
+interface ExistingBooking {
+  id: string; public_id: string; status: string
+  start_date: string; end_date: string
+  vehicle_id: string | null; vehicle_name: string | null
+}
+
+function expandDateRange(start: string, end: string): string[] {
+  const dates: string[] = []
+  const d = new Date(start + 'T00:00:00')
+  const last = new Date(end + 'T00:00:00')
+  while (d <= last) {
+    dates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)
+    d.setDate(d.getDate() + 1)
+  }
+  return dates
+}
 
 interface TaxiBookingRow {
   _id: string
@@ -299,9 +314,7 @@ export default function MultiBookingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [progress, setProgress] = useState('')
   const [submitError, setSubmitError] = useState('')
-  const [successResult, setSuccessResult] = useState<{ created: number; enquiries: number; errors: string[] } | null>(null)
-  // Conflict enquiry prompt — holds the indices of conflicting bookings
-  const [conflictPrompt, setConflictPrompt] = useState<{ indices: number[]; rows: BookingRow[] } | null>(null)
+  const [successResult, setSuccessResult] = useState<{ created: number; errors: string[] } | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -324,6 +337,7 @@ export default function MultiBookingPage() {
   }, [])
 
   function handleDayClick(date: string) {
+    if (blockedDates?.has(date)) return
     const newRow = tripMode === 'vehicle_hire' ? makeVehicleHireRow(date) : makeTaxiRow(date)
     setRows(prev => [...prev, newRow])
     setShowErrors(false)
@@ -366,14 +380,40 @@ export default function MultiBookingPage() {
   const authorisedByValid = authorisedBy.trim().length > 0
   const allValid = rowsValid && vehicleValid && authorisedByValid
 
-  // Existing bookings formatted for MultiDayPicker
+  // Existing bookings formatted for MultiDayPicker sidebar dots
   const pickerBookings = existingBookings.map(b => ({
     date: b.start_date,
     status: b.status,
     public_id: b.public_id,
   }))
 
-  function buildBookingPayloads(rowsToSend: BookingRow[], asEnquiry = false) {
+  // Build unavailable-vehicles-by-date map (individual vehicle mode)
+  const unavailableVehiclesByDate = (() => {
+    const map = new Map<string, { name: string }[]>()
+    for (const b of existingBookings) {
+      if (!b.vehicle_name || b.status === 'cancelled' || b.status === 'enquiry') continue
+      for (const ymd of expandDateRange(b.start_date, b.end_date)) {
+        const entry = map.get(ymd) ?? []
+        if (!entry.find(v => v.name === b.vehicle_name)) entry.push({ name: b.vehicle_name! })
+        map.set(ymd, entry)
+      }
+    }
+    return map
+  })()
+
+  // Build blocked-dates set for "same for all" mode (dates the chosen vehicle is already booked)
+  const blockedDates = (() => {
+    if (vehicleMode !== 'same' || !sameVehicleId) return undefined
+    const set = new Set<string>()
+    for (const b of existingBookings) {
+      if (b.vehicle_id !== sameVehicleId) continue
+      if (b.status === 'cancelled' || b.status === 'enquiry') continue
+      for (const ymd of expandDateRange(b.start_date, b.end_date)) set.add(ymd)
+    }
+    return set
+  })()
+
+  function buildBookingPayloads(rowsToSend: BookingRow[]) {
     return rowsToSend.map((row) => {
       if (tripMode === 'vehicle_hire') {
         const hireRow = row as VehicleHireRow
@@ -384,7 +424,6 @@ export default function MultiBookingPage() {
           end_date: hireRow.end_date,
           vehicle_id: resolvedVehicleId,
           trip_details: JSON.stringify({ notes: hireRow.notes || null }),
-          ...(asEnquiry ? { is_enquiry: true } : {}),
         }
       } else {
         const taxiRow = row as TaxiBookingRow
@@ -402,7 +441,6 @@ export default function MultiBookingPage() {
           start_date: taxiRow.date,
           end_date: taxiRow.date,
           trip_details,
-          ...(asEnquiry ? { is_enquiry: true } : {}),
         }
         if (taxiRow.service_type === 'vehicle' && taxiRow.vehicle_id) {
           payload.vehicle_id = taxiRow.vehicle_id
@@ -417,7 +455,6 @@ export default function MultiBookingPage() {
           vehicle_id?: string
           vendor_client_id?: string
           trip_details: string
-          is_enquiry?: boolean
         }
       }
     })
@@ -434,7 +471,6 @@ export default function MultiBookingPage() {
     }
     setSubmitting(true)
     setSubmitError('')
-    setConflictPrompt(null)
     setProgress('Submitting bookings…')
     try {
       const bookings = buildBookingPayloads(rows)
@@ -444,66 +480,16 @@ export default function MultiBookingPage() {
         body: JSON.stringify({ bookings, authorised_by: authorisedBy, trip_mode: tripMode }),
       })
       const d = await res.json()
-
-      // Detect which failures are due to date conflicts
       const allErrors: string[] = d.errors ?? []
-      const conflictErrors = allErrors.filter((e: string) => /already booked/i.test(e))
-      const conflictIndices = conflictErrors
-        .map((e: string) => { const m = e.match(/Booking (\d+) failed/); return m ? parseInt(m[1]) - 1 : -1 })
-        .filter((i: number) => i >= 0)
-
       const createdCount = d.created?.length ?? 0
-
-      if (conflictIndices.length > 0) {
-        const conflictRows = conflictIndices.map((i: number) => rows[i]).filter(Boolean)
-        setConflictPrompt({ indices: conflictIndices, rows: conflictRows })
-        if (createdCount > 0) {
-          // Partial success — show what was created, keep conflict prompt for re-submission
-          setSuccessResult({
-            created: createdCount,
-            enquiries: 0,
-            errors: allErrors.filter((e: string) => !/already booked/i.test(e)),
-          })
-        }
-        return
-      }
 
       if (!res.ok && createdCount === 0) {
         throw new Error(d.error ?? allErrors[0] ?? 'Submission failed')
       }
 
-      setSuccessResult({ created: createdCount, enquiries: 0, errors: allErrors })
+      setSuccessResult({ created: createdCount, errors: allErrors })
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'An error occurred.')
-    } finally {
-      setSubmitting(false)
-      setProgress('')
-    }
-  }
-
-  async function submitConflictsAsEnquiries() {
-    if (!conflictPrompt) return
-    setSubmitting(true)
-    setSubmitError('')
-    setProgress('Submitting waitlist enquiries…')
-    try {
-      const bookings = buildBookingPayloads(conflictPrompt.rows, true)
-      const res = await fetch('/api/vendor/bookings/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookings, authorised_by: authorisedBy, trip_mode: tripMode }),
-      })
-      const d = await res.json()
-      const enquiryCount = d.created?.length ?? 0
-      const prevCreated = successResult?.created ?? 0
-      setConflictPrompt(null)
-      setSuccessResult({
-        created: prevCreated,
-        enquiries: enquiryCount,
-        errors: successResult?.errors ?? [],
-      })
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Failed to submit enquiries.')
     } finally {
       setSubmitting(false)
       setProgress('')
@@ -525,8 +511,7 @@ export default function MultiBookingPage() {
     )
   }
 
-  if (successResult && !conflictPrompt) {
-    const totalEnquiries = successResult.enquiries
+  if (successResult) {
     return (
       <div className="max-w-xl mx-auto py-16 text-center">
         <div className="bg-white border border-border rounded-2xl px-8 py-10 shadow-sm">
@@ -536,18 +521,11 @@ export default function MultiBookingPage() {
           <h1 className="font-display font-bold text-[24px] tracking-tight mb-2">
             {successResult.created > 0
               ? `${successResult.created} Booking${successResult.created !== 1 ? 's' : ''} Confirmed`
-              : totalEnquiries > 0
-                ? `${totalEnquiries} Waitlist Enquir${totalEnquiries !== 1 ? 'ies' : 'y'} Submitted`
-                : 'Submitted'}
+              : 'Submitted'}
           </h1>
           {successResult.created > 0 && (
             <p className="text-[14px] text-ink-3 mb-2">
               {successResult.created} booking{successResult.created !== 1 ? 's have' : ' has'} been confirmed.
-            </p>
-          )}
-          {totalEnquiries > 0 && (
-            <p className="text-[14px] text-ink-3 mb-2">
-              {totalEnquiries} waitlist enquir{totalEnquiries !== 1 ? 'ies have' : 'y has'} been submitted — we&apos;ll be in touch if availability opens up.
             </p>
           )}
           {successResult.errors.length > 0 && (
@@ -661,7 +639,12 @@ export default function MultiBookingPage() {
 
       <div className="space-y-6">
         {/* Calendar */}
-        <MultiDayPicker onDayClick={handleDayClick} existingBookings={pickerBookings} />
+        <MultiDayPicker
+          onDayClick={handleDayClick}
+          existingBookings={pickerBookings}
+          unavailableVehiclesByDate={vehicleMode === 'individual' ? unavailableVehiclesByDate : undefined}
+          blockedDates={vehicleMode === 'same' ? blockedDates : undefined}
+        />
 
         {/* Booking rows */}
         {rows.length === 0 ? (
@@ -728,44 +711,6 @@ export default function MultiBookingPage() {
               </div>
             </div>
 
-            {/* Conflict / waitlist enquiry prompt */}
-            {conflictPrompt && (
-              <div className="bg-amber-50 border border-amber-300 rounded-xl px-5 py-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center mt-0.5">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                      <path d="M10 3L18 17H2L10 3Z" stroke="#B45309" strokeWidth="1.8" strokeLinejoin="round"/>
-                      <path d="M10 9v4M10 14.5v.5" stroke="#B45309" strokeWidth="1.8" strokeLinecap="round"/>
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[13.5px] font-semibold text-amber-900 mb-1">
-                      {conflictPrompt.rows.length === 1
-                        ? '1 date is already booked'
-                        : `${conflictPrompt.rows.length} dates are already booked`}
-                    </p>
-                    <p className="text-[12.5px] text-amber-800 mb-3">
-                      These dates aren&apos;t currently available, but you can join the waitlist. We&apos;ll contact you if a space opens up — no commitment is made until we confirm.
-                    </p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={submitConflictsAsEnquiries}
-                        disabled={submitting}
-                        className="bg-amber-700 text-white text-[12.5px] font-semibold px-4 py-2 rounded-[6px] hover:bg-amber-800 disabled:opacity-50 transition-colors">
-                        {submitting ? progress || 'Submitting…' : `Submit ${conflictPrompt.rows.length} as Waitlist Enquir${conflictPrompt.rows.length !== 1 ? 'ies' : 'y'}`}
-                      </button>
-                      <button
-                        onClick={() => setConflictPrompt(null)}
-                        disabled={submitting}
-                        className="text-[12.5px] text-amber-700 hover:text-amber-900 underline disabled:opacity-50">
-                        No thanks
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Authorised By + Submit */}
             <div className="bg-white border border-border rounded-xl px-5 py-4 space-y-4">
               <div>
@@ -792,14 +737,12 @@ export default function MultiBookingPage() {
                 )}
               </div>
 
-              {!conflictPrompt && (
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                  className="bg-accent text-white font-display font-bold text-[15px] px-8 py-3 rounded-lg hover:bg-accent-dark disabled:opacity-50 transition-colors shadow-sm">
-                  {submitting ? progress || 'Creating…' : `Confirm ${rows.length} Booking${rows.length !== 1 ? 's' : ''}`}
-                </button>
-              )}
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="bg-accent text-white font-display font-bold text-[15px] px-8 py-3 rounded-lg hover:bg-accent-dark disabled:opacity-50 transition-colors shadow-sm">
+                {submitting ? progress || 'Creating…' : `Confirm ${rows.length} Booking${rows.length !== 1 ? 's' : ''}`}
+              </button>
             </div>
           </div>
         )}
