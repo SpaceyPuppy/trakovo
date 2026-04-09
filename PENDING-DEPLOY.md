@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.11.0 (unreleased)
+## Current pending version: v1.12.0 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -58,6 +58,40 @@ None.
 ---
 
 # Changelog / Release Notes
+
+## v1.12.0
+
+### New features
+
+**Email templates — separate admin/customer versions**
+- `booking_confirmed`, `reminder_24hr`, and `followup` templates now have separate Admin and Customer variants editable in Settings → Templates
+- Each uses a different `BookingEmailLog` key so they are tracked independently
+- Both default to the same content — edit the Admin version to send internal-style notifications
+
+**Batch booking summary — editable template + vendor receives copy**
+- Batch booking summary email is now editable in Settings → Templates as "Batch Booking Summary (Admin + Vendor)"
+- Supports: `{{vendor_name}}`, `{{booking_count}}`, `{{booking_count_plural}}`, `{{trip_mode}}`, `{{bookings_table}}`, `{{authorised_by}}`, `{{site_name}}`
+- Vendor's contact email now receives a copy alongside the admin notification email
+
+**Email template editor — full-width split layout**
+- Editor and live preview now fill the screen side-by-side (50/50) on wide screens; stacked on mobile
+- Other settings pages retain the 640px constrained width
+
+**Vendor bookings → automatically confirmed**
+- Vendor-created bookings (single and bulk) are now inserted as `confirmed` instead of `pending`
+- Booking confirmed email is sent instead of "new booking received" for single bookings
+
+**Double booking prevention**
+- Vendor single and bulk booking routes now check for overlapping confirmed/pending bookings on the same vehicle before inserting
+- Returns `409 Conflict` with message "Vehicle is already booked for those dates" if a conflict is found
+
+### Technical
+- `email-template-defaults.ts` — added `booking_confirmed_admin`, `reminder_24hr_admin`, `followup_admin`, `bulk_booking_summary` entries
+- `email-sequences.ts` — `sendBookingConfirmed`, `sendDue24hrReminders`, `sendFollowups` now send separate templates per recipient type
+- `email.ts` — `sendBulkVendorBookingSummary` now accepts `vendorEmail?`, uses DB template, sends to both recipients
+- `src/app/admin/settings/layout.tsx` — max-width removed from layout; moved to individual forms
+
+---
 
 ## v1.11.0
 

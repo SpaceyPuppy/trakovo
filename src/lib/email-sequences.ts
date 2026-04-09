@@ -116,25 +116,23 @@ export async function sendBookingReceived(booking: BookingResponse, vehicleName:
   }
 }
 
-/** Fired when admin sets status to "confirmed". Sends to customer + admin notification email. */
+/** Fired when admin sets status to "confirmed". Sends to customer (customer template) + admin (admin template). */
 export async function sendBookingConfirmed(bookingId: string): Promise<void> {
   if (!await isEmailEnabled('email_on_booking_confirmed')) return
   try {
     const data = await loadBooking(bookingId)
     if (!data) return
 
-    const recipients = [data.booking.contact_email]
-    const adminEmail = await getNotificationEmail()
-    if (adminEmail) recipients.push(adminEmail)
+    const subject = `Booking Confirmed — ${data.booking.public_id} — ${data.vehicleName}`
 
-    await sendSequenceEmail(
-      bookingId,
-      'booking_confirmed',
-      data.booking,
-      data.vehicleName,
-      `Booking Confirmed — ${data.booking.public_id} — ${data.vehicleName}`,
-      recipients,
-    )
+    // Send customer version
+    await sendSequenceEmail(bookingId, 'booking_confirmed', data.booking, data.vehicleName, subject, [data.booking.contact_email])
+
+    // Send admin version (separate template key so it doesn't de-dupe with customer send)
+    const adminEmail = await getNotificationEmail()
+    if (adminEmail) {
+      await sendSequenceEmail(bookingId, 'booking_confirmed_admin', data.booking, data.vehicleName, subject, [adminEmail])
+    }
   } catch (err) {
     console.error('[email-seq] booking_confirmed failed for', bookingId, err)
   }
@@ -160,18 +158,13 @@ export async function sendDue24hrReminders(): Promise<{ sent: number; errors: nu
       const data = await loadBooking(id)
       if (!data) continue
 
-      const recipients = [data.booking.contact_email]
-      const adminEmail = await getNotificationEmail()
-      if (adminEmail) recipients.push(adminEmail)
+      const subject = `Reminder — Your Booking is Tomorrow — ${data.booking.public_id}`
+      await sendSequenceEmail(id, 'reminder_24hr', data.booking, data.vehicleName, subject, [data.booking.contact_email])
 
-      await sendSequenceEmail(
-        id,
-        'reminder_24hr',
-        data.booking,
-        data.vehicleName,
-        `Reminder — Your Booking is Tomorrow — ${data.booking.public_id}`,
-        recipients,
-      )
+      const adminEmail = await getNotificationEmail()
+      if (adminEmail) {
+        await sendSequenceEmail(id, 'reminder_24hr_admin', data.booking, data.vehicleName, subject, [adminEmail])
+      }
       sent++
     } catch (err) {
       console.error('[email-seq] reminder_24hr failed for', id, err)
@@ -199,18 +192,13 @@ export async function sendFollowups(): Promise<{ sent: number; errors: number }>
       const data = await loadBooking(id)
       if (!data) continue
 
-      const recipients = [data.booking.contact_email]
-      const adminEmail = await getNotificationEmail()
-      if (adminEmail) recipients.push(adminEmail)
+      const subject = `Thank You for Your Booking — ${data.booking.public_id}`
+      await sendSequenceEmail(id, 'followup', data.booking, data.vehicleName, subject, [data.booking.contact_email])
 
-      await sendSequenceEmail(
-        id,
-        'followup',
-        data.booking,
-        data.vehicleName,
-        `Thank You for Your Booking — ${data.booking.public_id}`,
-        recipients,
-      )
+      const adminEmail = await getNotificationEmail()
+      if (adminEmail) {
+        await sendSequenceEmail(id, 'followup_admin', data.booking, data.vehicleName, subject, [adminEmail])
+      }
       sent++
     } catch (err) {
       console.error('[email-seq] followup failed for', id, err)

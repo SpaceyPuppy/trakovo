@@ -146,26 +146,29 @@ function EmailEditor({ templateType, settingKey, initialBody, defaultBody, onSav
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider">HTML Editor</label>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-border rounded-[8px] overflow-hidden">
+        <div className="flex flex-col lg:border-r border-border">
+          <div className="px-3 py-2 bg-bg border-b border-border">
+            <label className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider">HTML Editor</label>
+          </div>
           <textarea
-            className="w-full border border-border rounded-[6px] px-3 py-2.5 text-[12px] text-ink bg-white outline-none focus:border-ink focus:ring-2 focus:ring-ink/5 transition-all font-mono resize-none leading-relaxed"
-            style={{ height: 440 }}
+            className="flex-1 w-full px-3 py-2.5 text-[12px] text-ink bg-white outline-none font-mono leading-relaxed resize-none"
+            style={{ minHeight: 520 }}
             value={html}
             onChange={e => handleChange(e.target.value)}
             spellCheck={false}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider flex items-center gap-2">
-            Live Preview <span className="text-ink-4 normal-case tracking-normal font-normal">(sample data)</span>
-          </label>
+        <div className="flex flex-col border-t lg:border-t-0 border-border">
+          <div className="px-3 py-2 bg-bg border-b border-border flex items-center gap-2">
+            <label className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider">Live Preview</label>
+            <span className="text-ink-4 text-[11px]">(sample data)</span>
+          </div>
           <iframe
             srcDoc={previewHtml || '<p style="font-family:sans-serif;color:#888;padding:20px;">Loading preview…</p>'}
             title="Email preview"
-            className="w-full border border-border rounded-[6px] bg-white"
-            style={{ height: 440 }}
+            className="flex-1 w-full bg-white"
+            style={{ minHeight: 520 }}
             sandbox="allow-same-origin"
           />
         </div>
@@ -363,7 +366,7 @@ export default function TemplatesForm({ settings }: Props) {
 
               {/* Inline editor */}
               {isEditing && (
-                <div className="border-t border-border px-5 py-5 bg-bg/30">
+                <div className="border-t border-border px-4 py-5 bg-bg/30">
                   {tpl.type === 'email' ? (
                     <EmailEditor
                       templateType={tpl.emailTemplateType!}

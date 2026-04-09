@@ -9,7 +9,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       <h1 className="font-display font-bold text-[26px] tracking-tight mb-1">Settings</h1>
       <p className="text-[14px] text-ink-3 mb-6">Configure notifications, branding, and other options.</p>
       <SettingsNav />
-      <div className="max-w-[640px]">{children}</div>
+      <div>{children}</div>
     </div>
   )
 }

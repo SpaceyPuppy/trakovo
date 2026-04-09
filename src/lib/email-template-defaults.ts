@@ -466,6 +466,28 @@ export const TEMPLATE_ENQUIRY_AVAILABLE = `<!DOCTYPE html>
 </body>
 </html>`
 
+export const TEMPLATE_BULK_BOOKING_SUMMARY = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>New Batch Booking</title></head>
+<body style="margin:0;padding:0;background:#f0efe9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <div style="max-width:640px;margin:32px auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
+    <div style="padding:28px 32px 20px;border-bottom:1px solid #f3f4f6;">
+      <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#111827;">New Batch Booking — {{vendor_name}}</h1>
+      <p style="margin:0;font-size:14px;color:#6b7280;">{{booking_count}} booking{{booking_count_plural}} submitted ({{trip_mode}})</p>
+    </div>
+    <div style="padding:20px 32px;">
+      {{bookings_table}}
+      <div style="padding:12px 16px;background:#f9fafb;border-left:4px solid #3b82f6;margin:16px 0;font-size:13px;color:#374151;">
+        <strong>Authorised By:</strong> {{authorised_by}}
+      </div>
+    </div>
+    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #f3f4f6;">
+      <p style="margin:0;font-size:12px;color:#9ca3af;">{{site_name}}</p>
+    </div>
+  </div>
+</body>
+</html>`
+
 // ─── Template metadata ──────────────────────────────────────────────────────
 
 export const TEMPLATE_META = {
@@ -489,20 +511,38 @@ export const TEMPLATE_META = {
   },
   booking_confirmed: {
     key: 'email_template_booking_confirmed',
-    label: 'Booking Confirmed (Customer + Admin)',
-    description: 'Sent to the customer and admin notification email when a booking status is set to confirmed.',
+    label: 'Booking Confirmed (Customer)',
+    description: 'Sent to the customer when a booking status is set to confirmed.',
+    default: TEMPLATE_BOOKING_CONFIRMED,
+  },
+  booking_confirmed_admin: {
+    key: 'email_template_booking_confirmed_admin',
+    label: 'Booking Confirmed (Admin Notification)',
+    description: 'Sent to the admin notification email when a booking status is set to confirmed.',
     default: TEMPLATE_BOOKING_CONFIRMED,
   },
   reminder_24hr: {
     key: 'email_template_reminder_24hr',
-    label: '24hr Reminder (Customer + Admin)',
-    description: 'Sent the day before the booking start date. Requires cron to be configured.',
+    label: '24hr Reminder (Customer)',
+    description: 'Sent to the customer the day before the booking start date. Requires cron to be configured.',
+    default: TEMPLATE_REMINDER_24HR,
+  },
+  reminder_24hr_admin: {
+    key: 'email_template_reminder_24hr_admin',
+    label: '24hr Reminder (Admin Notification)',
+    description: 'Sent to the admin notification email the day before the booking start date. Requires cron to be configured.',
     default: TEMPLATE_REMINDER_24HR,
   },
   followup: {
     key: 'email_template_followup',
-    label: 'Post-trip Follow-up (Customer + Admin)',
-    description: 'Sent the day after the booking end date. Requires cron to be configured.',
+    label: 'Post-trip Follow-up (Customer)',
+    description: 'Sent to the customer the day after the booking end date. Requires cron to be configured.',
+    default: TEMPLATE_FOLLOWUP,
+  },
+  followup_admin: {
+    key: 'email_template_followup_admin',
+    label: 'Post-trip Follow-up (Admin Notification)',
+    description: 'Sent to the admin notification email the day after the booking end date. Requires cron to be configured.',
     default: TEMPLATE_FOLLOWUP,
   },
   enquiry_available: {
@@ -510,6 +550,12 @@ export const TEMPLATE_META = {
     label: 'Enquiry — Dates Now Available (Customer)',
     description: 'Sent manually from an enquiry when you click "Notify Customer" to inform them their requested dates are now available.',
     default: TEMPLATE_ENQUIRY_AVAILABLE,
+  },
+  bulk_booking_summary: {
+    key: 'email_template_bulk_booking_summary',
+    label: 'Batch Booking Summary (Admin + Vendor)',
+    description: 'Sent to the admin and the vendor when a batch of bookings is submitted via the vendor portal. Supports: {{vendor_name}}, {{booking_count}}, {{booking_count_plural}}, {{trip_mode}}, {{bookings_table}}, {{authorised_by}}, {{site_name}}.',
+    default: TEMPLATE_BULK_BOOKING_SUMMARY,
   },
 } as const
 

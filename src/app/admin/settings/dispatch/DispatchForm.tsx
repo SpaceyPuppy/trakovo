@@ -91,7 +91,7 @@ export default function DispatchForm({ initialFeatures }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-[640px] space-y-6">
       <div>
         <h2 className="font-display font-bold text-[17px] text-ink">Dispatch Settings</h2>
         <p className="text-[13px] text-ink-3 mt-0.5">Configure service-level features for each transport type.</p>

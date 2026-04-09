@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getVendorSession } from '@/lib/vendor-auth'
 import { query, queryOne, execute, newId, generatePublicId } from '@/lib/db'
 import { sendBookingNotification } from '@/lib/email'
+import { sendBookingConfirmed } from '@/lib/email-sequences'
 import { sendPushNotification } from '@/lib/push'
 import { syncBookingToCalendar } from '@/lib/calendar'
 import { diffDays } from '@/lib/utils'
@@ -57,6 +58,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Vehicle not available for your account' }, { status: 403 })
     }
     vehicle = { id: vendorVehicle.vehicle_id, name: vendorVehicle.vname, chauffeur_price: vendorVehicle.chauffeur_price }
+
+    // Check for conflicting bookings on this vehicle
+    const conflict = await queryOne<{ id: string }>(
+      `SELECT id FROM Booking WHERE vehicle_id = ? AND status NOT IN ('cancelled') AND start_date <= ? AND end_date >= ? LIMIT 1`,
+      [vehicle.id, end_date, start_date]
+    )
+    if (conflict) {
+      return NextResponse.json({ error: 'Vehicle is already booked for those dates' }, { status: 409 })
+    }
   }
 
   // Fetch vendor's own contact details as final fallback
@@ -98,7 +108,7 @@ export async function POST(req: Request) {
 
   await execute(
     `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, vendor_id, vendor_client_id, created_at, updated_at)
-     VALUES (?, ?, ?, 'chauffeured', ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+     VALUES (?, ?, ?, 'chauffeured', ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [id, public_id, vehicle?.id ?? null, svcType, start_date, end_date, total_days, daily_rate, total_cost, contactName || null, contactEmail || null, contactPhone || null, trip_details ?? null, session.vendorId, resolvedClientId]
   )
 
@@ -124,6 +134,11 @@ export async function POST(req: Request) {
     created_at: booking!.created_at instanceof Date ? booking!.created_at.toISOString() : String(booking!.created_at),
   }
 
+  // Vendor bookings are created as confirmed — send confirmation email (not "new request" notification)
+  sendBookingConfirmed(id).catch((err) =>
+    console.error('[email] Vendor booking confirmed email failed', err)
+  )
+  // Also send admin push notification
   sendBookingNotification(response, serviceLabel).catch((err) =>
     console.error('[email] Vendor booking notification failed', err)
   )

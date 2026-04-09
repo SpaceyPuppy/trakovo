@@ -166,7 +166,7 @@ export default function UpdatesCard({ version, buildLabel, currentBuildId, hasBa
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-[640px] space-y-6">
 
       {/* Current build status */}
       <Card title="Current Build">

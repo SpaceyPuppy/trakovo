@@ -84,6 +84,15 @@ export async function POST(req: Request) {
           throw new Error('Vehicle not available for your account')
         }
         vehicle = { id: vendorVehicle.vehicle_id, name: vendorVehicle.vname, chauffeur_price: vendorVehicle.chauffeur_price }
+
+        // Check for conflicting bookings
+        const conflict = await queryOne<{ id: string }>(
+          `SELECT id FROM Booking WHERE vehicle_id = ? AND status NOT IN ('cancelled') AND start_date <= ? AND end_date >= ? LIMIT 1`,
+          [vehicle.id, end_date, start_date]
+        )
+        if (conflict) {
+          throw new Error(`Vehicle is already booked for ${start_date} to ${end_date}`)
+        }
       }
 
       // Parse trip_details and add authorised_by
@@ -112,7 +121,7 @@ export async function POST(req: Request) {
 
       await execute(
         `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, vendor_id, vendor_client_id, created_at, updated_at)
-         VALUES (?, ?, ?, 'chauffeured', ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, 'chauffeured', ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [id, public_id, vehicle?.id ?? null, svcType, start_date, end_date, total_days, daily_rate, total_cost, null, vendorEmail || null, vendorPhone || null, trip_details, session.vendorId, vendor_client_id ?? null]
       )
 
@@ -162,7 +171,7 @@ export async function POST(req: Request) {
 
   // Send single summary email for all created bookings
   if (created.length > 0) {
-    sendBulkVendorBookingSummary(created, session.vendorName, authorised_by, trip_mode).catch((err) =>
+    sendBulkVendorBookingSummary(created, session.vendorName, authorised_by, trip_mode, vendorEmail || undefined).catch((err) =>
       console.error('[email] Bulk booking summary email failed', err)
     )
 

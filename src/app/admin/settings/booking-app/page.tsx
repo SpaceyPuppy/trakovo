@@ -17,7 +17,7 @@ export default async function BookingAppPage() {
   const clauses = parseHireAgreement(agreementRow?.value)
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-[640px] space-y-6">
       <div className="bg-white border border-border rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border bg-bg">
           <h3 className="font-display font-bold text-[14px]">Mobile Booking App</h3>

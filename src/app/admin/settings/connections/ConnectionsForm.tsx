@@ -652,7 +652,7 @@ function ConnectionsFormInner({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="max-w-[640px] space-y-5">
       {/* OAuth callback banners */}
       {searchParams.get('ms') === 'connected' && (
         <p className="text-[13px] text-success bg-success-bg border border-success/30 rounded-[6px] px-3 py-2">
