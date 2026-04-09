@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { queryOne, execute, newId, generatePublicId } from '@/lib/db'
 import { getDailyRate } from '@/lib/utils'
+import { sendBookingConfirmed } from '@/lib/email-sequences'
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession()
@@ -75,6 +76,11 @@ export async function POST(req: NextRequest) {
         vendor_id ?? null,
       ]
     )
+
+    // Send booking confirmed email (skip "received" notification — admin created it directly)
+    if (status === 'confirmed') {
+      sendBookingConfirmed(id).catch(err => console.error('[email] Quick Add confirmed email failed:', err))
+    }
 
     return NextResponse.json({ ok: true, id, public_id })
   } catch (e: unknown) {
