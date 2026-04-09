@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.13.0 (unreleased)
+## Current pending version: v1.14.0 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -60,6 +60,39 @@ None.
 ---
 
 # Changelog / Release Notes
+
+## v1.14.0
+
+### New features
+
+**Bug report button**
+- New "Report Bug" button in the admin top bar (icon on narrow screens, labelled on wide)
+- Opens a modal — enter a title and description; page URL, viewport size, and browser string are captured automatically
+- Submits directly to the private GitHub repo as an issue with labels `bug` and `admin-portal-report`
+- Labels are created automatically on first use if they don't exist
+- Success screen shows the issue number and a direct link to GitHub
+
+**Admin profile page**
+- `/admin/profile` now loads correctly (was previously a 404)
+- Accessible via the user dropdown → Profile Settings
+- Shows username and role; master admin sees a note that their password is in env vars
+- Additional admin users can change their password via the form
+
+### Bug fixes
+
+**Customers — total spend showing 10× too high**
+- `SUM(total_cost)` from mysql2 returns a string; adding `+ 0` (from the alias fallback) caused JS string concatenation rather than numeric addition — e.g. `"15000" + 0 = "150000"` — then dividing by 100 gave 10× the correct value
+- Fixed by wrapping in `Number()` before addition
+
+### Technical
+- `src/app/admin/customers/page.tsx` — `Number(c.total_spend)` and `Number(aliasCustomer.total_spend)`
+- `src/app/admin/profile/page.tsx` + `AdminProfileForm.tsx` — new server/client profile page
+- `src/app/api/admin/profile/route.ts` + `password/route.ts` — profile GET + password POST
+- `src/app/api/admin/bug-report/route.ts` — GitHub Issues API integration
+- `src/app/admin/BugReportModal.tsx` — modal UI
+- `src/app/admin/AdminTopBar.tsx` — bug report button wired in
+
+---
 
 ## v1.13.0
 
