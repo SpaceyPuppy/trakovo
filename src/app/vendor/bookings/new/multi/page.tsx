@@ -300,6 +300,8 @@ export default function MultiBookingPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [existingBookings, setExistingBookings] = useState<ExistingBooking[]>([])
+  // Global availability data (all vendors + admin) — for calendar unavailability display only
+  const [globalAvailability, setGlobalAvailability] = useState<ExistingBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [taxiEnabled, setTaxiEnabled] = useState(false)
   const [vehicleHireEnabled, setVehicleHireEnabled] = useState(true)
@@ -322,10 +324,19 @@ export default function MultiBookingPage() {
       fetch('/api/vendor/clients').then(r => r.json()),
       fetch('/api/vendor/bookings').then(r => r.json()),
       fetch('/api/vendor/settings').then(r => r.json()),
-    ]).then(([v, c, b, s]) => {
+      fetch('/api/vendor/bookings/availability').then(r => r.json()),
+    ]).then(([v, c, b, s, avail]) => {
       setVehicles(v.vehicles ?? [])
       setClients(c.clients ?? [])
       setExistingBookings(b.bookings ?? [])
+      // Merge global bookings + blockouts into one availability list for the calendar
+      const globalBookings: ExistingBooking[] = (avail.bookings ?? []).map((x: ExistingBooking) => ({ ...x, id: x.vehicle_id, public_id: '' }))
+      const blockoutBookings: ExistingBooking[] = (avail.blockouts ?? []).map((x: { vehicle_id: string; vehicle_name: string; start_date: string; end_date: string }) => ({
+        id: x.vehicle_id, public_id: '', status: 'confirmed',
+        start_date: x.start_date, end_date: x.end_date,
+        vehicle_id: x.vehicle_id, vehicle_name: x.vehicle_name,
+      }))
+      setGlobalAvailability([...globalBookings, ...blockoutBookings])
       const taxi = Boolean(s.taxi_enabled)
       const hire = s.vehicle_hire_enabled !== false
       setTaxiEnabled(taxi)
@@ -387,10 +398,10 @@ export default function MultiBookingPage() {
     public_id: b.public_id,
   }))
 
-  // Build unavailable-vehicles-by-date map (individual vehicle mode)
+  // Build unavailable-vehicles-by-date map (individual vehicle mode) — uses GLOBAL availability
   const unavailableVehiclesByDate = (() => {
     const map = new Map<string, { name: string }[]>()
-    for (const b of existingBookings) {
+    for (const b of globalAvailability) {
       if (!b.vehicle_name || b.status === 'cancelled' || b.status === 'enquiry') continue
       for (const ymd of expandDateRange(b.start_date, b.end_date)) {
         const entry = map.get(ymd) ?? []
@@ -401,11 +412,11 @@ export default function MultiBookingPage() {
     return map
   })()
 
-  // Build blocked-dates set for "same for all" mode (dates the chosen vehicle is already booked)
+  // Build blocked-dates set for "same for all" mode — uses GLOBAL availability
   const blockedDates = (() => {
     if (vehicleMode !== 'same' || !sameVehicleId) return undefined
     const set = new Set<string>()
-    for (const b of existingBookings) {
+    for (const b of globalAvailability) {
       if (b.vehicle_id !== sameVehicleId) continue
       if (b.status === 'cancelled' || b.status === 'enquiry') continue
       for (const ymd of expandDateRange(b.start_date, b.end_date)) set.add(ymd)

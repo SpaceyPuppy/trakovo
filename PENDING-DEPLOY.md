@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.14.2 (unreleased)
+## Current pending version: v1.14.3 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -60,6 +60,24 @@ None.
 ---
 
 # Changelog / Release Notes
+
+## v1.14.3
+
+### Bug fix
+
+**Vendor multi-booking calendar showing wrong vehicle availability**
+
+The calendar was only checking the logged-in vendor's own bookings to determine which dates/vehicles were unavailable. Bookings made by other vendors or admins for the same vehicles were invisible, allowing double-booking attempts.
+
+Fixed by adding a new auth-gated endpoint `GET /api/vendor/bookings/availability` that returns all confirmed/pending bookings with a vehicle assigned, across all vendors and admin — the same global view the public booking site uses. Per-vehicle blockouts are also included.
+
+The vendor multi-booking page now fetches this global data separately alongside its own bookings:
+- Own bookings (`/api/vendor/bookings`) → used for the sidebar list only
+- Global availability (`/api/vendor/bookings/availability`) → used for the calendar unavailability indicators and date blocking
+
+No DB changes required.
+
+---
 
 ## v1.14.2
 
