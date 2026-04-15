@@ -1,7 +1,14 @@
+## Codebase Index
+Pre-built index files are in `.ai-codex/`. Read these FIRST before exploring the codebase:
+
+- `.ai-codex/lib.md` -- library exports
+- `.ai-codex/schema.md` -- database schema
+- `.ai-codex/components.md` -- component tree
+
 # Trakovo — Claude Context
 
 Fleet management platform for vehicle hire bookings, drivers, vendors, and dispatch.
-Current version: **v1.14.3**
+Current version: **v1.14.4**
 
 ---
 

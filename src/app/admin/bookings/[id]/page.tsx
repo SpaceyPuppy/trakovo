@@ -8,6 +8,7 @@ import BookingNotes from './BookingNotes'
 import BookingDeleteButton from './BookingDeleteButton'
 import DriverAssigner from './DriverAssigner'
 import EnquiryManager from './EnquiryManager'
+import BookingInvoiceSection from './BookingInvoiceSection'
 import type { Metadata } from 'next'
 
 export const revalidate = 0
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function BookingDetailPage({ params }: Props) {
-  const [booking, activeDrivers, notes] = await Promise.all([
+  const [booking, activeDrivers, notes, invoice] = await Promise.all([
     queryOne<{
       id: string; public_id: string; status: string; hire_type: string; service_type: string | null;
       is_enquiry: number; enquiry_status: string | null; start_date: string; end_date: string; total_days: number;
@@ -39,6 +40,10 @@ export default async function BookingDetailPage({ params }: Props) {
     ),
     query<{ id: string; text: string; author: string; created_at: Date }>(
       'SELECT id, text, author, created_at FROM BookingNote WHERE booking_id = ? ORDER BY created_at ASC',
+      [params.id]
+    ),
+    queryOne<{ id: string; public_id: string; status: string }>(
+      'SELECT id, public_id, status FROM Invoice WHERE booking_id = ? LIMIT 1',
       [params.id]
     ),
   ])
@@ -177,6 +182,9 @@ export default async function BookingDetailPage({ params }: Props) {
           customerEmail={booking.contact_email}
           customerName={customerName}
         />
+
+        {/* Invoice */}
+        <BookingInvoiceSection bookingId={booking.id} invoice={invoice} />
 
         {/* Internal notes */}
         <BookingNotes

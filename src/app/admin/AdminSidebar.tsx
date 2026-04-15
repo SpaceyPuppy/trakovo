@@ -12,6 +12,8 @@ const NAV = [
   { href: '/admin/calendar',  label: 'Calendar',  icon: '📅', exact: false },
   { href: '/admin/blockouts', label: 'Blockouts', icon: '🚫', exact: false },
   { href: '/admin/customers', label: 'Customers', icon: '👥', exact: false },
+  { href: '/admin/invoices',  label: 'Invoices',  icon: '🧾', exact: false },
+  { href: '/admin/reports',   label: 'Reports',   icon: '📊', exact: false },
   { href: '/admin/vendors',   label: 'Vendors',   icon: '🏢', exact: false },
   { href: '/admin/drivers',   label: 'Drivers',   icon: '🚘', exact: false },
   { href: '/admin/users',     label: 'Users',     icon: '👤', exact: false },

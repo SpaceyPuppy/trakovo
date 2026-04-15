@@ -54,6 +54,22 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
   const [tab, setTab] = useState<'details' | 'vehicles' | 'activity'>('details')
+  const [impersonating, setImpersonating] = useState(false)
+  const [impersonateError, setImpersonateError] = useState<string | null>(null)
+
+  async function loginAsVendor() {
+    setImpersonating(true)
+    setImpersonateError(null)
+    try {
+      const res = await fetch(`/api/admin/vendors/${vendor.id}/impersonate`, { method: 'POST' })
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed')
+      window.open('/vendor', '_blank')
+    } catch (e: unknown) {
+      setImpersonateError(e instanceof Error ? e.message : 'Failed to log in as vendor')
+    } finally {
+      setImpersonating(false)
+    }
+  }
 
   // Details tab state
   const [details, setDetails] = useState({
@@ -72,6 +88,7 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
   const [editingUsername, setEditingUsername] = useState(false)
   const [newUsername, setNewUsername] = useState(vendor.username)
   const [usernameSaving, setUsernameSaving] = useState(false)
+  const [usernameMsg, setUsernameMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
   async function saveUsername() {
     if (!newUsername.trim() || newUsername.trim() === username) { setEditingUsername(false); return }
@@ -85,9 +102,9 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
       if (!res.ok) throw new Error((await res.json()).error ?? 'Failed')
       setUsername(newUsername.trim())
       setEditingUsername(false)
-      flash(setDetailMsg, 'Username updated', 'success')
+      flash(setUsernameMsg, 'Username updated', 'success')
     } catch (e: unknown) {
-      flash(setDetailMsg, e instanceof Error ? e.message : 'Error', 'error')
+      flash(setUsernameMsg, e instanceof Error ? e.message : 'Error', 'error')
     } finally {
       setUsernameSaving(false)
     }
@@ -185,13 +202,22 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
   return (
     <div>
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-border mb-6">
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-[13.5px] font-semibold border-b-2 transition-colors ${tab === t.key ? 'border-accent text-accent' : 'border-transparent text-ink-3 hover:text-ink'}`}>
-            {t.label}
+      <div className="flex items-center justify-between border-b border-border mb-6">
+        <div className="flex gap-1">
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`px-4 py-2.5 text-[13.5px] font-semibold border-b-2 transition-colors ${tab === t.key ? 'border-accent text-accent' : 'border-transparent text-ink-3 hover:text-ink'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 pb-1">
+          {impersonateError && <span className="text-[12px] text-red-600">{impersonateError}</span>}
+          <button onClick={loginAsVendor} disabled={impersonating}
+            className="border border-border text-ink-3 font-medium text-[13px] px-3 py-1.5 rounded-[6px] hover:border-ink-3 hover:text-ink transition-colors disabled:opacity-50 whitespace-nowrap">
+            {impersonating ? 'Opening…' : 'Login as Vendor →'}
           </button>
-        ))}
+        </div>
       </div>
 
       {/* Details tab */}
@@ -215,31 +241,41 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
               <div>
                 <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Username</label>
                 {editingUsername ? (
-                  <div className="flex gap-2">
-                    <input
-                      className={inp + ' flex-1'}
-                      value={newUsername}
-                      onChange={e => setNewUsername(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') saveUsername(); if (e.key === 'Escape') { setNewUsername(username); setEditingUsername(false) } }}
-                      autoFocus
-                    />
-                    <button onClick={saveUsername} disabled={usernameSaving}
-                      className="bg-accent text-white font-semibold text-[13px] px-3 py-2 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50 whitespace-nowrap">
-                      {usernameSaving ? '…' : 'Confirm'}
-                    </button>
-                    <button onClick={() => { setNewUsername(username); setEditingUsername(false) }}
-                      className="border border-border text-ink-3 font-medium text-[13px] px-3 py-2 rounded-[6px] hover:text-ink transition-colors">
-                      Cancel
-                    </button>
-                  </div>
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        className={inp + ' flex-1'}
+                        value={newUsername}
+                        onChange={e => setNewUsername(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveUsername(); if (e.key === 'Escape') { setNewUsername(username); setEditingUsername(false) } }}
+                        autoFocus
+                      />
+                      <button onClick={saveUsername} disabled={usernameSaving}
+                        className="bg-accent text-white font-semibold text-[13px] px-3 py-2 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50 whitespace-nowrap">
+                        {usernameSaving ? '…' : 'Confirm'}
+                      </button>
+                      <button onClick={() => { setNewUsername(username); setEditingUsername(false) }}
+                        className="border border-border text-ink-3 font-medium text-[13px] px-3 py-2 rounded-[6px] hover:text-ink transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                    {usernameMsg && (
+                      <p className={`text-[12.5px] mt-1 ${usernameMsg.type === 'success' ? 'text-success' : 'text-red-600'}`}>{usernameMsg.text}</p>
+                    )}
+                  </>
                 ) : (
-                  <div className="flex gap-2 items-center">
-                    <input className={inp + ' flex-1 opacity-60 cursor-default'} value={username} readOnly />
-                    <button onClick={() => { setNewUsername(username); setEditingUsername(true) }}
-                      className="border border-border text-ink-3 font-medium text-[13px] px-3 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-colors whitespace-nowrap">
-                      Edit
-                    </button>
-                  </div>
+                  <>
+                    <div className="flex gap-2 items-center">
+                      <input className={inp + ' flex-1 opacity-60 cursor-default'} value={username} readOnly />
+                      <button onClick={() => { setNewUsername(username); setEditingUsername(true) }}
+                        className="border border-border text-ink-3 font-medium text-[13px] px-3 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-colors whitespace-nowrap">
+                        Edit
+                      </button>
+                    </div>
+                    {usernameMsg && (
+                      <p className={`text-[12.5px] mt-1 ${usernameMsg.type === 'success' ? 'text-success' : 'text-red-600'}`}>{usernameMsg.text}</p>
+                    )}
+                  </>
                 )}
               </div>
               <div>

@@ -5,7 +5,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.14.3 (unreleased)
+## Current pending version: v1.14.4 (unreleased)
 
 ### Deploy checklist
 - [ ] Upload and extract release zip
@@ -23,6 +23,39 @@ ALTER TABLE `Booking` DROP COLUMN `google_event_id`;
 -- v1.13.0 — Vendor service type toggles
 ALTER TABLE `Vendor` ADD COLUMN `taxi_enabled` TINYINT(1) NOT NULL DEFAULT 0 AFTER `vehicle_hire_enabled`;
 ALTER TABLE `Vendor` ADD COLUMN `vehicle_hire_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_active`;
+
+-- v1.14.4 — Invoices
+CREATE TABLE IF NOT EXISTS `Invoice` (
+  `id`         VARCHAR(191) NOT NULL,
+  `public_id`  VARCHAR(191) NOT NULL,
+  `booking_id` VARCHAR(191) NOT NULL,
+  `amount`     INTEGER NOT NULL,
+  `currency`   VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `status`     VARCHAR(20) NOT NULL DEFAULT 'draft',
+  `due_date`   VARCHAR(10) NULL,
+  `paid_at`    DATETIME NULL,
+  `notes`      TEXT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `Invoice_public_id_unique` (`public_id`),
+  UNIQUE INDEX `Invoice_booking_id_unique` (`booking_id`),
+  INDEX `Invoice_status_idx` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v1.14.4 — Contact enquiries
+CREATE TABLE `ContactEnquiry` (
+  `id` VARCHAR(191) NOT NULL,
+  `public_id` VARCHAR(191) NOT NULL,
+  `name` VARCHAR(191) NOT NULL,
+  `email` VARCHAR(191) NOT NULL,
+  `phone` VARCHAR(191) NOT NULL DEFAULT '',
+  `message` TEXT NOT NULL,
+  `status` VARCHAR(50) NOT NULL DEFAULT 'new',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE INDEX `ContactEnquiry_public_id_key` (`public_id`),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ### New env vars
@@ -34,11 +67,19 @@ None.
 3. In Admin → Settings → General → Site Branding: set a **Vendor Portal Name** to distinguish it from the Admin portal in browser tabs
 
 ### Post-deploy verification
-- [ ] Admin → Vendor detail page → Username shows Edit button; clicking it allows username change with uniqueness validation
+- [ ] Admin → Invoices: list page loads; filter tabs work
+- [ ] Admin → Booking detail → Invoice section appears; "Create Invoice" creates draft and redirects to detail
+- [ ] Admin → Invoice detail: mark as paid, void, print all work correctly
+- [ ] Admin → Reports: date range + Run Report shows summary cards, booking breakdown, vehicle + vendor tables
+- [ ] Admin → Reports: select a vendor → vendor statement section appears; Print Statement works
+- [ ] Admin → Vendor detail page → Username shows Edit button; clicking it allows username change with inline feedback
+- [ ] Admin → Vendor detail page → "Login as Vendor →" button opens vendor portal in new tab, logged in as that vendor
 - [ ] Admin → Vendor detail page → Taxi Trips toggle defaults to off; Vehicle Hire defaults to on
 - [ ] Vendor portal → Book Multiple → only enabled trip modes show as buttons
-- [ ] Bulk booking with conflicting dates → amber conflict prompt appears with "Submit as Waitlist Enquiry" option
-- [ ] Submitting conflicts as enquiries → creates enquiry-status bookings, success screen shows enquiry count
+- [ ] Public site → About nav link goes to /services page
+- [ ] Public site → Contact nav link goes to /contact page; form submission works and shows success state
+- [ ] Admin → Enquiries → "Contact Enquiries →" button visible; contact form submissions appear there
+- [ ] Contact form submission → email notification sent to admin notification email
 
 ---
 

@@ -42,9 +42,15 @@ export default function EnquiriesClient({ enquiries }: { enquiries: Enquiry[] })
 
   return (
     <div className="px-10 py-10">
-      <div className="mb-8">
-        <h1 className="font-display font-bold text-[26px] tracking-tight">Enquiries</h1>
-        <p className="text-[14px] text-ink-3 mt-0.5">Waitlist enquiries submitted when requested dates were unavailable.</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="font-display font-bold text-[26px] tracking-tight">Enquiries</h1>
+          <p className="text-[14px] text-ink-3 mt-0.5">Waitlist enquiries submitted when requested dates were unavailable.</p>
+        </div>
+        <a href="/admin/enquiries/contact"
+          className="border border-border text-ink-3 font-medium text-[13px] px-4 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-colors whitespace-nowrap">
+          Contact Enquiries →
+        </a>
       </div>
 
       {/* Tabs */}

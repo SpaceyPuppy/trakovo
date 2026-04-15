@@ -15,8 +15,8 @@ export default function Nav({ logoUrl, siteName = 'Trakovo' }: NavProps) {
 
   const navLinks = [
     { href: '/vehicles', label: 'Our Fleet', active: path.startsWith('/vehicles') },
-    { href: '/#about', label: 'About', active: false },
-    { href: '/#contact', label: 'Contact', active: false },
+    { href: '/services', label: 'About', active: path.startsWith('/services') },
+    { href: '/contact', label: 'Contact', active: path.startsWith('/contact') },
   ]
 
   return (

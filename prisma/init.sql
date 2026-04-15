@@ -168,6 +168,21 @@ CREATE TABLE `VendorEnquiry` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `ContactEnquiry` (
+    `id` VARCHAR(191) NOT NULL,
+    `public_id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `email` VARCHAR(191) NOT NULL,
+    `phone` VARCHAR(191) NOT NULL DEFAULT '',
+    `message` TEXT NOT NULL,
+    `status` VARCHAR(50) NOT NULL DEFAULT 'new',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE INDEX `ContactEnquiry_public_id_key`(`public_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `VehicleMedia` ADD CONSTRAINT `VehicleMedia_vehicle_id_fkey` FOREIGN KEY (`vehicle_id`) REFERENCES `Vehicle`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -291,6 +306,24 @@ INSERT IGNORE INTO `ServiceFeature` (`id`, `service_type`, `feature_key`, `is_en
 (UUID(), 'rideshare',   'live_tracking',  0, NULL),
 (UUID(), 'self_drive',  'rating',         0, '{"max_stars":5,"mandatory":false}'),
 (UUID(), 'chauffeured', 'rating',         0, '{"max_stars":5,"mandatory":false}');
+
+CREATE TABLE IF NOT EXISTS `Invoice` (
+  `id`         VARCHAR(191) NOT NULL,
+  `public_id`  VARCHAR(191) NOT NULL,
+  `booking_id` VARCHAR(191) NOT NULL,
+  `amount`     INTEGER NOT NULL,
+  `currency`   VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `status`     VARCHAR(20) NOT NULL DEFAULT 'draft',
+  `due_date`   VARCHAR(10) NULL,
+  `paid_at`    DATETIME NULL,
+  `notes`      TEXT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `Invoice_public_id_unique` (`public_id`),
+  UNIQUE INDEX `Invoice_booking_id_unique` (`booking_id`),
+  INDEX `Invoice_status_idx` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `TripRating` (
   `id`         VARCHAR(36) NOT NULL,

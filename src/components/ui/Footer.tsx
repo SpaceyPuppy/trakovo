@@ -10,7 +10,7 @@ export default async function Footer() {
       <div className="flex gap-6">
         <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
         <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-        <Link href="/#contact" className="hover:text-white transition-colors">Contact</Link>
+        <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
       </div>
       <span>© {year} {siteName}</span>
     </footer>
