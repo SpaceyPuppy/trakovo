@@ -14,9 +14,9 @@ interface InvoiceRow {
   currency: string
   status: string
   due_date: string | null
-  paid_at: string | null
+  paid_at: Date | string | null
   notes: string | null
-  created_at: string
+  created_at: Date | string
   contact_name: string | null
   contact_email: string
   vehicle_name: string | null
