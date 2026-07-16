@@ -1,24 +1,25 @@
 import { getAdminSession } from '@/lib/auth'
-import { adminGetVehicles, adminGetBookings } from '@/lib/api'
+import { adminGetBookings, adminGetDashboardStats, type AdminDashboardStats } from '@/lib/api'
 import Link from 'next/link'
-import type { Vehicle, BookingResponse } from '@/types'
+import type { BookingResponse } from '@/types'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
+const EMPTY_DASHBOARD_STATS: AdminDashboardStats = {
+  totalVehicles: 0,
+  availableVehicles: 0,
+  totalBookings: 0,
+  pendingBookings: 0,
+}
+
 export default async function AdminDashboard() {
   const session = await getAdminSession()
 
-  let vehicles: Vehicle[] = [], bookings: BookingResponse[] = []
-  try {
-    [vehicles, bookings] = await Promise.all([
-      adminGetVehicles(),
-      adminGetBookings({ limit: 5 }).catch(() => []),
-    ])
-  } catch { /* show zeroes */ }
-
-  const pending = bookings.filter((b: {status: string}) => b.status === 'pending').length
-  const available = vehicles.filter((v: {is_available: boolean}) => v.is_available).length
+  const [stats, bookings] = await Promise.all([
+    adminGetDashboardStats().catch(() => EMPTY_DASHBOARD_STATS),
+    adminGetBookings({ limit: 5 }).catch((): BookingResponse[] => []),
+  ])
 
   return (
     <div className="px-10 py-10">
@@ -28,9 +29,9 @@ export default async function AdminDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-5 mb-10">
         {[
-          { label: 'Total Vehicles', value: vehicles.length, sub: `${available} available`, href: '/admin/vehicles' },
-          { label: 'Total Bookings', value: bookings.length, sub: `${pending} pending`, href: '/admin/bookings' },
-          { label: 'Pending Review', value: pending, sub: 'Require confirmation', href: '/admin/bookings' },
+          { label: 'Total Vehicles', value: stats.totalVehicles, sub: `${stats.availableVehicles} available`, href: '/admin/vehicles' },
+          { label: 'Total Bookings', value: stats.totalBookings, sub: `${stats.pendingBookings} pending`, href: '/admin/bookings' },
+          { label: 'Pending Review', value: stats.pendingBookings, sub: 'Require confirmation', href: '/admin/bookings' },
         ].map(({ label, value, sub, href }) => (
           <Link key={label} href={href} className="bg-white border border-border rounded-xl px-6 py-5 hover:shadow-card transition-shadow">
             <p className="text-[12px] font-semibold text-ink-4 uppercase tracking-wider mb-2">{label}</p>

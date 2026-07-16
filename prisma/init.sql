@@ -67,8 +67,19 @@ CREATE TABLE `Booking` (
     `updated_at` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `Booking_public_id_key`(`public_id`),
+    INDEX `Booking_vehicle_status_dates_idx` (`vehicle_id`(36), `status`(20), `start_date`(10), `end_date`(10)),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Atomic counters used by generatePublicId(). Existing installs must seed
+-- these from their current maxima using the SQL in PENDING-DEPLOY.md.
+CREATE TABLE `PublicIdSequence` (
+    `prefix` VARCHAR(10) NOT NULL,
+    `last_value` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`prefix`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `BookingNote` (
@@ -221,7 +232,7 @@ CREATE TABLE IF NOT EXISTS `VehicleBlockout` (
   `reason` VARCHAR(191) NOT NULL DEFAULT '',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  INDEX `VehicleBlockout_vehicle_idx` (`vehicle_id`)
+  INDEX `VehicleBlockout_vehicle_dates_idx` (`vehicle_id`(36), `start_date`, `end_date`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `BookingEmailLog` (

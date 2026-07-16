@@ -1,22 +1,14 @@
 import { NextResponse } from 'next/server'
 import { getVendorSession } from '@/lib/vendor-auth'
-import { query, queryOne, execute, newId, generatePublicId } from '@/lib/db'
+import { queryOne, execute, newId, generatePublicId } from '@/lib/db'
+import { listActiveVendorClientSummaries } from '@/lib/repositories/vendor-clients'
 
 export async function GET() {
   const session = await getVendorSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const clients = await query<{ id: string; name: string; is_active: number }>(
-    'SELECT * FROM VendorClient WHERE vendor_id = ? AND is_active = 1 ORDER BY name ASC',
-    [session.vendorId]
-  )
-
-  const result = await Promise.all(clients.map(async (c) => {
-    const count = await queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE vendor_client_id = ?', [c.id])
-    return { ...c, is_active: Boolean(c.is_active), _count: { bookings: count?.count ?? 0 } }
-  }))
-
-  return NextResponse.json({ clients: result })
+  const clients = await listActiveVendorClientSummaries(session.vendorId)
+  return NextResponse.json({ clients })
 }
 
 export async function POST(req: Request) {

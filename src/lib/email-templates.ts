@@ -1,6 +1,6 @@
 import { queryOne } from './db'
 import { getSiteName } from './site'
-import type { BookingResponse } from '@/types'
+import type { BookingCreationResponse } from '@/types'
 import { TEMPLATE_META, type TemplateType } from './email-template-defaults'
 
 // ─── Template rendering ─────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ export function renderTemplate(
 // ─── Build context maps from booking data ───────────────────────────────────
 
 export async function buildTemplateContext(
-  booking: BookingResponse,
+  booking: BookingCreationResponse,
   vehicleName: string,
   note?: string,
 ): Promise<{ vars: Record<string, string>; conditions: Record<string, boolean> }> {

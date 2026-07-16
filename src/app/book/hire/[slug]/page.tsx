@@ -3,7 +3,7 @@ import Link from 'next/link'
 import BookingPanel from '@/components/booking/BookingPanel'
 import { queryOne } from '@/lib/db'
 import { getVehicle, getAvailability } from '@/lib/api'
-import { getSiteName } from '@/lib/site'
+import { getLogoUrl, getSiteName } from '@/lib/site'
 import { parseHireAgreement } from '@/lib/hire-agreement-defaults'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import type { Metadata } from 'next'
@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   } catch { return { title: 'Vehicle' } }
 }
 
-export const revalidate = 60
+export const revalidate = 0
 
 export default async function HireVehiclePage({ params }: Props) {
   let vehicle, availability
@@ -31,10 +31,10 @@ export default async function HireVehiclePage({ params }: Props) {
   let hireAgreementClauses
   try {
     const [logo, agreement] = await Promise.all([
-      queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'logo_path' LIMIT 1"),
+      getLogoUrl(),
       queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'hire_agreement' LIMIT 1"),
     ])
-    if (logo?.value) logoUrl = '/api/logo'
+    logoUrl = logo
     hireAgreementClauses = parseHireAgreement(agreement?.value)
   } catch { /* use defaults */ }
   if (!hireAgreementClauses) hireAgreementClauses = parseHireAgreement(null)

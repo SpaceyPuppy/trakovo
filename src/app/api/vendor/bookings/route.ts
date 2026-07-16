@@ -1,12 +1,28 @@
 import { NextResponse } from 'next/server'
 import { getVendorSession } from '@/lib/vendor-auth'
-import { query, queryOne, execute, newId, generatePublicId } from '@/lib/db'
+import { generatePublicId, newId, query, queryOne, withTransaction } from '@/lib/db'
+import {
+  BookingValidationError,
+  lockAndValidateBookingVehicle,
+  validateBookingDateRange,
+} from '@/lib/booking-availability'
 import { sendBookingNotification } from '@/lib/email'
 import { sendBookingConfirmed } from '@/lib/email-sequences'
 import { sendPushNotification } from '@/lib/push'
 import { syncBookingToCalendar } from '@/lib/calendar'
-import { diffDays } from '@/lib/utils'
-import type { BookingResponse } from '@/types'
+import type { BookingCreationResponse, BookingResponseStatus } from '@/types'
+
+interface BookingRow {
+  id: string
+  public_id: string
+  status: BookingResponseStatus
+  daily_rate: number
+  total_cost: number
+  contact_name: string | null
+  contact_email: string
+  contact_phone: string
+  created_at: Date
+}
 
 export async function GET() {
   const session = await getVendorSession()
@@ -36,7 +52,6 @@ export async function POST(req: Request) {
     trip_details,
   } = await req.json()
 
-  // service_type: 'vehicle' | 'taxi' | 'cpv'
   const svcType: 'vehicle' | 'taxi' | 'cpv' =
     service_type === 'taxi' ? 'taxi' : service_type === 'cpv' ? 'cpv' : 'vehicle'
 
@@ -44,114 +59,150 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'start_date and end_date are required' }, { status: 400 })
   }
   if (svcType === 'vehicle' && !vehicle_id) {
-    return NextResponse.json({ error: 'vehicle_id is required for specific vehicle bookings' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'vehicle_id is required for specific vehicle bookings' },
+      { status: 400 }
+    )
   }
 
-  // Validate specific vehicle access
-  let vehicle: { id: string; name: string; chauffeur_price: number } | null = null
-  if (svcType === 'vehicle') {
-    const vendorVehicle = await queryOne<{ is_enabled: number; vehicle_id: string; vid: string; vname: string; chauffeur_price: number; is_available: number }>(
-      'SELECT vv.is_enabled, vv.vehicle_id, v.id as vid, v.name as vname, v.chauffeur_price, v.is_available FROM VendorVehicle vv JOIN Vehicle v ON vv.vehicle_id = v.id WHERE vv.vendor_id = ? AND vv.vehicle_id = ? LIMIT 1',
-      [session.vendorId, vehicle_id]
+  try {
+    const vendorRow = await queryOne<{ contact_email: string; contact_phone: string }>(
+      'SELECT contact_email, contact_phone FROM Vendor WHERE id = ? LIMIT 1',
+      [session.vendorId]
     )
-    if (!vendorVehicle || !vendorVehicle.is_enabled || !vendorVehicle.is_available) {
-      return NextResponse.json({ error: 'Vehicle not available for your account' }, { status: 403 })
+
+    const created = await withTransaction(async (transaction) => {
+      let vehicle: { id: string; name: string; chauffeur_price: number } | null = null
+      let dateRange = validateBookingDateRange(start_date, end_date)
+
+      if (svcType === 'vehicle') {
+        const validated = await lockAndValidateBookingVehicle(transaction, {
+          channel: 'vendor',
+          vendorId: session.vendorId,
+          vehicleId: vehicle_id,
+          hireType: 'chauffeured',
+          startDate: start_date,
+          endDate: end_date,
+          isEnquiry: false,
+        })
+        dateRange = validated.dateRange
+        vehicle = {
+          id: validated.vehicle.id,
+          name: validated.vehicle.name,
+          chauffeur_price: validated.vehicle.chauffeur_price,
+        }
+      }
+
+      let contactName = client_name ?? ''
+      let contactEmail = client_email || vendorRow?.contact_email || ''
+      let contactPhone = client_phone || vendorRow?.contact_phone || ''
+      let resolvedClientId: string | null = null
+
+      if (vendor_client_id) {
+        const client = await transaction.queryOne<{
+          id: string
+          name: string
+          email: string
+          phone: string
+        }>(
+          `SELECT id, name, email, phone
+           FROM VendorClient
+           WHERE id = ? AND vendor_id = ? AND is_active = 1
+           LIMIT 1
+           FOR UPDATE`,
+          [vendor_client_id, session.vendorId]
+        )
+        if (!client) {
+          throw new BookingValidationError(
+            'VENDOR_CLIENT_FORBIDDEN',
+            'Client is not available for your account',
+            403
+          )
+        }
+        contactName = client.name
+        contactEmail = client.email || contactEmail
+        contactPhone = client.phone || contactPhone
+        resolvedClientId = client.id
+      }
+
+      const dailyRate = vehicle ? vehicle.chauffeur_price : 0
+      const totalCost = dateRange.totalDays * dailyRate
+      const id = newId()
+      const publicId = await generatePublicId('VHB', transaction)
+      const serviceLabel = svcType === 'taxi' ? 'Taxi' : svcType === 'cpv' ? 'CPV' : vehicle!.name
+
+      await transaction.execute(
+        `INSERT INTO Booking (
+           id, public_id, vehicle_id, hire_type, service_type, status,
+           start_date, end_date, total_days, daily_rate, total_cost,
+           contact_name, contact_email, contact_phone, trip_details,
+           vendor_id, vendor_client_id, created_at, updated_at
+         ) VALUES (?, ?, ?, 'chauffeured', ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [
+          id, publicId, vehicle?.id ?? null, svcType,
+          dateRange.startDate, dateRange.endDate, dateRange.totalDays, dailyRate, totalCost,
+          contactName || null, contactEmail, contactPhone, trip_details ?? null,
+          session.vendorId, resolvedClientId,
+        ]
+      )
+
+      const booking = await transaction.queryOne<BookingRow>(
+        `SELECT id, public_id, status, daily_rate, total_cost, contact_name,
+                contact_email, contact_phone, created_at
+         FROM Booking
+         WHERE id = ?
+         LIMIT 1`,
+        [id]
+      )
+      if (!booking) throw new Error('Booking was not found after creation')
+
+      const response: BookingCreationResponse = {
+        id: booking.id,
+        public_id: booking.public_id,
+        status: booking.status,
+        hire_type: 'chauffeured',
+        service_type: svcType,
+        start_date: dateRange.startDate,
+        end_date: dateRange.endDate,
+        total_days: dateRange.totalDays,
+        daily_rate: booking.daily_rate / 100,
+        total_cost: booking.total_cost / 100,
+        vehicle: vehicle ? { id: vehicle.id, name: vehicle.name } : undefined,
+        contact_name: booking.contact_name ?? undefined,
+        contact_email: booking.contact_email,
+        contact_phone: booking.contact_phone,
+        is_enquiry: false,
+        created_at: booking.created_at instanceof Date
+          ? booking.created_at.toISOString()
+          : String(booking.created_at),
+      }
+
+      return { id, response, vehicle, serviceLabel, contactName }
+    })
+
+    sendBookingConfirmed(created.id).catch((err) =>
+      console.error('[email] Vendor booking confirmed email failed', err)
+    )
+    sendBookingNotification(created.response, created.serviceLabel).catch((err) =>
+      console.error('[email] Vendor booking notification failed', err)
+    )
+    if (created.vehicle) {
+      syncBookingToCalendar(created.id).catch((err) =>
+        console.error('[calendar] Vendor booking sync failed', err)
+      )
     }
-    vehicle = { id: vendorVehicle.vehicle_id, name: vendorVehicle.vname, chauffeur_price: vendorVehicle.chauffeur_price }
+    sendPushNotification({
+      title: `New Booking (${session.vendorName}) — ${created.serviceLabel}`,
+      body: `${created.contactName} · ${start_date} → ${end_date}`,
+      url: `/admin/bookings/${created.id}`,
+    }).catch(() => {})
 
-    // Check for conflicting bookings on this vehicle
-    const conflict = await queryOne<{ id: string }>(
-      `SELECT id FROM Booking WHERE vehicle_id = ? AND status NOT IN ('cancelled') AND start_date <= ? AND end_date >= ? LIMIT 1`,
-      [vehicle.id, end_date, start_date]
-    )
-    if (conflict) {
-      return NextResponse.json({ error: 'Vehicle is already booked for those dates' }, { status: 409 })
+    return NextResponse.json({ booking: created.response }, { status: 201 })
+  } catch (err: unknown) {
+    if (err instanceof BookingValidationError) {
+      return NextResponse.json({ error: err.message }, { status: err.status })
     }
+    console.error('[vendor-booking]', err)
+    return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 })
   }
-
-  // Fetch vendor's own contact details as final fallback
-  const vendorRow = await queryOne<{ contact_email: string; contact_phone: string }>(
-    'SELECT contact_email, contact_phone FROM Vendor WHERE id = ? LIMIT 1',
-    [session.vendorId]
-  )
-
-  // Resolve contact details — prefer linked client, fall back to ad-hoc fields, then vendor account details
-  let contactName = client_name ?? ''
-  let contactEmail = client_email || vendorRow?.contact_email || ''
-  let contactPhone = client_phone || vendorRow?.contact_phone || ''
-  let resolvedClientId: string | null = null
-
-  if (vendor_client_id) {
-    const client = await queryOne<{ id: string; name: string; email: string; phone: string }>(
-      'SELECT id, name, email, phone FROM VendorClient WHERE id = ? AND vendor_id = ? AND is_active = 1 LIMIT 1',
-      [vendor_client_id, session.vendorId]
-    )
-    if (client) {
-      contactName = client.name
-      contactEmail = client.email || contactEmail
-      contactPhone = client.phone || contactPhone
-      resolvedClientId = client.id
-    }
-  }
-
-  // contactName is optional for multi-booking flow (vendor_id tracks ownership)
-
-  const start = new Date(start_date)
-  const end = new Date(end_date)
-  const total_days = diffDays(start, end) + 1
-  const daily_rate = vehicle ? vehicle.chauffeur_price : 0  // cents; 0 = TBD for taxi/cpv
-  const total_cost = total_days * daily_rate
-
-  const public_id = await generatePublicId('VHB')
-  const id = newId()
-  const serviceLabel = svcType === 'taxi' ? 'Taxi' : svcType === 'cpv' ? 'CPV' : vehicle!.name
-
-  await execute(
-    `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, vendor_id, vendor_client_id, created_at, updated_at)
-     VALUES (?, ?, ?, 'chauffeured', ?, 'confirmed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-    [id, public_id, vehicle?.id ?? null, svcType, start_date, end_date, total_days, daily_rate, total_cost, contactName || null, contactEmail || null, contactPhone || null, trip_details ?? null, session.vendorId, resolvedClientId]
-  )
-
-  const booking = await queryOne<{ id: string; public_id: string; status: string; daily_rate: number; total_cost: number; contact_name: string | null; contact_email: string; contact_phone: string; created_at: Date }>(
-    'SELECT * FROM Booking WHERE id = ? LIMIT 1', [id]
-  )
-
-  const response: BookingResponse = {
-    id: booking!.id,
-    public_id: booking!.public_id,
-    status: booking!.status as BookingResponse['status'],
-    hire_type: 'chauffeured',
-    service_type: svcType,
-    start_date,
-    end_date,
-    total_days,
-    daily_rate: booking!.daily_rate / 100,
-    total_cost: booking!.total_cost / 100,
-    vehicle: vehicle ? { id: vehicle.id, name: vehicle.name } : undefined,
-    contact_name: booking!.contact_name ?? undefined,
-    contact_email: booking!.contact_email,
-    contact_phone: booking!.contact_phone,
-    created_at: booking!.created_at instanceof Date ? booking!.created_at.toISOString() : String(booking!.created_at),
-  }
-
-  // Vendor bookings are created as confirmed — send confirmation email (not "new request" notification)
-  sendBookingConfirmed(id).catch((err) =>
-    console.error('[email] Vendor booking confirmed email failed', err)
-  )
-  // Also send admin push notification
-  sendBookingNotification(response, serviceLabel).catch((err) =>
-    console.error('[email] Vendor booking notification failed', err)
-  )
-  if (vehicle) {
-    syncBookingToCalendar(id).catch((err) =>
-      console.error('[calendar] Vendor booking sync failed', err)
-    )
-  }
-  sendPushNotification({
-    title: `New Booking (${session.vendorName}) — ${serviceLabel}`,
-    body: `${contactName} · ${start_date} → ${end_date}`,
-    url: `/admin/bookings/${id}`,
-  }).catch(() => {})
-
-  return NextResponse.json({ booking: response }, { status: 201 })
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -19,6 +19,20 @@ type Booking = {
   vehicle_name: string | null; notes: Note[]
 }
 
+function parseTripLegs(value: string | null): TripLeg[] {
+  if (!value) return []
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (Array.isArray(parsed)) return parsed as TripLeg[]
+    if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { legs?: unknown }).legs)) {
+      return (parsed as { legs: TripLeg[] }).legs
+    }
+  } catch {
+    // Older free-text trip details are displayed without a schedule.
+  }
+  return []
+}
+
 export default function DriverBookingDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -26,13 +40,13 @@ export default function DriverBookingDetailPage() {
   const [noteText, setNoteText] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  async function load() {
+  const load = useCallback(async () => {
     const res = await fetch(`/api/driver/bookings/${id}`)
     if (res.status === 401) { router.push('/driver/login'); return }
     if (res.ok) setBooking(await res.json())
-  }
+  }, [id, router])
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => { void load() }, [load])
 
   async function addNote(e: React.FormEvent) {
     e.preventDefault()
@@ -50,10 +64,7 @@ export default function DriverBookingDetailPage() {
 
   if (!booking) return <div className="px-10 py-10 text-ink-3 text-[14px]">Loading…</div>
 
-  const tripLegs: TripLeg[] = (() => {
-    try { return booking.trip_details ? JSON.parse(booking.trip_details) : [] }
-    catch { return [] }
-  })()
+  const tripLegs = parseTripLegs(booking.trip_details)
 
   const row = (label: string, value: string | null | undefined) => (
     <div className="flex justify-between py-2.5 border-b border-border last:border-0 text-[13.5px]">

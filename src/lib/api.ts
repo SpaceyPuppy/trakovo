@@ -130,6 +130,47 @@ export async function adminGetVehicle(id: string): Promise<Vehicle> {
   return vehicles[0]
 }
 
+export interface AdminDashboardStats {
+  totalVehicles: number
+  availableVehicles: number
+  totalBookings: number
+  pendingBookings: number
+}
+
+export async function adminGetDashboardStats(): Promise<AdminDashboardStats> {
+  const row = await queryOne<{
+    total_vehicles: number | string
+    available_vehicles: number | string
+    total_bookings: number | string
+    pending_bookings: number | string
+  }>(
+    `SELECT
+       vehicle_stats.total_vehicles,
+       vehicle_stats.available_vehicles,
+       booking_stats.total_bookings,
+       booking_stats.pending_bookings
+     FROM (
+       SELECT
+         COUNT(*) AS total_vehicles,
+         COALESCE(SUM(CASE WHEN is_available = 1 THEN 1 ELSE 0 END), 0) AS available_vehicles
+       FROM Vehicle
+     ) vehicle_stats
+     CROSS JOIN (
+       SELECT
+         COUNT(*) AS total_bookings,
+         COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) AS pending_bookings
+       FROM Booking
+     ) booking_stats`
+  )
+
+  return {
+    totalVehicles: Number(row?.total_vehicles ?? 0),
+    availableVehicles: Number(row?.available_vehicles ?? 0),
+    totalBookings: Number(row?.total_bookings ?? 0),
+    pendingBookings: Number(row?.pending_bookings ?? 0),
+  }
+}
+
 // ─── Admin: Bookings ──────────────────────────────────────────────────────────
 
 export async function adminGetBookings(opts?: { limit?: number }): Promise<BookingResponse[]> {

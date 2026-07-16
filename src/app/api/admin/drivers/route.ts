@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { query, queryOne, execute, newId, generatePublicId } from '@/lib/db'
+import { queryOne, execute, newId, generatePublicId } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
+import { listDriverSummaries } from '@/lib/repositories/drivers'
 
 export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const drivers = await query<{ id: string; name: string; username: string; email: string; phone: string; is_active: number; created_at: Date }>(
-    'SELECT id, name, username, email, phone, is_active, created_at FROM Driver ORDER BY name ASC'
-  )
-  const result = await Promise.all(drivers.map(async (d) => {
-    const count = await queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE driver_id = ?', [d.id])
-    return { ...d, is_active: Boolean(d.is_active), _count: { bookings: count?.count ?? 0 } }
-  }))
-  return NextResponse.json(result)
+  return NextResponse.json(await listDriverSummaries())
 }
 
 export async function POST(req: NextRequest) {

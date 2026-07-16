@@ -1,41 +1,98 @@
 import { NextResponse } from 'next/server'
 import { getVendorSession } from '@/lib/vendor-auth'
-import { query, queryOne, execute, newId, generatePublicId } from '@/lib/db'
+import { generatePublicId, newId, queryOne, withTransaction } from '@/lib/db'
+import {
+  BookingValidationError,
+  lockAndValidateBookingVehicle,
+  validateBookingDateRange,
+} from '@/lib/booking-availability'
 import { sendBulkVendorBookingSummary } from '@/lib/email'
 import { sendPushNotification } from '@/lib/push'
 import { syncBookingToCalendar } from '@/lib/calendar'
-import { diffDays } from '@/lib/utils'
-import type { BookingResponse } from '@/types'
+import type { BookingCreationResponse, BookingResponseStatus } from '@/types'
 
-interface BulkBookingRequest {
-  bookings: Array<{
-    service_type: 'taxi' | 'cpv' | 'vehicle'
-    start_date: string
-    end_date: string
-    vehicle_id?: string
-    vendor_client_id?: string
-    trip_details?: string
-    is_enquiry?: boolean
-  }>
-  authorised_by: string
-  trip_mode: 'taxi' | 'vehicle_hire'
+const MAX_BULK_BOOKINGS = 50
+
+interface BookingRow {
+  id: string
+  public_id: string
+  status: BookingResponseStatus
+  daily_rate: number
+  total_cost: number
+  contact_name: string | null
+  contact_email: string
+  contact_phone: string
+  created_at: Date
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function parseTripDetails(value: unknown): Record<string, unknown> {
+  if (value === undefined || value === null || value === '') return {}
+
+  let parsed: unknown = value
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value)
+    } catch {
+      throw new BookingValidationError(
+        'INVALID_REQUEST',
+        'trip_details must contain valid JSON',
+        400
+      )
+    }
+  }
+  if (!isRecord(parsed)) {
+    throw new BookingValidationError(
+      'INVALID_REQUEST',
+      'trip_details must be a JSON object',
+      400
+    )
+  }
+  return { ...parsed }
 }
 
 export async function POST(req: Request) {
   const session = await getVendorSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const body: BulkBookingRequest = await req.json()
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 })
+  }
+  if (!isRecord(body)) {
+    return NextResponse.json({ error: 'Request body must be an object' }, { status: 400 })
+  }
+
   const { bookings, authorised_by, trip_mode } = body
 
-  if (!bookings || !Array.isArray(bookings) || bookings.length === 0) {
-    return NextResponse.json({ error: 'bookings array is required and must not be empty' }, { status: 400 })
+  if (!Array.isArray(bookings) || bookings.length === 0) {
+    return NextResponse.json(
+      { error: 'bookings array is required and must not be empty' },
+      { status: 400 }
+    )
   }
-  if (!authorised_by?.trim()) {
+  if (bookings.length > MAX_BULK_BOOKINGS) {
+    return NextResponse.json(
+      { error: `A maximum of ${MAX_BULK_BOOKINGS} bookings can be submitted at once` },
+      { status: 400 }
+    )
+  }
+  if (typeof authorised_by !== 'string' || !authorised_by.trim()) {
     return NextResponse.json({ error: 'authorised_by is required' }, { status: 400 })
   }
+  if (trip_mode !== 'taxi' && trip_mode !== 'vehicle_hire') {
+    return NextResponse.json(
+      { error: 'trip_mode must be taxi or vehicle_hire' },
+      { status: 400 }
+    )
+  }
+  const authorisedBy = authorised_by.trim()
 
-  // Fetch vendor's own contact details as fallback for bookings without a client
   const vendorRow = await queryOne<{ contact_email: string; contact_phone: string }>(
     'SELECT contact_email, contact_phone FROM Vendor WHERE id = ? LIMIT 1',
     [session.vendorId]
@@ -43,11 +100,19 @@ export async function POST(req: Request) {
   const vendorEmail = vendorRow?.contact_email || ''
   const vendorPhone = vendorRow?.contact_phone || ''
 
-  const created: BookingResponse[] = []
+  const created: BookingCreationResponse[] = []
   const errors: string[] = []
 
   for (let i = 0; i < bookings.length; i++) {
     try {
+      const item = bookings[i]
+      if (!isRecord(item)) {
+        throw new BookingValidationError(
+          'INVALID_REQUEST',
+          'booking must be an object',
+          400
+        )
+      }
       const {
         vehicle_id,
         service_type,
@@ -55,139 +120,188 @@ export async function POST(req: Request) {
         end_date,
         vendor_client_id,
         trip_details: rawTripDetails,
-        is_enquiry: isEnquiry = false,
-      } = bookings[i]
+        is_enquiry: rawIsEnquiry,
+      } = item
 
-      const svcType: 'vehicle' | 'taxi' | 'cpv' =
-        service_type === 'taxi' ? 'taxi' : service_type === 'cpv' ? 'cpv' : 'vehicle'
+      if (service_type !== 'taxi' && service_type !== 'cpv' && service_type !== 'vehicle') {
+        throw new BookingValidationError(
+          'INVALID_REQUEST',
+          'service_type must be taxi, cpv, or vehicle',
+          400
+        )
+      }
+      if (rawIsEnquiry !== undefined && typeof rawIsEnquiry !== 'boolean') {
+        throw new BookingValidationError('INVALID_REQUEST', 'is_enquiry must be a boolean', 400)
+      }
+      if (vendor_client_id !== undefined && typeof vendor_client_id !== 'string') {
+        throw new BookingValidationError('INVALID_REQUEST', 'vendor_client_id must be a string', 400)
+      }
+
+      const svcType = service_type
+      const isEnquiry = rawIsEnquiry ?? false
+      const resolvedVehicleId = typeof vehicle_id === 'string' ? vehicle_id : null
 
       if (!start_date || !end_date) {
-        throw new Error('start_date and end_date are required')
-      }
-      if (svcType === 'vehicle' && !vehicle_id) {
-        throw new Error('vehicle_id is required for specific vehicle bookings')
-      }
-
-      // Validate specific vehicle access
-      let vehicle: { id: string; name: string; chauffeur_price: number } | null = null
-      if (svcType === 'vehicle') {
-        const vendorVehicle = await queryOne<{
-          is_enabled: number
-          vehicle_id: string
-          vid: string
-          vname: string
-          chauffeur_price: number
-          is_available: number
-        }>(
-          'SELECT vv.is_enabled, vv.vehicle_id, v.id as vid, v.name as vname, v.chauffeur_price, v.is_available FROM VendorVehicle vv JOIN Vehicle v ON vv.vehicle_id = v.id WHERE vv.vendor_id = ? AND vv.vehicle_id = ? LIMIT 1',
-          [session.vendorId, vehicle_id]
+        throw new BookingValidationError(
+          'INVALID_DATE',
+          'start_date and end_date are required',
+          400
         )
-        if (!vendorVehicle || !vendorVehicle.is_enabled || !vendorVehicle.is_available) {
-          throw new Error('Vehicle not available for your account')
-        }
-        vehicle = { id: vendorVehicle.vehicle_id, name: vendorVehicle.vname, chauffeur_price: vendorVehicle.chauffeur_price }
+      }
+      if (svcType === 'vehicle' && !resolvedVehicleId) {
+        throw new BookingValidationError(
+          'VEHICLE_NOT_FOUND',
+          'vehicle_id is required for specific vehicle bookings',
+          400
+        )
+      }
 
-        // Check for conflicting bookings (skip for enquiries)
-        if (!isEnquiry) {
-          const conflict = await queryOne<{ id: string }>(
-            `SELECT id FROM Booking WHERE vehicle_id = ? AND status NOT IN ('cancelled', 'enquiry') AND start_date <= ? AND end_date >= ? LIMIT 1`,
-            [vehicle.id, end_date, start_date]
-          )
-          if (conflict) {
-            throw new Error(`Vehicle is already booked for ${start_date} to ${end_date}`)
+      const tripDetailsObj = parseTripDetails(rawTripDetails)
+      tripDetailsObj.authorised_by = authorisedBy
+      const tripDetails = JSON.stringify(tripDetailsObj)
+
+      const committed = await withTransaction(async (transaction) => {
+        let vehicle: { id: string; name: string; chauffeur_price: number } | null = null
+        let dateRange = validateBookingDateRange(start_date, end_date)
+
+        if (svcType === 'vehicle') {
+          const validated = await lockAndValidateBookingVehicle(transaction, {
+            channel: 'vendor',
+            vendorId: session.vendorId,
+            vehicleId: resolvedVehicleId!,
+            hireType: 'chauffeured',
+            startDate: start_date,
+            endDate: end_date,
+            isEnquiry,
+          })
+          dateRange = validated.dateRange
+          vehicle = {
+            id: validated.vehicle.id,
+            name: validated.vehicle.name,
+            chauffeur_price: validated.vehicle.chauffeur_price,
           }
         }
-      }
 
-      // Parse trip_details and add authorised_by
-      let tripDetailsObj: Record<string, unknown> = {}
-      if (rawTripDetails) {
-        try {
-          tripDetailsObj = JSON.parse(rawTripDetails)
-        } catch {
-          // If invalid JSON, just start fresh
-          tripDetailsObj = {}
+        let contactName = ''
+        let contactEmail = vendorEmail
+        let contactPhone = vendorPhone
+        let resolvedClientId: string | null = null
+        if (vendor_client_id) {
+          const client = await transaction.queryOne<{
+            id: string
+            name: string
+            email: string
+            phone: string
+          }>(
+            `SELECT id, name, email, phone
+             FROM VendorClient
+             WHERE id = ? AND vendor_id = ? AND is_active = 1
+             LIMIT 1
+             FOR UPDATE`,
+            [vendor_client_id, session.vendorId]
+          )
+          if (!client) {
+            throw new BookingValidationError(
+              'VENDOR_CLIENT_FORBIDDEN',
+              'Client is not available for your account',
+              403
+            )
+          }
+          contactName = client.name
+          contactEmail = client.email || contactEmail
+          contactPhone = client.phone || contactPhone
+          resolvedClientId = client.id
         }
-      }
-      tripDetailsObj.authorised_by = authorised_by
 
-      const trip_details = JSON.stringify(tripDetailsObj)
+        const dailyRate = vehicle ? vehicle.chauffeur_price : 0
+        const totalCost = dateRange.totalDays * dailyRate
+        const id = newId()
+        const publicId = await generatePublicId('VHB', transaction)
+        await transaction.execute(
+          `INSERT INTO Booking (
+             id, public_id, vehicle_id, hire_type, service_type, status,
+             start_date, end_date, total_days, daily_rate, total_cost,
+             contact_name, contact_email, contact_phone, trip_details, is_enquiry,
+             vendor_id, vendor_client_id, created_at, updated_at
+           ) VALUES (?, ?, ?, 'chauffeured', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [
+            id, publicId, vehicle?.id ?? null, svcType, isEnquiry ? 'enquiry' : 'confirmed',
+            dateRange.startDate, dateRange.endDate, dateRange.totalDays, dailyRate, totalCost,
+            contactName || null, contactEmail, contactPhone, tripDetails, isEnquiry ? 1 : 0,
+            session.vendorId, resolvedClientId,
+          ]
+        )
 
-      const start = new Date(start_date)
-      const end = new Date(end_date)
-      const total_days = diffDays(start, end) + 1
-      const daily_rate = vehicle ? vehicle.chauffeur_price : 0
-      const total_cost = total_days * daily_rate
+        const booking = await transaction.queryOne<BookingRow>(
+          `SELECT id, public_id, status, daily_rate, total_cost, contact_name,
+                  contact_email, contact_phone, created_at
+           FROM Booking
+           WHERE id = ?
+           LIMIT 1`,
+          [id]
+        )
+        if (!booking) throw new Error('Booking was not found after creation')
 
-      const public_id = await generatePublicId('VHB')
-      const id = newId()
-      const serviceLabel = svcType === 'taxi' ? 'Taxi' : svcType === 'cpv' ? 'CPV' : vehicle!.name
+        const response: BookingCreationResponse = {
+          id: booking.id,
+          public_id: booking.public_id,
+          status: booking.status,
+          hire_type: 'chauffeured',
+          service_type: svcType,
+          start_date: dateRange.startDate,
+          end_date: dateRange.endDate,
+          total_days: dateRange.totalDays,
+          daily_rate: booking.daily_rate / 100,
+          total_cost: booking.total_cost / 100,
+          vehicle: vehicle ? { id: vehicle.id, name: vehicle.name } : undefined,
+          contact_name: booking.contact_name ?? undefined,
+          contact_email: booking.contact_email,
+          contact_phone: booking.contact_phone,
+          is_enquiry: isEnquiry,
+          created_at: booking.created_at instanceof Date
+            ? booking.created_at.toISOString()
+            : String(booking.created_at),
+        }
 
-      await execute(
-        `INSERT INTO Booking (id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, trip_details, is_enquiry, vendor_id, vendor_client_id, created_at, updated_at)
-         VALUES (?, ?, ?, 'chauffeured', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-        [id, public_id, vehicle?.id ?? null, svcType, isEnquiry ? 'enquiry' : 'confirmed', start_date, end_date, total_days, daily_rate, total_cost, null, vendorEmail || null, vendorPhone || null, trip_details, isEnquiry ? 1 : 0, session.vendorId, vendor_client_id ?? null]
-      )
+        return { id, publicId, response, vehicle }
+      })
 
-      const booking = await queryOne<{
-        id: string
-        public_id: string
-        status: string
-        daily_rate: number
-        total_cost: number
-        contact_name: string | null
-        contact_email: string
-        contact_phone: string
-        created_at: Date
-      }>('SELECT * FROM Booking WHERE id = ? LIMIT 1', [id])
-
-      const response: BookingResponse = {
-        id: booking!.id,
-        public_id: booking!.public_id,
-        status: booking!.status as BookingResponse['status'],
-        hire_type: 'chauffeured',
-        service_type: svcType,
-        start_date,
-        end_date,
-        total_days,
-        daily_rate: booking!.daily_rate / 100,
-        total_cost: booking!.total_cost / 100,
-        vehicle: vehicle ? { id: vehicle.id, name: vehicle.name } : undefined,
-        contact_name: booking!.contact_name ?? undefined,
-        contact_email: booking!.contact_email,
-        contact_phone: booking!.contact_phone,
-        created_at: booking!.created_at instanceof Date ? booking!.created_at.toISOString() : String(booking!.created_at),
-      }
-
-      created.push(response)
-
-      if (vehicle) {
-        syncBookingToCalendar(id).catch((err) =>
-          console.error('[calendar] Bulk booking sync failed for', public_id, err)
+      created.push(committed.response)
+      if (committed.vehicle) {
+        syncBookingToCalendar(committed.id).catch((err) =>
+          console.error('[calendar] Bulk booking sync failed for', committed.publicId, err)
         )
       }
     } catch (err) {
-      errors.push(
-        `Booking ${i + 1} failed: ${err instanceof Error ? err.message : 'Unknown error'}`
-      )
+      if (!(err instanceof BookingValidationError)) {
+        console.error(`[vendor-booking-bulk] Booking ${i + 1} failed`, err)
+      }
+      const message = err instanceof BookingValidationError
+        ? err.message
+        : 'Failed to create booking'
+      errors.push(`Booking ${i + 1} failed: ${message}`)
     }
   }
 
-  // Send single summary email for all created bookings
   if (created.length > 0) {
-    sendBulkVendorBookingSummary(created, session.vendorName, authorised_by, trip_mode, vendorEmail || undefined).catch((err) =>
+    sendBulkVendorBookingSummary(
+      created,
+      session.vendorName,
+      authorisedBy,
+      trip_mode,
+      vendorEmail || undefined
+    ).catch((err) =>
       console.error('[email] Bulk booking summary email failed', err)
     )
 
     sendPushNotification({
       title: `New Batch (${session.vendorName}) — ${created.length} booking(s)`,
-      body: `Authorised by ${authorised_by}`,
+      body: `Authorised by ${authorisedBy}`,
       url: '/admin/bookings',
     }).catch(() => {})
   }
 
   if (errors.length > 0 && created.length === 0) {
-    // All bookings failed — return 400 so client sees the error
     return NextResponse.json(
       { created: [], errors, error: errors[0] },
       { status: 400 }
@@ -195,7 +309,6 @@ export async function POST(req: Request) {
   }
 
   if (errors.length > 0) {
-    // Partial success
     return NextResponse.json(
       { created, errors, message: `${created.length} of ${bookings.length} bookings created` },
       { status: 201 }

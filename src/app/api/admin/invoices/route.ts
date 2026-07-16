@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
 
   const id = newId()
-  const public_id = generatePublicId('INV')
+  const public_id = await generatePublicId('INV')
 
   await execute(
     'INSERT INTO Invoice (id, public_id, booking_id, amount, currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',

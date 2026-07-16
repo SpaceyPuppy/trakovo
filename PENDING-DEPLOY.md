@@ -8,21 +8,64 @@ Update it as features are built. Clear it after each successful production deplo
 ## Current pending version: v1.14.4 (unreleased)
 
 ### Deploy checklist
-- [ ] Upload and extract release zip
-- [ ] Run NPM Install in cPanel Node.js app
-- [ ] Apply DB migration (see SQL below)
+- [ ] Pause booking writes for the migration/cutover window
+- [ ] Back up the production database
+- [ ] Apply and verify the DB migration below immediately before cutover
+- [ ] Upload and extract the release zip (or install the OTA bundle)
+- [ ] Run NPM Install only for a full archive deployment
 - [ ] Restart app
+- [ ] Complete post-deploy verification, then resume booking writes
 
 ### Pending SQL
 
 ```sql
+-- v1.14.4 — atomic public IDs and indexed availability locks
+-- Apply this block before restarting the new application build.
+CREATE TABLE IF NOT EXISTS `PublicIdSequence` (
+  `prefix` VARCHAR(10) NOT NULL,
+  `last_value` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`prefix`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Seed every existing prefix before the application starts allocating from
+-- PublicIdSequence. These statements are safe to re-run.
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'VHB', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `Booking`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'VHC', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `Vehicle`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'VND', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `Vendor`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'VNC', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `VendorClient`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'VNE', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `VendorEnquiry`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'DRV', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `Driver`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'CRQ', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `CorporateEnquiry`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+
+ALTER TABLE `Booking`
+  ADD INDEX `Booking_vehicle_status_dates_idx`
+    (`vehicle_id`(36), `status`(20), `start_date`(10), `end_date`(10));
+ALTER TABLE `VehicleBlockout`
+  ADD INDEX `VehicleBlockout_vehicle_dates_idx` (`vehicle_id`(36), `start_date`, `end_date`),
+  DROP INDEX `VehicleBlockout_vehicle_idx`;
+
 -- v1.12.0 (apply if not already done)
 ALTER TABLE `Booking` ADD COLUMN `ms_event_id` VARCHAR(191) NULL AFTER `google_event_id`;
 ALTER TABLE `Booking` DROP COLUMN `google_event_id`;
 
 -- v1.13.0 — Vendor service type toggles
-ALTER TABLE `Vendor` ADD COLUMN `taxi_enabled` TINYINT(1) NOT NULL DEFAULT 0 AFTER `vehicle_hire_enabled`;
 ALTER TABLE `Vendor` ADD COLUMN `vehicle_hire_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_active`;
+ALTER TABLE `Vendor` ADD COLUMN `taxi_enabled` TINYINT(1) NOT NULL DEFAULT 0 AFTER `vehicle_hire_enabled`;
 
 -- v1.14.4 — Invoices
 CREATE TABLE IF NOT EXISTS `Invoice` (
@@ -44,7 +87,7 @@ CREATE TABLE IF NOT EXISTS `Invoice` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- v1.14.4 — Contact enquiries
-CREATE TABLE `ContactEnquiry` (
+CREATE TABLE IF NOT EXISTS `ContactEnquiry` (
   `id` VARCHAR(191) NOT NULL,
   `public_id` VARCHAR(191) NOT NULL,
   `name` VARCHAR(191) NOT NULL,
@@ -56,17 +99,32 @@ CREATE TABLE `ContactEnquiry` (
   UNIQUE INDEX `ContactEnquiry_public_id_key` (`public_id`),
   PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- Invoice and ContactEnquiry are created above on installations upgrading to
+-- v1.14.4, so seed their counters after those tables exist.
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'INV', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `Invoice`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
+SELECT 'CNT', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `ContactEnquiry`
+ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
 ```
 
 ### New env vars
 None.
 
 ### Post-deploy steps
-1. Apply all pending SQL above in phpMyAdmin (skip any already applied)
+1. Confirm all pending SQL above was applied successfully before the application restart
 2. In Admin → Settings → Connections, **disconnect and reconnect Microsoft 365** if not already done (required for `Calendars.ReadWrite` scope)
 3. In Admin → Settings → General → Site Branding: set a **Vendor Portal Name** to distinguish it from the Admin portal in browser tabs
 
 ### Post-deploy verification
+- [ ] Confirm `PublicIdSequence` is seeded and both new availability indexes exist
+- [ ] Submit a public vehicle booking and confirm its booking reference, notifications, and calendar sync
+- [ ] Submit vendor single and bulk bookings and confirm successful rows and validation errors are reported correctly
+- [ ] Submit two overlapping requests for the same vehicle and dates; only one booking should be created
+- [ ] Admin dashboard totals and vendor, driver, and client list counts load correctly
+- [ ] Settings save successfully and driver trip schedules render correctly
 - [ ] Admin → Invoices: list page loads; filter tabs work
 - [ ] Admin → Booking detail → Invoice section appears; "Create Invoice" creates draft and redirects to detail
 - [ ] Admin → Invoice detail: mark as paid, void, print all work correctly
@@ -101,6 +159,63 @@ None.
 ---
 
 # Changelog / Release Notes
+
+## v1.14.4 — unreleased
+
+### New features
+
+**Invoices and revenue reporting**
+- Added admin invoice list and detail screens with draft, sent, paid, and void states
+- Added invoice creation from booking details, overdue highlighting, and a printer-friendly invoice view
+- Added revenue reports with date presets, vehicle and vendor breakdowns, and printable vendor booking statements
+
+**Contact enquiries**
+- Added a public contact form with admin email notification
+- Added contact-enquiry management under Admin → Enquiries, including status filters and mark-as-read handling
+- Updated the public About and Contact navigation destinations
+
+### Admin and vendor improvements
+
+- Added “Login as Vendor” from the admin vendor detail page
+- Added clear inline feedback when changing a vendor username
+
+### Bug fixes
+
+- Fixed the contact page client/server component boundary
+- Fixed invoice date serialisation
+
+### Performance and reliability
+
+**Transactional booking creation**
+- Public, vendor single-booking, and vendor bulk-booking creation now validate availability and write each booking inside a database transaction
+- Vehicle rows are locked while conflicts are checked, preventing two simultaneous requests from reserving the same vehicle and dates
+- Vendor client ownership, date ranges, trip detail JSON, service types, and bulk request sizes are validated before records are written
+- Notifications, calendar sync, and push delivery now run after the booking transaction commits
+
+**Atomic public references**
+- Replaced repeated table-wide `MAX(...)` reference scans with the `PublicIdSequence` counter table
+- Concurrent requests can no longer allocate the same public booking, vehicle, vendor, driver, enquiry, invoice, or contact reference
+
+**Lower database overhead**
+- Removed N+1 count queries from admin vendor, driver, and vendor-client lists
+- Consolidated admin dashboard statistics into aggregate queries with accurate full-dataset totals
+- Added composite indexes for booking availability and vehicle blockout date checks
+- Public homepage vehicle data now uses a short revalidation window instead of forcing a database query on every request
+
+### Maintainability
+
+- Added shared transaction, booking-availability, signed-token, settings, API, and repository helpers
+- Consolidated duplicated admin, vendor, and driver JWT signing and verification code
+- Added batched settings reads/writes and request-scoped branding reuse
+- Added canonical booking creation response types and safer driver trip-details parsing
+- Added an ESLint configuration so validation runs non-interactively
+
+### Deployment notes
+
+- Apply the `PublicIdSequence` and index SQL at the top of this file before restarting v1.14.4
+- No new environment variables are required
+
+---
 
 ## v1.14.3
 

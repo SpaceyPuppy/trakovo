@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer'
 import { queryOne, execute } from './db'
 import { getSiteName } from './site'
-import type { BookingResponse } from '@/types'
+import type { BookingCreationResponse, BookingResponse } from '@/types'
 import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
 
 // ─── Microsoft Graph API helpers ─────────────────────────────────────────────
@@ -114,7 +114,7 @@ async function isEmailEnabled(key: string): Promise<boolean> {
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 export async function sendBookingNotification(
-  booking: BookingResponse,
+  booking: BookingCreationResponse,
   vehicleName: string
 ): Promise<void> {
   if (!await isEmailEnabled('email_on_new_booking')) return
@@ -155,7 +155,7 @@ export async function sendTestEmail(to: string): Promise<void> {
 }
 
 export async function sendBulkVendorBookingSummary(
-  bookings: BookingResponse[],
+  bookings: BookingCreationResponse[],
   vendorName: string,
   authorisedBy: string,
   tripMode: 'taxi' | 'vehicle_hire',

@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   }
 
   const id = newId()
-  const public_id = generatePublicId('CNT')
+  const public_id = await generatePublicId('CNT')
 
   await execute(
     'INSERT INTO ContactEnquiry (id, public_id, name, email, phone, message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',

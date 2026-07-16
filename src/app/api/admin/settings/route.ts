@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { query, execute } from '@/lib/db'
+import { getSettings, upsertSettings } from '@/lib/settings'
 
 export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const rows = await query<{ key: string; value: string }>('SELECT `key`, value FROM Setting')
-  const settings: Record<string, string> = {}
-  for (const row of rows) settings[row.key] = row.value
-
-  return NextResponse.json(settings)
+  return NextResponse.json(await getSettings())
 }
 
 export async function PUT(req: NextRequest) {
@@ -18,24 +14,20 @@ export async function PUT(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
   try {
-    const body = await req.json() as Record<string, string>
+    const body: unknown = await req.json()
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Settings must be an object' }, { status: 400 })
+    }
+
     const updates = Object.entries(body)
+    if (updates.some(([key, value]) => !key || typeof value !== 'string')) {
+      return NextResponse.json({ error: 'Setting keys and values must be strings' }, { status: 400 })
+    }
 
-    await Promise.all(
-      updates.map(([key, value]) =>
-        execute(
-          'INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()',
-          [key, value]
-        )
-      )
-    )
-
-    const rows = await query<{ key: string; value: string }>('SELECT `key`, value FROM Setting')
-    const settings: Record<string, string> = {}
-    for (const row of rows) settings[row.key] = row.value
-
-    return NextResponse.json(settings)
-  } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 })
+    await upsertSettings(updates as Array<[string, string]>)
+    return NextResponse.json(await getSettings())
+  } catch (error: unknown) {
+    console.error('[admin/settings] Failed to update settings', error)
+    return NextResponse.json({ error: 'Unable to update settings' }, { status: 500 })
   }
 }

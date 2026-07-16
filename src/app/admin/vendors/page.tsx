@@ -1,21 +1,12 @@
 import Link from 'next/link'
-import { query, queryOne } from '@/lib/db'
+import { listVendorSummaries } from '@/lib/repositories/vendors'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Vendors' }
 export const revalidate = 0
 
 export default async function AdminVendorsPage() {
-  const rawVendors = await query<{ id: string; name: string; public_id: string; username: string; contact_email: string; contact_phone: string; is_active: number }>(
-    'SELECT id, name, public_id, username, contact_email, contact_phone, is_active FROM Vendor ORDER BY name ASC'
-  )
-  const vendors = await Promise.all(rawVendors.map(async (v) => {
-    const [bookingCount, clientCount] = await Promise.all([
-      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE vendor_id = ?', [v.id]),
-      queryOne<{ count: number }>('SELECT COUNT(*) as count FROM VendorClient WHERE vendor_id = ?', [v.id]),
-    ])
-    return { ...v, is_active: Boolean(v.is_active), _count: { bookings: bookingCount?.count ?? 0, clients: clientCount?.count ?? 0 } }
-  }))
+  const vendors = await listVendorSummaries('name_asc')
 
   return (
     <div className="px-10 py-10">

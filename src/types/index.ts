@@ -12,6 +12,7 @@ export interface DayRate {
 }
 export type HireType = 'chauffeured' | 'dry-hire'
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+export type BookingResponseStatus = BookingStatus | 'enquiry'
 
 export interface VehicleMedia {
   id: string
@@ -92,10 +93,10 @@ export interface DryHireBookingPayload {
 
 export type BookingPayload = ChauffeuredBookingPayload | DryHireBookingPayload
 
-export interface BookingResponse {
+export interface BookingResponse<Status extends BookingResponseStatus = BookingStatus> {
   id: string
   public_id: string   // VHB-xxxx
-  status: BookingStatus
+  status: Status
   hire_type: HireType
   service_type?: string   // 'vehicle' | 'taxi' | 'cpv'
   start_date: string
@@ -117,6 +118,8 @@ export interface BookingResponse {
   vendor_name?: string
   created_at: string
 }
+
+export type BookingCreationResponse = BookingResponse<BookingResponseStatus>
 
 // ─── Admin ───────────────────────────────────────────────────────────────────
 

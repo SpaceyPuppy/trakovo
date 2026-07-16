@@ -1,6 +1,5 @@
-import { queryOne } from '@/lib/db'
 import { getVehicles } from '@/lib/api'
-import { getSiteName } from '@/lib/site'
+import { getLogoUrl, getSiteName } from '@/lib/site'
 import MobileVehicleList from './MobileVehicleList'
 import Link from 'next/link'
 import type { Vehicle } from '@/types'
@@ -12,18 +11,12 @@ export const revalidate = 0
 
 export default async function HirePage() {
   let vehicles: Vehicle[] = []
-  let logoUrl: string | undefined
 
   try {
     vehicles = await getVehicles()
   } catch { /* show empty state */ }
 
-  try {
-    const logo = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['logo_path'])
-    if (logo?.value) logoUrl = '/api/logo'
-  } catch { /* no logo */ }
-
-  const siteName = await getSiteName()
+  const [siteName, logoUrl] = await Promise.all([getSiteName(), getLogoUrl()])
 
   return (
     <div className="flex flex-col min-h-screen">

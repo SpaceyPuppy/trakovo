@@ -13,7 +13,7 @@ async function isEmailEnabled(key: string): Promise<boolean> {
   return row?.value !== '0'
 }
 import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
-import type { BookingResponse } from '@/types'
+import type { BookingCreationResponse, BookingResponse } from '@/types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ async function loadBooking(bookingId: string): Promise<{ booking: BookingRespons
 async function sendSequenceEmail(
   bookingId: string,
   templateKey: string,
-  booking: BookingResponse,
+  booking: BookingCreationResponse,
   vehicleName: string,
   subject: string,
   recipients: string[],
@@ -100,7 +100,7 @@ async function sendSequenceEmail(
 // ─── Event-driven sequences ──────────────────────────────────────────────────
 
 /** Fired immediately when a new booking is submitted. Sends to customer only. */
-export async function sendBookingReceived(booking: BookingResponse, vehicleName: string): Promise<void> {
+export async function sendBookingReceived(booking: BookingCreationResponse, vehicleName: string): Promise<void> {
   if (!await isEmailEnabled('email_on_customer_received')) return
   try {
     await sendSequenceEmail(
