@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getDailyRate } from '@/lib/utils'
 
@@ -29,6 +29,7 @@ function calcDays(start: string, end: string) {
 
 export default function AdminNewBookingPage() {
   const router = useRouter()
+  const idempotencyKey = useRef<string | null>(null)
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [vendors, setVendors] = useState<Vendor[]>([])
@@ -49,6 +50,15 @@ export default function AdminNewBookingPage() {
   const [contactPhone, setContactPhone] = useState('')
   const [rateOverride, setRateOverride] = useState('')
   const [notes, setNotes] = useState('')
+
+  // Keep the key across a network retry, but use a new key if staff alter the
+  // logical request before submitting again.
+  useEffect(() => {
+    idempotencyKey.current = null
+  }, [
+    serviceType, vehicleId, hireType, status, startDate, endDate, vendorId,
+    contactName, contactEmail, contactPhone, rateOverride, notes,
+  ])
 
   useEffect(() => {
     Promise.all([
@@ -99,6 +109,7 @@ export default function AdminNewBookingPage() {
     }
     setSaving(true); setError(null)
     try {
+      idempotencyKey.current ??= crypto.randomUUID()
       const payload: Record<string, unknown> = {
         service_type: serviceType,
         hire_type: hireType,
@@ -116,11 +127,16 @@ export default function AdminNewBookingPage() {
 
       const res = await fetch('/api/admin/bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey.current,
+        },
         body: JSON.stringify(payload),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to create booking')
+      if (!res.ok) {
+        throw new Error(data.error ?? 'Failed to create booking')
+      }
       router.push(`/admin/bookings/${data.id}`)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')

@@ -1,6 +1,6 @@
 # Trakovo
 
-Fleet management platform — bookings, vehicles, drivers, vendors, and dispatch.
+Fleet management platform for bookings, vehicles, drivers, vendors, dispatch, and native billing.
 
 Built with Next.js 14 (App Router), MySQL via `mysql2`, and Tailwind CSS.
 
@@ -19,7 +19,7 @@ Built with Next.js 14 (App Router), MySQL via `mysql2`, and Tailwind CSS.
 ## Getting started
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local   # fill in your values
 npm run dev
 ```
@@ -28,7 +28,7 @@ npm run dev
 
 | Portal | URL | Description |
 |--------|-----|-------------|
-| Admin | `/admin` | Full fleet management, bookings, drivers, vendors, settings |
+| Admin | `/admin` | Fleet management, bookings, billing, drivers, vendors, and settings |
 | Vendor | `/vendor` | B2B booking portal for fleet operators |
 | Driver | `/driver` | Assignment view for drivers |
 | Booking App | `/book` | Public-facing PWA booking flow |
@@ -41,4 +41,13 @@ powershell -ExecutionPolicy Bypass -File "make-zip.ps1"
 # Upload trakovo-vX.X.X.zip to cPanel, or use OTA update via Admin → Settings → Updates
 ```
 
-See `DEPLOYMENT-CPANEL.md` for full deployment detail.
+Before starting a build that changes the database, apply the version-specific SQL in
+`PENDING-DEPLOY.md`. The application deliberately does not run migrations automatically.
+
+## Documentation
+
+- `DEPLOYMENT-CPANEL.md` — full cPanel and OTA deployment/rollback procedure
+- `PENDING-DEPLOY.md` — version-specific SQL, configuration, and post-deploy checks
+- `BILLING-MVP.md` — billing workflow, business rules, API behaviour, and acceptance checks
+- `DOCUMENTATION-DEBT.md` — known documentation and repository-hygiene debt
+- `RELEASE-NOTES-v1.15.0.md` — curated v1.15.0 changes and deployment warning

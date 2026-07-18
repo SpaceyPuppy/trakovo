@@ -86,14 +86,14 @@ export async function POST(req: NextRequest) {
       await transaction.execute(
         `INSERT INTO Booking (
            id, public_id, vehicle_id, hire_type, status, is_enquiry,
-           start_date, end_date, total_days, daily_rate, total_cost,
+           start_date, end_date, total_days, daily_rate, total_cost, currency,
            contact_name, contact_email, contact_phone,
            driver_name, driver_dob, agreement_accepted, trip_details,
            created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           id, publicId, vehicle.id, resolvedHireType, status, isEnquiry ? 1 : 0,
-          dateRange.startDate, dateRange.endDate, dateRange.totalDays, dailyRate, totalCost,
+          dateRange.startDate, dateRange.endDate, dateRange.totalDays, dailyRate, totalCost, vehicle.currency,
           resolvedContactName, contact_email, contact_phone,
           resolvedHireType === 'dry-hire' ? (driver_name ?? null) : null,
           resolvedHireType === 'dry-hire' ? (driver_dob ?? null) : null,

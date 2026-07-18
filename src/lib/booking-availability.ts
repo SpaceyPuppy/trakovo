@@ -36,6 +36,7 @@ export interface BookingDateRange {
 export interface LockedBookingVehicle {
   id: string
   name: string
+  currency: string
   price: number
   chauffeur_price: number
   day_rates: string | null
@@ -47,17 +48,25 @@ interface BookingVehicleValidationBase {
   startDate: unknown
   endDate: unknown
   isEnquiry: boolean
+  checkConflicts?: boolean
+  excludeBookingId?: string
 }
 
 type BookingVehicleValidationInput = BookingVehicleValidationBase & (
   | { channel: 'public'; hireType: HireType }
   | { channel: 'vendor'; vendorId: string; hireType: 'chauffeured' }
+  | { channel: 'admin'; hireType: HireType }
 )
 
 interface LockedVehicleRow extends LockedBookingVehicle {
   is_available: number
   public_bookings_enabled: number
   vendor_bookings_enabled: number
+}
+
+export function normaliseBookingCurrency(value: unknown): string {
+  const currency = typeof value === 'string' ? value.trim().toUpperCase() : ''
+  return /^[A-Z]{3}$/.test(currency) ? currency : 'AUD'
 }
 
 function parseIsoDate(value: unknown, field: 'start_date' | 'end_date'): Date {
@@ -109,7 +118,7 @@ export async function lockAndValidateBookingVehicle(
 ): Promise<{ vehicle: LockedBookingVehicle; dateRange: BookingDateRange }> {
   const dateRange = validateBookingDateRange(input.startDate, input.endDate)
   const vehicle = await transaction.queryOne<LockedVehicleRow>(
-    `SELECT id, name, price, chauffeur_price, day_rates, hire_modes, is_available,
+    `SELECT id, name, currency, price, chauffeur_price, day_rates, hire_modes, is_available,
             public_bookings_enabled, vendor_bookings_enabled
      FROM Vehicle
      WHERE id = ?
@@ -133,7 +142,7 @@ export async function lockAndValidateBookingVehicle(
         403
       )
     }
-  } else {
+  } else if (input.channel === 'vendor') {
     if (!Boolean(vehicle.vendor_bookings_enabled)) {
       throw new BookingValidationError(
         'VEHICLE_ACCESS_DENIED',
@@ -160,17 +169,18 @@ export async function lockAndValidateBookingVehicle(
 
   assertHireMode(vehicle, input.hireType)
 
-  if (!input.isEnquiry) {
+  if (input.checkConflicts ?? !input.isEnquiry) {
     const conflict = await transaction.queryOne<{ id: string }>(
       `SELECT id
        FROM Booking
        WHERE vehicle_id = ?
          AND status IN ('pending', 'confirmed')
+         AND id <> ?
          AND start_date <= ?
          AND end_date >= ?
        LIMIT 1
        FOR UPDATE`,
-      [vehicle.id, dateRange.endDate, dateRange.startDate]
+      [vehicle.id, input.excludeBookingId ?? '', dateRange.endDate, dateRange.startDate]
     )
     if (conflict) {
       throw new BookingValidationError(
@@ -203,6 +213,7 @@ export async function lockAndValidateBookingVehicle(
     vehicle: {
       id: vehicle.id,
       name: vehicle.name,
+      currency: normaliseBookingCurrency(vehicle.currency),
       price: vehicle.price,
       chauffeur_price: vehicle.chauffeur_price,
       day_rates: vehicle.day_rates,

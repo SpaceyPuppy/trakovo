@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { getMsAccessToken } from '@/lib/calendar'
+import { getMicrosoftAccessToken } from '@/lib/microsoft-token'
 
 export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const token = await getMsAccessToken()
+  const token = await getMicrosoftAccessToken()
   if (!token) return NextResponse.json({ calendars: [] })
 
   try {

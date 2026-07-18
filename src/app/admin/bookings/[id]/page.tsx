@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { unstable_cache } from 'next/cache'
+import { cache } from 'react'
 import { queryOne, query } from '@/lib/db'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import BookingStatusUpdater from '../BookingStatusUpdater'
@@ -15,39 +17,166 @@ export const revalidate = 0
 
 interface Props { params: { id: string } }
 
+interface BookingDetailRow {
+  id: string; public_id: string; status: string; hire_type: string; service_type: string | null;
+  is_enquiry: number; enquiry_status: string | null; start_date: string; end_date: string; total_days: number;
+  daily_rate: number; total_cost: number; contact_name: string | null;
+  contact_email: string; contact_phone: string; driver_name: string | null;
+  driver_dob: string | null; driver_licence_number: string | null;
+  driver_licence_expiry: string | null; id_document_path: string | null;
+  licence_document_path: string | null; driver_id: string | null;
+  vendor_id: string | null;
+  created_at: Date; vehicle_name: string | null;
+}
+
+interface BookingAuxiliaryRow {
+  note_id: string | null
+  note_text: string | null
+  note_author: string | null
+  note_created_at: Date | null
+  invoice_id: string | null
+  invoice_public_id: string | null
+  invoice_status: string | null
+  invoice_type: string | null
+  invoice_balance_due: number | null
+}
+
+const getBooking = cache((id: string) => queryOne<BookingDetailRow>(
+  `SELECT
+     b.id,
+     b.public_id,
+     b.status,
+     b.hire_type,
+     b.service_type,
+     b.is_enquiry,
+     b.enquiry_status,
+     b.start_date,
+     b.end_date,
+     b.total_days,
+     b.daily_rate,
+     b.total_cost,
+     b.contact_name,
+     b.contact_email,
+     b.contact_phone,
+     b.driver_name,
+     b.driver_dob,
+     b.driver_licence_number,
+     b.driver_licence_expiry,
+     b.id_document_path,
+     b.licence_document_path,
+     b.driver_id,
+     b.vendor_id,
+     b.created_at,
+     v.name AS vehicle_name
+   FROM Booking b
+   LEFT JOIN Vehicle v ON b.vehicle_id = v.id
+   WHERE b.id = ?
+   LIMIT 1`,
+  [id]
+))
+
+// Driver choices change infrequently, while opening several booking tabs is a common
+// workflow. A short shared cache removes one identical query from every detail page.
+const getActiveDrivers = unstable_cache(
+  () => query<{ id: string; name: string }>(
+    'SELECT id, name FROM Driver WHERE is_active = 1 ORDER BY name ASC'
+  ),
+  ['admin-active-drivers'],
+  { revalidate: 30 }
+)
+
+async function getBookingAuxiliaryData(id: string) {
+  try {
+    // The seed row keeps invoice data available even when a booking has no notes.
+    // Joining both optional sections makes the normal detail path two SQL queries.
+    return await query<BookingAuxiliaryRow>(
+      `SELECT
+         n.id AS note_id,
+         n.text AS note_text,
+         n.author AS note_author,
+         n.created_at AS note_created_at,
+         i.id AS invoice_id,
+         i.public_id AS invoice_public_id,
+         i.status AS invoice_status,
+         i.invoice_type AS invoice_type,
+         i.balance_due AS invoice_balance_due
+       FROM (SELECT 1 AS seed) seed
+       LEFT JOIN BookingNote n ON n.booking_id = ?
+       LEFT JOIN InvoiceLine il ON il.booking_claim = ?
+       LEFT JOIN Invoice i ON i.id = il.invoice_id
+       ORDER BY n.created_at ASC`,
+      [id, id]
+    )
+  } catch (error) {
+    // Invoice is an optional module and may not have been deployed yet. Keep the
+    // core booking page usable, and make a best effort to retain internal notes.
+    console.error('[admin-booking-detail] Optional invoice data unavailable', error)
+    try {
+      const notes = await query<{
+        id: string; text: string; author: string; created_at: Date
+      }>(
+        'SELECT id, text, author, created_at FROM BookingNote WHERE booking_id = ? ORDER BY created_at ASC',
+        [id]
+      )
+      return notes.map((note) => ({
+        note_id: note.id,
+        note_text: note.text,
+        note_author: note.author,
+        note_created_at: note.created_at,
+        invoice_id: null,
+        invoice_public_id: null,
+        invoice_status: null,
+        invoice_type: null,
+        invoice_balance_due: null,
+      }))
+    } catch (notesError) {
+      console.error('[admin-booking-detail] Optional notes data unavailable', notesError)
+      return []
+    }
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const booking = await queryOne<{ public_id: string }>('SELECT public_id FROM Booking WHERE id = ? LIMIT 1', [params.id])
+  const booking = await getBooking(params.id)
   return { title: booking ? `Booking ${booking.public_id}` : 'Booking' }
 }
 
 export default async function BookingDetailPage({ params }: Props) {
-  const [booking, activeDrivers, notes, invoice] = await Promise.all([
-    queryOne<{
-      id: string; public_id: string; status: string; hire_type: string; service_type: string | null;
-      is_enquiry: number; enquiry_status: string | null; start_date: string; end_date: string; total_days: number;
-      daily_rate: number; total_cost: number; contact_name: string | null;
-      contact_email: string; contact_phone: string; driver_name: string | null;
-      driver_dob: string | null; driver_licence_number: string | null;
-      driver_licence_expiry: string | null; id_document_path: string | null;
-      licence_document_path: string | null; driver_id: string | null;
-      created_at: Date; vehicle_name: string | null;
-    }>(
-      'SELECT b.*, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.id = ? LIMIT 1',
-      [params.id]
-    ),
-    query<{ id: string; name: string }>(
-      'SELECT id, name FROM Driver WHERE is_active = 1 ORDER BY name ASC'
-    ),
-    query<{ id: string; text: string; author: string; created_at: Date }>(
-      'SELECT id, text, author, created_at FROM BookingNote WHERE booking_id = ? ORDER BY created_at ASC',
-      [params.id]
-    ),
-    queryOne<{ id: string; public_id: string; status: string }>(
-      'SELECT id, public_id, status FROM Invoice WHERE booking_id = ? LIMIT 1',
-      [params.id]
-    ),
-  ])
+  const booking = await getBooking(params.id)
   if (!booking) notFound()
+
+  const [driversResult, auxiliaryResult] = await Promise.allSettled([
+    getActiveDrivers(),
+    getBookingAuxiliaryData(params.id),
+  ])
+  const activeDrivers = driversResult.status === 'fulfilled' ? driversResult.value : []
+  if (driversResult.status === 'rejected') {
+    console.error('[admin-booking-detail] Driver choices unavailable', driversResult.reason)
+  }
+  const auxiliaryRows = auxiliaryResult.status === 'fulfilled' ? auxiliaryResult.value : []
+  if (auxiliaryResult.status === 'rejected') {
+    console.error('[admin-booking-detail] Optional booking data unavailable', auxiliaryResult.reason)
+  }
+  const notes = auxiliaryRows
+    .filter((row): row is BookingAuxiliaryRow & { note_id: string; note_text: string; note_author: string; note_created_at: Date } => (
+      row.note_id !== null && row.note_text !== null && row.note_author !== null && row.note_created_at !== null
+    ))
+    .map((row) => ({
+      id: row.note_id,
+      text: row.note_text,
+      author: row.note_author,
+      created_at: row.note_created_at,
+    }))
+  const invoiceRow = auxiliaryRows.find((row) => row.invoice_id !== null)
+  const invoice = invoiceRow?.invoice_id && invoiceRow.invoice_public_id && invoiceRow.invoice_status && invoiceRow.invoice_type
+    ? {
+        id: invoiceRow.invoice_id,
+        public_id: invoiceRow.invoice_public_id,
+        status: invoiceRow.invoice_status,
+        invoice_type: invoiceRow.invoice_type,
+        balance_due: Number(invoiceRow.invoice_balance_due ?? 0),
+      }
+    : null
 
   const isDryHire = booking.hire_type === 'dry-hire'
   const isEnquiry = Boolean(booking.is_enquiry)
@@ -184,7 +313,12 @@ export default async function BookingDetailPage({ params }: Props) {
         />
 
         {/* Invoice */}
-        <BookingInvoiceSection bookingId={booking.id} invoice={invoice} />
+        <BookingInvoiceSection
+          bookingId={booking.id}
+          bookingStatus={booking.status}
+          vendorId={booking.vendor_id}
+          invoice={invoice}
+        />
 
         {/* Internal notes */}
         <BookingNotes

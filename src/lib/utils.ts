@@ -10,6 +10,16 @@ export function formatCurrency(amount: number, currency = 'AUD'): string {
   }).format(amount)
 }
 
+/** Format an integer minor-unit amount (for example cents) for billing UI. */
+export function formatCurrencyCents(amountCents: number, currency = 'AUD'): string {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amountCents / 100)
+}
+
 export function formatDate(date: Date | string, opts?: Intl.DateTimeFormatOptions): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return d.toLocaleDateString('en-AU', opts ?? { day: 'numeric', month: 'long', year: 'numeric' })

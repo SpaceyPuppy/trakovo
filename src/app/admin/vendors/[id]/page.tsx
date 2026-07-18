@@ -14,8 +14,8 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function AdminVendorDetailPage({ params }: { params: { id: string } }) {
   const [rawVendor, allVehicles] = await Promise.all([
-    queryOne<{ id: string; name: string; public_id: string; username: string; contact_email: string; contact_phone: string; is_active: number; taxi_enabled: number; vehicle_hire_enabled: number }>(
-      'SELECT id, name, public_id, username, contact_email, contact_phone, is_active, taxi_enabled, vehicle_hire_enabled FROM Vendor WHERE id = ? LIMIT 1',
+    queryOne<{ id: string; name: string; public_id: string; username: string; contact_email: string; contact_phone: string; is_active: number; taxi_enabled: number; vehicle_hire_enabled: number; billing_name: string; billing_email: string; billing_address: string | null; billing_abn: string; billing_currency: string; billing_terms_days: number; billing_enabled: number }>(
+      'SELECT id, name, public_id, username, contact_email, contact_phone, is_active, taxi_enabled, vehicle_hire_enabled, billing_name, billing_email, billing_address, billing_abn, billing_currency, billing_terms_days, billing_enabled FROM Vendor WHERE id = ? LIMIT 1',
       [params.id]
     ),
     adminGetVehicles(),
@@ -30,7 +30,7 @@ export default async function AdminVendorDetailPage({ params }: { params: { id: 
     ),
     query<{ id: string; name: string; email: string; phone: string; reference: string }>('SELECT id, name, email, phone, reference FROM VendorClient WHERE vendor_id = ? AND is_active = 1 ORDER BY name ASC LIMIT 50', [params.id]),
     query<{ id: string; public_id: string; status: string; start_date: string; end_date: string; vehicle_name?: string; vendor_client_name?: string; [k: string]: unknown }>(
-      'SELECT b.id, b.public_id, b.status, b.start_date, b.end_date, b.total_cost, b.created_at, v.name as vehicle_name, vc.name as vendor_client_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.vendor_id = ? ORDER BY b.created_at DESC LIMIT 20',
+      'SELECT b.id, b.public_id, b.status, b.start_date, b.end_date, b.total_cost, b.contact_name, b.created_at, v.name as vehicle_name, vc.name as vendor_client_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id WHERE b.vendor_id = ? ORDER BY b.created_at DESC LIMIT 20',
       [params.id]
     ),
     queryOne<{ count: number }>('SELECT COUNT(*) as count FROM Booking WHERE vendor_id = ?', [params.id]),
@@ -52,6 +52,7 @@ export default async function AdminVendorDetailPage({ params }: { params: { id: 
     is_active: Boolean(rawVendor.is_active),
     taxi_enabled: Boolean(rawVendor.taxi_enabled),
     vehicle_hire_enabled: Boolean(rawVendor.vehicle_hire_enabled),
+    billing_enabled: Boolean(rawVendor.billing_enabled),
     vehicles: vendorVehicles.map((vv) => ({
       vendor_id: vv.vendor_id,
       vehicle_id: vv.vehicle_id,

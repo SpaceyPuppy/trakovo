@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
-import { getAdminSession } from '@/lib/auth'
-import { generatePublicId } from '@/lib/db'
+import { withAdminApi } from '@/lib/api-route'
+import { previewPublicId } from '@/lib/db'
 
-export async function GET() {
-  const session = await getAdminSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
-  const public_id = await generatePublicId('VHC')
+export const GET = withAdminApi(async () => {
+  const public_id = await previewPublicId('VHC')
   return NextResponse.json({ public_id })
-}
+})

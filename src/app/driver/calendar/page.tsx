@@ -12,6 +12,10 @@ export default async function DriverCalendarPage() {
   const session = await getDriverSession()
   if (!session) redirect('/driver/login')
 
+  const today = new Date()
+  const windowStart = new Date(Date.UTC(today.getFullYear(), today.getMonth() - 12, 1)).toISOString().slice(0, 10)
+  const windowEnd = new Date(Date.UTC(today.getFullYear(), today.getMonth() + 25, 0)).toISOString().slice(0, 10)
+
   // Drivers see full operational details for their own assigned bookings only.
   const bookings = await query<{
     id: string
@@ -27,8 +31,11 @@ export default async function DriverCalendarPage() {
      FROM Booking b
      LEFT JOIN Vehicle v ON b.vehicle_id = v.id
      WHERE b.driver_id = ?
-     ORDER BY b.start_date ASC`,
-    [session.driverId]
+       AND b.start_date <= ?
+       AND b.end_date >= ?
+     ORDER BY b.start_date ASC
+     LIMIT 5000`,
+    [session.driverId, windowEnd, windowStart]
   )
 
   const events: CalendarEvent[] = bookings.map(b => ({
@@ -47,7 +54,7 @@ export default async function DriverCalendarPage() {
         <h1 className="font-display font-bold text-[26px] tracking-tight">Calendar</h1>
         <p className="text-[14px] text-ink-3 mt-0.5">Your assigned trips.</p>
       </div>
-      <CalendarView events={events} />
+      <CalendarView events={events} minMonth={windowStart} maxMonth={windowEnd} />
     </div>
   )
 }

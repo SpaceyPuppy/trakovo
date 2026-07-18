@@ -1,180 +1,286 @@
 import Link from 'next/link'
+import { cache } from 'react'
 import { notFound } from 'next/navigation'
-import { queryOne } from '@/lib/db'
-import { formatCurrency } from '@/lib/utils'
-import InvoiceActions from './InvoiceActions'
 import type { Metadata } from 'next'
+import { BillingError, getInvoice } from '@/lib/billing'
+import { formatCurrencyCents } from '@/lib/utils'
+import InvoiceActions from './InvoiceActions'
 
 export const revalidate = 0
 
 interface Props { params: { id: string } }
 
+interface InvoiceDetail {
+  id: string
+  public_id: string
+  billing_run_id: string | null
+  booking_id: string | null
+  vendor_id: string | null
+  vendor_name: string | null
+  invoice_type: string
+  status: string
+  currency: string
+  issuer_name: string
+  issuer_abn: string
+  issuer_email: string
+  issuer_phone: string
+  issuer_address: string | null
+  recipient_name: string
+  recipient_abn: string
+  recipient_email: string
+  recipient_phone: string
+  recipient_address: string | null
+  issue_date: string | null
+  due_date: string | null
+  payment_terms_days: number
+  tax_mode: string
+  tax_rate_bps: number
+  subtotal_amount: number
+  tax_amount: number
+  total_amount: number
+  amount_paid: number
+  balance_due: number
+  notes: string | null
+  issued_at: string | null
+  paid_at: string | null
+  voided_at: string | null
+  created_at: string
+}
+
+interface InvoiceLine {
+  id: string
+  booking_id: string
+  booking_public_id: string | null
+  description: string
+  service_start: string
+  service_end: string
+  quantity: number
+  unit_amount: number
+  subtotal_amount: number
+  tax_amount: number
+  total_amount: number
+  sort_order: number
+}
+
+interface InvoicePayment {
+  id: string
+  amount: number
+  currency: string
+  payment_date: string
+  method: string
+  reference: string | null
+  notes: string | null
+  status: string
+  created_by: string
+  created_at: string
+}
+
+interface InvoiceEvent {
+  id: string
+  event_type: string
+  actor: string
+  details: string | null
+  created_at: string
+}
+
+const loadInvoice = cache(getInvoice)
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const inv = await queryOne<{ public_id: string }>('SELECT public_id FROM Invoice WHERE id = ? LIMIT 1', [params.id])
-  return { title: inv ? `Invoice ${inv.public_id}` : 'Invoice' }
+  try {
+    const result = await loadInvoice(params.id)
+    const invoice = result.invoice as unknown as InvoiceDetail
+    return { title: `Invoice ${invoice.public_id}` }
+  } catch {
+    return { title: 'Invoice' }
+  }
+}
+
+function formatDate(value: string | null, long = true): string {
+  if (!value) return '—'
+  return new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString('en-AU', long
+    ? { day: 'numeric', month: 'long', year: 'numeric' }
+    : { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  draft: 'bg-bg text-ink-3 border-border',
+  issued: 'bg-blue-50 text-blue-700 border-blue-200',
+  part_paid: 'bg-amber-50 text-amber-800 border-amber-200',
+  paid: 'bg-success-bg text-success border-success/30',
+  void: 'bg-red-50 text-red-600 border-red-200',
 }
 
 export default async function InvoiceDetailPage({ params }: Props) {
-  const [inv, siteSetting] = await Promise.all([
-    queryOne<{
-      id: string; public_id: string; booking_id: string; amount: number; currency: string;
-      status: string; due_date: string | null; paid_at: Date | string | null; notes: string | null;
-      created_at: Date | string;
-      booking_public_id: string; contact_name: string | null; contact_email: string; contact_phone: string;
-      hire_type: string; service_type: string | null; start_date: string; end_date: string;
-      total_days: number; daily_rate: number; total_cost: number;
-      vehicle_name: string | null; vendor_name: string | null; vendor_email: string | null;
-    }>(
-      `SELECT i.id, i.public_id, i.booking_id, i.amount, i.currency, i.status,
-              i.due_date, i.paid_at, i.notes, i.created_at,
-              b.public_id as booking_public_id, b.contact_name, b.contact_email, b.contact_phone,
-              b.hire_type, b.service_type, b.start_date, b.end_date,
-              b.total_days, b.daily_rate, b.total_cost,
-              v.name as vehicle_name, ve.name as vendor_name, ve.contact_email as vendor_email
-       FROM Invoice i
-       JOIN Booking b ON i.booking_id = b.id
-       LEFT JOIN Vehicle v ON b.vehicle_id = v.id
-       LEFT JOIN Vendor ve ON b.vendor_id = ve.id
-       WHERE i.id = ? LIMIT 1`,
-      [params.id]
-    ),
-    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = \'site_name\' LIMIT 1'),
-  ])
-
-  if (!inv) notFound()
-
-  const siteName = siteSetting?.value ?? process.env.NEXT_PUBLIC_SITE_NAME ?? 'Trakovo'
-
-  const createdAt = inv.created_at instanceof Date ? inv.created_at : new Date(String(inv.created_at))
-  const paidAt = inv.paid_at ? (inv.paid_at instanceof Date ? inv.paid_at : new Date(String(inv.paid_at))) : null
-
-  function fmtDate(d: string) {
-    return new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+  let result: Awaited<ReturnType<typeof getInvoice>>
+  try {
+    result = await loadInvoice(params.id)
+  } catch (error) {
+    if (error instanceof BillingError && error.status === 404) notFound()
+    throw error
   }
 
-  const isVendor = !!inv.vendor_name
-  const recipientName = isVendor ? inv.vendor_name! : (inv.contact_name ?? '—')
-  const recipientEmail = isVendor ? inv.vendor_email : inv.contact_email
-
-  const STATUS_STYLES: Record<string, string> = {
-    draft: 'bg-bg text-ink-3 border-border',
-    sent:  'bg-blue-50 text-blue-700 border-blue-200',
-    paid:  'bg-success-bg text-success border-success/30',
-    void:  'bg-red-50 text-red-500 border-red-200',
-  }
-
-  const hireLabel = inv.service_type === 'taxi' ? 'Taxi' : inv.hire_type.replace('-', ' ')
+  const invoice = result.invoice as unknown as InvoiceDetail
+  const lines = result.lines as unknown as InvoiceLine[]
+  const payments = result.payments as unknown as InvoicePayment[]
+  const events = result.events as unknown as InvoiceEvent[]
+  const displayIssueDate = invoice.issue_date ?? invoice.created_at.slice(0, 10)
 
   return (
-    <div className="px-10 py-10">
-      {/* Back + actions — hidden on print */}
+    <div className="px-5 py-8 md:px-10 md:py-10">
       <div className="flex items-center justify-between gap-4 mb-8 print:hidden flex-wrap">
-        <Link href="/admin/invoices" className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink transition-colors">
-          ← Back to Invoices
+        <Link href="/admin/invoices" className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink">
+          ← Back to Billing &amp; Invoices
         </Link>
-        <InvoiceActions invoiceId={inv.id} status={inv.status} />
+        <InvoiceActions
+          invoiceId={invoice.id}
+          status={invoice.status}
+          balanceDue={invoice.balance_due}
+          currency={invoice.currency}
+          dueDate={invoice.due_date}
+        />
       </div>
 
-      {/* Invoice card */}
-      <div className="bg-white border border-border rounded-xl overflow-hidden max-w-[760px] print:border-none print:shadow-none print:max-w-full">
-        {/* Header bar */}
-        <div className="bg-slate px-8 py-6 print:bg-white print:border-b print:border-border">
+      <div className="bg-white border border-border rounded-xl overflow-hidden max-w-[900px] print:border-none print:max-w-full">
+        <div className="bg-slate px-6 py-6 md:px-8 print:bg-white print:border-b print:border-border">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-display font-extrabold text-[22px] tracking-tight text-white print:text-ink">{siteName}</p>
-              <p className="text-[13px] text-white/50 print:text-ink-3 mt-0.5 capitalize">{hireLabel} Hire Services</p>
+              <p className="font-display font-extrabold text-[22px] tracking-tight text-white print:text-ink">{invoice.issuer_name}</p>
+              {invoice.issuer_abn && <p className="text-[12px] text-white/60 print:text-ink-3 mt-1">ABN {invoice.issuer_abn}</p>}
+              {invoice.issuer_email && <p className="text-[12px] text-white/60 print:text-ink-3">{invoice.issuer_email}</p>}
             </div>
             <div className="text-right">
-              <p className="font-mono font-bold text-accent text-[18px]">{inv.public_id}</p>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize mt-1 ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.draft}`}>
-                {inv.status}
+              <p className="font-mono font-bold text-accent text-[18px]">{invoice.public_id}</p>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize mt-1 ${STATUS_STYLES[invoice.status] ?? STATUS_STYLES.draft}`}>
+                {invoice.status.replace('_', ' ')}
               </span>
             </div>
           </div>
         </div>
 
-        <div className="px-8 py-7 space-y-7">
-          {/* Meta row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-[13px]">
+        <div className="px-5 py-6 md:px-8 md:py-7 space-y-7">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-[13px]">
             <div>
-              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Invoice Date</p>
-              <p className="font-medium">{createdAt.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Invoice date</p>
+              <p className="font-medium">{formatDate(displayIssueDate)}</p>
             </div>
             <div>
-              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Due Date</p>
-              <p className="font-medium">{inv.due_date ? fmtDate(inv.due_date) : '—'}</p>
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Due date</p>
+              <p className="font-medium">{formatDate(invoice.due_date)}</p>
             </div>
             <div>
-              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Booking Ref</p>
-              <p className="font-mono font-bold text-accent">{inv.booking_public_id}</p>
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Terms</p>
+              <p className="font-medium">{invoice.payment_terms_days} days</p>
             </div>
-            {paidAt && (
-              <div>
-                <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Paid</p>
-                <p className="font-medium text-success">{paidAt.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            <div>
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Type</p>
+              <p className="font-medium capitalize">{invoice.invoice_type} invoice</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Bill to</p>
+              <div className="bg-bg rounded-lg px-4 py-3 text-[13.5px] space-y-0.5 min-h-[92px]">
+                <p className="font-semibold text-ink">{invoice.recipient_name}</p>
+                {invoice.recipient_abn && <p className="text-ink-3">ABN {invoice.recipient_abn}</p>}
+                {invoice.recipient_email && <p className="text-ink-3">{invoice.recipient_email}</p>}
+                {invoice.recipient_phone && <p className="text-ink-3">{invoice.recipient_phone}</p>}
+                {invoice.recipient_address && <p className="text-ink-3 whitespace-pre-line">{invoice.recipient_address}</p>}
               </div>
-            )}
-          </div>
-
-          {/* Recipient */}
-          <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Bill To</p>
-            <div className="bg-bg rounded-lg px-4 py-3 text-[13.5px] space-y-0.5">
-              <p className="font-semibold text-ink">{recipientName}</p>
-              {recipientEmail && <p className="text-ink-3">{recipientEmail}</p>}
-              {!isVendor && inv.contact_phone && <p className="text-ink-3">{inv.contact_phone}</p>}
+            </div>
+            <div>
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Payment summary</p>
+              <div className="bg-bg rounded-lg px-4 py-3 text-[13.5px] min-h-[92px] space-y-1">
+                <p className="flex justify-between gap-4"><span className="text-ink-3">Invoice total</span><strong>{formatCurrencyCents(invoice.total_amount, invoice.currency)}</strong></p>
+                <p className="flex justify-between gap-4"><span className="text-ink-3">Paid</span><strong className="text-success">{formatCurrencyCents(invoice.amount_paid, invoice.currency)}</strong></p>
+                <p className="flex justify-between gap-4 border-t border-border pt-1">
+                  <span className="font-semibold">Balance due</span>
+                  <strong>{invoice.status === 'void' ? 'Void — not payable' : formatCurrencyCents(invoice.balance_due, invoice.currency)}</strong>
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Line items */}
           <div>
             <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Services</p>
-            <table className="w-full text-[13.5px]">
-              <thead>
-                <tr className="border-b border-border text-ink-4 text-[11px] font-semibold uppercase tracking-wider">
-                  <th className="text-left py-2">Description</th>
-                  <th className="text-right py-2">Qty</th>
-                  <th className="text-right py-2">Rate</th>
-                  <th className="text-right py-2">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-border/50">
-                  <td className="py-3 pr-4">
-                    <p className="font-medium text-ink">
-                      {inv.vehicle_name ?? (inv.service_type === 'taxi' ? 'Taxi Service' : 'Vehicle Hire')}
-                    </p>
-                    <p className="text-[12px] text-ink-3 mt-0.5 capitalize">
-                      {hireLabel} · {fmtDate(inv.start_date)} → {fmtDate(inv.end_date)}
-                    </p>
-                  </td>
-                  <td className="py-3 text-right text-ink-3">{inv.total_days} day{inv.total_days !== 1 ? 's' : ''}</td>
-                  <td className="py-3 text-right text-ink-3">{formatCurrency(inv.daily_rate, inv.currency)}/day</td>
-                  <td className="py-3 text-right font-semibold">{formatCurrency(inv.total_cost, inv.currency)}</td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={3} className="pt-4 text-right font-semibold text-[14px] pr-4">Total</td>
-                  <td className="pt-4 text-right font-bold text-[16px]">{formatCurrency(inv.amount, inv.currency)}</td>
-                </tr>
-              </tfoot>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[650px] text-[13.5px]">
+                <thead>
+                  <tr className="border-b border-border text-ink-4 text-[11px] font-semibold uppercase tracking-wider">
+                    <th className="text-left py-2">Description</th>
+                    <th className="text-left py-2">Service dates</th>
+                    <th className="text-right py-2">Subtotal</th>
+                    <th className="text-right py-2">Tax</th>
+                    <th className="text-right py-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map(line => (
+                    <tr key={line.id} className="border-b border-border/60 align-top">
+                      <td className="py-3 pr-4">
+                        <p className="font-medium text-ink">{line.description}</p>
+                        {line.booking_id && (
+                          <Link href={`/admin/bookings/${line.booking_id}`} className="font-mono text-[11.5px] text-accent hover:underline">
+                            {line.booking_public_id || 'View booking'}
+                          </Link>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-ink-3 whitespace-nowrap">{formatDate(line.service_start, false)} – {formatDate(line.service_end, false)}</td>
+                      <td className="py-3 text-right">{formatCurrencyCents(line.subtotal_amount, invoice.currency)}</td>
+                      <td className="py-3 text-right">{formatCurrencyCents(line.tax_amount, invoice.currency)}</td>
+                      <td className="py-3 text-right font-semibold">{formatCurrencyCents(line.total_amount, invoice.currency)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="text-[13.5px]">
+                  <tr><td colSpan={4} className="pt-3 text-right text-ink-3 pr-4">Subtotal</td><td className="pt-3 text-right">{formatCurrencyCents(invoice.subtotal_amount, invoice.currency)}</td></tr>
+                  {invoice.tax_amount > 0 && <tr><td colSpan={4} className="pt-1 text-right text-ink-3 pr-4">GST included ({invoice.tax_rate_bps / 100}%)</td><td className="pt-1 text-right">{formatCurrencyCents(invoice.tax_amount, invoice.currency)}</td></tr>}
+                  <tr><td colSpan={4} className="pt-2 text-right font-bold pr-4">Total</td><td className="pt-2 text-right font-bold text-[16px]">{formatCurrencyCents(invoice.total_amount, invoice.currency)}</td></tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
 
-          {/* Notes */}
-          {inv.notes && (
+          {invoice.notes && (
             <div>
               <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Notes</p>
-              <p className="text-[13.5px] text-ink-3 leading-[1.6] whitespace-pre-wrap">{inv.notes}</p>
+              <p className="text-[13.5px] text-ink-3 leading-[1.6] whitespace-pre-wrap">{invoice.notes}</p>
             </div>
           )}
 
-          {/* Void watermark */}
-          {inv.status === 'void' && (
-            <div className="text-center py-4">
-              <span className="text-[40px] font-extrabold text-red-200 tracking-[0.2em] uppercase">VOID</span>
+          {payments.length > 0 && (
+            <div className="print:hidden">
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Payments</p>
+              <div className="border border-border rounded-lg overflow-hidden">
+                {payments.map(payment => (
+                  <div key={payment.id} className="flex flex-wrap justify-between gap-3 px-4 py-3 border-b border-border last:border-0 text-[12.5px]">
+                    <div>
+                      <p className="font-semibold capitalize">{payment.method.replace('_', ' ')} · {formatDate(payment.payment_date, false)}</p>
+                      <p className="text-ink-4">{payment.reference || 'No reference'}{payment.notes ? ` · ${payment.notes}` : ''}</p>
+                    </div>
+                    <p className="font-bold text-success">{formatCurrencyCents(payment.amount, payment.currency)}</p>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          {events.length > 0 && (
+            <details className="print:hidden border-t border-border pt-4 text-[12px] text-ink-4">
+              <summary className="cursor-pointer font-semibold text-ink-3">Audit trail ({events.length})</summary>
+              <ol className="mt-3 space-y-2">
+                {events.map(event => (
+                  <li key={event.id} className="flex flex-wrap justify-between gap-3">
+                    <span className="capitalize">{event.event_type.replaceAll('_', ' ')} · {event.actor}</span>
+                    <time>{new Date(event.created_at).toLocaleString('en-AU')}</time>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          )}
+
+          {invoice.status === 'void' && (
+            <div className="text-center py-4"><span className="text-[40px] font-extrabold text-red-200 tracking-[0.2em]">VOID</span></div>
           )}
         </div>
       </div>

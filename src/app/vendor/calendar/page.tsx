@@ -12,6 +12,10 @@ export default async function VendorCalendarPage() {
   const session = await getVendorSession()
   if (!session) redirect('/vendor/login')
 
+  const today = new Date()
+  const windowStart = new Date(Date.UTC(today.getFullYear(), today.getMonth() - 12, 1)).toISOString().slice(0, 10)
+  const windowEnd = new Date(Date.UTC(today.getFullYear(), today.getMonth() + 25, 0)).toISOString().slice(0, 10)
+
   // Deliberately select only non-PII fields from Booking.
   // vendor_client_name is the vendor's own customer name (entered by the vendor) — safe to show.
   // contact_name / contact_email / contact_phone are NOT selected.
@@ -31,8 +35,11 @@ export default async function VendorCalendarPage() {
      LEFT JOIN Vehicle v ON b.vehicle_id = v.id
      LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id
      WHERE b.vendor_id = ?
-     ORDER BY b.start_date ASC`,
-    [session.vendorId]
+       AND b.start_date <= ?
+       AND b.end_date >= ?
+     ORDER BY b.start_date ASC
+     LIMIT 5000`,
+    [session.vendorId, windowEnd, windowStart]
   )
 
   const events: CalendarEvent[] = bookings.map(b => ({
@@ -51,7 +58,7 @@ export default async function VendorCalendarPage() {
         <h1 className="font-display font-bold text-[26px] tracking-tight">Calendar</h1>
         <p className="text-[14px] text-ink-3 mt-0.5">Your booking schedule.</p>
       </div>
-      <CalendarView events={events} />
+      <CalendarView events={events} minMonth={windowStart} maxMonth={windowEnd} />
     </div>
   )
 }

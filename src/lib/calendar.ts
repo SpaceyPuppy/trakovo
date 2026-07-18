@@ -1,5 +1,6 @@
 import { queryOne, execute } from './db'
 import { getSiteName } from './site'
+import { getMicrosoftAccessToken } from './microsoft-token'
 
 // MS Graph category colours
 const MS_STATUS_CATEGORY: Record<string, string> = {
@@ -20,61 +21,7 @@ function nextDay(date: string): string {
   return `${y}-${m}-${day}`
 }
 
-async function upsertSetting(key: string, value: string) {
-  await execute(
-    'INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()',
-    [key, value]
-  )
-}
-
 // ─── Microsoft Graph Calendar ─────────────────────────────────────────────────
-
-export async function getMsAccessToken(): Promise<string | null> {
-  const [tokenRow, expiryRow, refreshRow] = await Promise.all([
-    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_access_token']),
-    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_token_expiry']),
-    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_refresh_token']),
-  ])
-  if (!tokenRow?.value || !refreshRow?.value) return null
-
-  const expiry = expiryRow?.value ? new Date(expiryRow.value) : new Date(0)
-  const needsRefresh = Date.now() > expiry.getTime() - 5 * 60 * 1000
-
-  if (!needsRefresh) return tokenRow.value
-
-  const tenantId = process.env.MS_TENANT_ID
-  if (!tenantId) return null
-
-  try {
-    const res = await fetch(
-      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          client_id: process.env.MS_CLIENT_ID!,
-          client_secret: process.env.MS_CLIENT_SECRET!,
-          refresh_token: refreshRow.value,
-          scope: 'Mail.Send User.Read Calendars.ReadWrite offline_access',
-        }),
-      }
-    )
-    if (!res.ok) return null
-    const data = await res.json()
-    const newExpiry = new Date(Date.now() + data.expires_in * 1000).toISOString()
-
-    await Promise.all([
-      upsertSetting('ms_access_token', data.access_token),
-      upsertSetting('ms_token_expiry', newExpiry),
-      // Refresh token may rotate — update if a new one is provided
-      ...(data.refresh_token ? [upsertSetting('ms_refresh_token', data.refresh_token)] : []),
-    ])
-    return data.access_token
-  } catch {
-    return null
-  }
-}
 
 // ─── Sync booking to Microsoft 365 Calendar ───────────────────────────────────
 
@@ -113,7 +60,7 @@ export async function syncBookingToCalendar(bookingId: string): Promise<void> {
   ].join('\n')
 
   const [msToken, calendarRow] = await Promise.all([
-    getMsAccessToken(),
+    getMicrosoftAccessToken(),
     queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_calendar_id']),
   ])
   if (!msToken) return
@@ -191,7 +138,7 @@ export async function deleteCalendarEvent(bookingId: string): Promise<void> {
   )
   if (!booking?.ms_event_id) return
 
-  const msToken = await getMsAccessToken()
+  const msToken = await getMicrosoftAccessToken()
   if (!msToken) return
 
   try {

@@ -6,56 +6,23 @@
  */
 import { NextResponse } from 'next/server'
 import { getVendorSession } from '@/lib/vendor-auth'
-import { query } from '@/lib/db'
+import {
+  getBookingCalendarWindow,
+  getVendorBookingCalendarData,
+} from '@/lib/vendor-booking-calendar'
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getVendorSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  // Fetch all bookings with a vehicle that are active (not cancelled/enquiry)
-  const bookings = await query<{
-    vehicle_id: string
-    vehicle_name: string
-    start_date: string
-    end_date: string
-    status: string
-  }>(
-    `SELECT b.vehicle_id, v.name AS vehicle_name, b.start_date, b.end_date, b.status
-     FROM Booking b
-     JOIN Vehicle v ON b.vehicle_id = v.id
-     WHERE b.vehicle_id IS NOT NULL
-       AND b.status NOT IN ('cancelled', 'enquiry')
-     ORDER BY b.start_date ASC`,
-    []
-  )
-
-  // Also include per-vehicle blockouts as synthetic unavailability entries
-  const blockouts = await query<{
-    vehicle_id: string
-    vehicle_name: string
-    start_date: string
-    end_date: string
-  }>(
-    `SELECT vb.vehicle_id, v.name AS vehicle_name, vb.start_date, vb.end_date
-     FROM VehicleBlockout vb
-     JOIN Vehicle v ON vb.vehicle_id = v.id
-     WHERE vb.vehicle_id IS NOT NULL`,
-    []
-  )
-
-  return NextResponse.json({
-    bookings: bookings.map(b => ({
-      vehicle_id: b.vehicle_id,
-      vehicle_name: b.vehicle_name,
-      start_date: typeof b.start_date === 'string' ? b.start_date : new Date(b.start_date).toISOString().slice(0, 10),
-      end_date: typeof b.end_date === 'string' ? b.end_date : new Date(b.end_date).toISOString().slice(0, 10),
-      status: b.status,
-    })),
-    blockouts: blockouts.map(b => ({
-      vehicle_id: b.vehicle_id,
-      vehicle_name: b.vehicle_name,
-      start_date: typeof b.start_date === 'string' ? b.start_date : new Date(b.start_date).toISOString().slice(0, 10),
-      end_date: typeof b.end_date === 'string' ? b.end_date : new Date(b.end_date).toISOString().slice(0, 10),
-    })),
-  })
+  try {
+    const window = getBookingCalendarWindow(req.url)
+    return NextResponse.json(await getVendorBookingCalendarData(session.vendorId, window))
+  } catch (error) {
+    if (error instanceof RangeError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    console.error('[vendor-booking-availability]', error)
+    return NextResponse.json({ error: 'Unable to load availability' }, { status: 500 })
+  }
 }

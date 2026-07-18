@@ -107,19 +107,35 @@ function placeEventsInWeek(week: Date[], events: CalendarEvent[]): PlacedEvent[]
   return placed
 }
 
-export default function CalendarView({ events }: { events: CalendarEvent[] }) {
+interface CalendarViewProps {
+  events: CalendarEvent[]
+  minMonth?: string
+  maxMonth?: string
+}
+
+function monthIndex(value: string): number {
+  const [year, month] = value.slice(0, 7).split('-').map(Number)
+  return year * 12 + month - 1
+}
+
+export default function CalendarView({ events, minMonth, maxMonth }: CalendarViewProps) {
   const today = new Date()
   const [year, setYear]   = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const todayYMD = toYMD(today)
+  const currentMonthIndex = year * 12 + month
+  const canGoPrevious = !minMonth || currentMonthIndex > monthIndex(minMonth)
+  const canGoNext = !maxMonth || currentMonthIndex < monthIndex(maxMonth)
 
   const weeks = useMemo(() => getCalendarWeeks(year, month), [year, month])
 
   function prevMonth() {
+    if (!canGoPrevious) return
     if (month === 0) { setMonth(11); setYear(y => y - 1) }
     else setMonth(m => m - 1)
   }
   function nextMonth() {
+    if (!canGoNext) return
     if (month === 11) { setMonth(0); setYear(y => y + 1) }
     else setMonth(m => m + 1)
   }
@@ -131,13 +147,15 @@ export default function CalendarView({ events }: { events: CalendarEvent[] }) {
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
         <button
           onClick={prevMonth}
-          className="w-8 h-8 flex items-center justify-center rounded-[6px] text-ink-3 hover:bg-bg hover:text-ink transition-all text-[18px]"
+          disabled={!canGoPrevious}
+          className="w-8 h-8 flex items-center justify-center rounded-[6px] text-ink-3 hover:bg-bg hover:text-ink transition-all text-[18px] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           aria-label="Previous month"
         >‹</button>
         <h2 className="font-display font-bold text-[15px]">{MONTHS[month]} {year}</h2>
         <button
           onClick={nextMonth}
-          className="w-8 h-8 flex items-center justify-center rounded-[6px] text-ink-3 hover:bg-bg hover:text-ink transition-all text-[18px]"
+          disabled={!canGoNext}
+          className="w-8 h-8 flex items-center justify-center rounded-[6px] text-ink-3 hover:bg-bg hover:text-ink transition-all text-[18px] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           aria-label="Next month"
         >›</button>
       </div>

@@ -9,7 +9,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const vendor = await queryOne<{
     id: string; name: string; username: string; contact_email: string;
     contact_phone: string; is_active: number; created_at: Date;
-  }>('SELECT id, name, username, contact_email, contact_phone, is_active, created_at FROM Vendor WHERE id = ? LIMIT 1', [params.id])
+    billing_name: string; billing_email: string; billing_address: string | null;
+    billing_abn: string; billing_currency: string; billing_terms_days: number; billing_enabled: number;
+  }>('SELECT id, name, username, contact_email, contact_phone, is_active, billing_name, billing_email, billing_address, billing_abn, billing_currency, billing_terms_days, billing_enabled, created_at FROM Vendor WHERE id = ? LIMIT 1', [params.id])
 
   if (!vendor) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -50,6 +52,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     vendor: {
       ...vendor,
       is_active: Boolean(vendor.is_active),
+      billing_enabled: Boolean(vendor.billing_enabled),
       vehicles: vehiclesWithMedia,
       clients,
       bookings,
@@ -63,6 +66,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
   const body = await req.json()
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
 
   // Handle username change separately — requires uniqueness check
   if ('username' in body) {
@@ -76,7 +82,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
   }
 
-  const allowed = ['name', 'contact_email', 'contact_phone', 'is_active', 'taxi_enabled', 'vehicle_hire_enabled']
+  if ('billing_terms_days' in body) {
+    const terms = Number(body.billing_terms_days)
+    if (!Number.isInteger(terms) || terms < 0 || terms > 365) {
+      return NextResponse.json({ error: 'Billing terms must be a whole number from 0 to 365 days' }, { status: 400 })
+    }
+    body.billing_terms_days = terms
+  }
+  if ('billing_currency' in body) {
+    const currency = String(body.billing_currency).trim().toUpperCase()
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      return NextResponse.json({ error: 'Billing currency must be a three-letter code' }, { status: 400 })
+    }
+    body.billing_currency = currency
+  }
+
+  const allowed = [
+    'name', 'contact_email', 'contact_phone', 'is_active', 'taxi_enabled',
+    'vehicle_hire_enabled', 'billing_name', 'billing_email', 'billing_address',
+    'billing_abn', 'billing_currency', 'billing_terms_days', 'billing_enabled',
+  ]
   const setClauses: string[] = []
   const values: unknown[] = []
   for (const key of allowed) {
@@ -89,7 +114,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   values.push(params.id)
 
   await execute(`UPDATE Vendor SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = ?`, values)
-  const vendor = await queryOne('SELECT id, name, username, contact_email, contact_phone, is_active, taxi_enabled, vehicle_hire_enabled, created_at FROM Vendor WHERE id = ? LIMIT 1', [params.id])
+  const vendor = await queryOne('SELECT id, name, username, contact_email, contact_phone, is_active, taxi_enabled, vehicle_hire_enabled, billing_name, billing_email, billing_address, billing_abn, billing_currency, billing_terms_days, billing_enabled, created_at FROM Vendor WHERE id = ? LIMIT 1', [params.id])
   return NextResponse.json({ vendor: { ...vendor, is_active: Boolean((vendor as { is_active: number }).is_active) } })
 }
 

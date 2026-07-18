@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import MultiDayPicker from '@/components/vendor/MultiDayPicker'
 
@@ -13,6 +13,15 @@ interface ExistingBooking {
   id: string; public_id: string; status: string
   start_date: string; end_date: string
   vehicle_id: string | null; vehicle_name: string | null
+}
+
+interface AvailabilityPayload {
+  bookings?: ExistingBooking[]
+  blockouts?: Array<{
+    vehicle_id: string | null; vehicle_name: string | null; start_date: string; end_date: string
+  }>
+  own_bookings?: ExistingBooking[]
+  window?: { start: string; end: string }
 }
 
 function expandDateRange(start: string, end: string): string[] {
@@ -303,6 +312,7 @@ export default function MultiBookingPage() {
   // Global availability data (all vendors + admin) — for calendar unavailability display only
   const [globalAvailability, setGlobalAvailability] = useState<ExistingBooking[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [taxiEnabled, setTaxiEnabled] = useState(false)
   const [vehicleHireEnabled, setVehicleHireEnabled] = useState(true)
 
@@ -317,35 +327,80 @@ export default function MultiBookingPage() {
   const [progress, setProgress] = useState('')
   const [submitError, setSubmitError] = useState('')
   const [successResult, setSuccessResult] = useState<{ created: number; errors: string[] } | null>(null)
+  const loadedAvailabilityMonths = useRef(new Set<string>())
+
+  const mergeAvailability = useCallback((availability: AvailabilityPayload) => {
+    const globalBookings: ExistingBooking[] = (availability.bookings ?? []).map((item) => ({
+      ...item,
+      id: `booking:${item.vehicle_id}:${item.start_date}:${item.end_date}`,
+      public_id: '',
+    }))
+    const blockoutBookings: ExistingBooking[] = (availability.blockouts ?? []).map((item) => ({
+      id: `blockout:${item.vehicle_id}:${item.start_date}:${item.end_date}`,
+      public_id: '',
+      status: 'confirmed',
+      start_date: item.start_date,
+      end_date: item.end_date,
+      vehicle_id: item.vehicle_id,
+      vehicle_name: item.vehicle_name,
+    }))
+
+    setGlobalAvailability((current) => {
+      const merged = new Map(current.map((item) => [item.id, item]))
+      for (const item of [...globalBookings, ...blockoutBookings]) merged.set(item.id, item)
+      return Array.from(merged.values())
+    })
+    setExistingBookings((current) => {
+      const merged = new Map(current.map((item) => [item.id, item]))
+      for (const item of availability.own_bookings ?? []) merged.set(item.id, item)
+      return Array.from(merged.values())
+    })
+  }, [])
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/vendor/vehicles').then(r => r.json()),
-      fetch('/api/vendor/clients').then(r => r.json()),
-      fetch('/api/vendor/bookings').then(r => r.json()),
-      fetch('/api/vendor/settings').then(r => r.json()),
-      fetch('/api/vendor/bookings/availability').then(r => r.json()),
-    ]).then(([v, c, b, s, avail]) => {
-      setVehicles(v.vehicles ?? [])
-      setClients(c.clients ?? [])
-      setExistingBookings(b.bookings ?? [])
-      // Merge global bookings + blockouts into one availability list for the calendar
-      const globalBookings: ExistingBooking[] = (avail.bookings ?? []).map((x: ExistingBooking) => ({ ...x, id: x.vehicle_id, public_id: '' }))
-      const blockoutBookings: ExistingBooking[] = (avail.blockouts ?? []).map((x: { vehicle_id: string; vehicle_name: string; start_date: string; end_date: string }) => ({
-        id: x.vehicle_id, public_id: '', status: 'confirmed',
-        start_date: x.start_date, end_date: x.end_date,
-        vehicle_id: x.vehicle_id, vehicle_name: x.vehicle_name,
-      }))
-      setGlobalAvailability([...globalBookings, ...blockoutBookings])
-      const taxi = Boolean(s.taxi_enabled)
-      const hire = s.vehicle_hire_enabled !== false
-      setTaxiEnabled(taxi)
-      setVehicleHireEnabled(hire)
-      // Default to whichever mode is enabled; prefer vehicle_hire if both enabled
-      setTripMode(hire ? 'vehicle_hire' : 'taxi')
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [])
+    fetch('/api/vendor/bookings/multi-options')
+      .then(async (response) => {
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error ?? 'Unable to load booking options')
+        return payload
+      })
+      .then((payload) => {
+        setVehicles(payload.vehicles ?? [])
+        setClients(payload.clients ?? [])
+        mergeAvailability(payload.availability ?? {})
+        const loadedWindow = payload.availability?.window
+        if (loadedWindow?.start) loadedAvailabilityMonths.current.add(loadedWindow.start.slice(0, 7))
+        const taxi = Boolean(payload.settings?.taxi_enabled)
+        const hire = payload.settings?.vehicle_hire_enabled !== false
+        setTaxiEnabled(taxi)
+        setVehicleHireEnabled(hire)
+        // Default to whichever mode is enabled; prefer vehicle_hire if both enabled
+        setTripMode(hire ? 'vehicle_hire' : 'taxi')
+        setLoading(false)
+      })
+      .catch((error) => {
+        setLoadError(error instanceof Error ? error.message : 'Unable to load booking options')
+        setLoading(false)
+      })
+  }, [mergeAvailability])
+
+  const handleCalendarMonthChange = useCallback(async (year: number, month: number) => {
+    const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`
+    if (loadedAvailabilityMonths.current.has(monthKey)) return
+    loadedAvailabilityMonths.current.add(monthKey)
+
+    const start = `${monthKey}-01`
+    const end = new Date(Date.UTC(year, month + 1, 0)).toISOString().slice(0, 10)
+    try {
+      const response = await fetch(`/api/vendor/bookings/availability?start=${start}&end=${end}`)
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error ?? 'Unable to load availability')
+      mergeAvailability(payload)
+    } catch (error) {
+      loadedAvailabilityMonths.current.delete(monthKey)
+      throw error
+    }
+  }, [mergeAvailability])
 
   function handleDayClick(date: string) {
     if (blockedDates?.has(date)) return
@@ -392,14 +447,14 @@ export default function MultiBookingPage() {
   const allValid = rowsValid && vehicleValid && authorisedByValid
 
   // Existing bookings formatted for MultiDayPicker sidebar dots
-  const pickerBookings = existingBookings.map(b => ({
+  const pickerBookings = useMemo(() => existingBookings.map(b => ({
     date: b.start_date,
     status: b.status,
     public_id: b.public_id,
-  }))
+  })), [existingBookings])
 
   // Build unavailable-vehicles-by-date map (individual vehicle mode) — uses GLOBAL availability
-  const unavailableVehiclesByDate = (() => {
+  const unavailableVehiclesByDate = useMemo(() => {
     const map = new Map<string, { name: string }[]>()
     for (const b of globalAvailability) {
       if (!b.vehicle_name || b.status === 'cancelled' || b.status === 'enquiry') continue
@@ -410,19 +465,20 @@ export default function MultiBookingPage() {
       }
     }
     return map
-  })()
+  }, [globalAvailability])
 
   // Build blocked-dates set for "same for all" mode — uses GLOBAL availability
-  const blockedDates = (() => {
-    if (vehicleMode !== 'same' || !sameVehicleId) return undefined
+  const blockedDates = useMemo(() => {
     const set = new Set<string>()
     for (const b of globalAvailability) {
-      if (b.vehicle_id !== sameVehicleId) continue
       if (b.status === 'cancelled' || b.status === 'enquiry') continue
+      const isGlobalBlockout = b.id.startsWith('blockout:') && b.vehicle_id === null
+      const isSelectedVehicleUnavailable = vehicleMode === 'same' && Boolean(sameVehicleId) && b.vehicle_id === sameVehicleId
+      if (!isGlobalBlockout && !isSelectedVehicleUnavailable) continue
       for (const ymd of expandDateRange(b.start_date, b.end_date)) set.add(ymd)
     }
-    return set
-  })()
+    return set.size ? set : undefined
+  }, [globalAvailability, sameVehicleId, vehicleMode])
 
   function buildBookingPayloads(rowsToSend: BookingRow[]) {
     return rowsToSend.map((row) => {
@@ -518,6 +574,24 @@ export default function MultiBookingPage() {
     return (
       <div className="flex items-center justify-center py-24">
         <span className="text-ink-3 text-[14px]">Loading…</span>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-xl mx-auto py-16 text-center">
+        <div className="bg-white border border-red-200 rounded-2xl px-8 py-10 shadow-sm">
+          <h1 className="font-display font-bold text-[20px] tracking-tight mb-2">Booking options unavailable</h1>
+          <p className="text-[14px] text-ink-3 mb-6">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="bg-accent text-white font-display font-bold text-[14px] px-6 py-2.5 rounded-lg hover:bg-accent-dark transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     )
   }
@@ -652,9 +726,10 @@ export default function MultiBookingPage() {
         {/* Calendar */}
         <MultiDayPicker
           onDayClick={handleDayClick}
+          onMonthChange={handleCalendarMonthChange}
           existingBookings={pickerBookings}
           unavailableVehiclesByDate={vehicleMode === 'individual' ? unavailableVehiclesByDate : undefined}
-          blockedDates={vehicleMode === 'same' ? blockedDates : undefined}
+          blockedDates={blockedDates}
         />
 
         {/* Booking rows */}

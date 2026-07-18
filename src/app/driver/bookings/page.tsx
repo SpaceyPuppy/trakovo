@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getDriverSession } from '@/lib/driver-auth'
-import { query } from '@/lib/db'
+import { query, queryOne } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 
@@ -14,20 +14,45 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-50 text-red-600 border-red-200',
 }
 
-export default async function DriverBookingsPage() {
+const PAGE_SIZE = 50
+
+interface Props {
+  searchParams?: { page?: string }
+}
+
+export default async function DriverBookingsPage({ searchParams }: Props) {
   const session = await getDriverSession()
   if (!session) redirect('/driver/login')
 
-  const bookings = await query<{ id: string; public_id: string; status: string; start_date: string; end_date: string; vehicle_name?: string; contact_name?: string }>(
-    'SELECT b.id, b.public_id, b.status, b.start_date, b.end_date, b.contact_name, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.driver_id = ? ORDER BY b.start_date ASC',
-    [session.driverId]
-  )
+  const requestedPage = Number.parseInt(searchParams?.page ?? '1', 10)
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const offset = (page - 1) * PAGE_SIZE
+  const [bookings, totalRow] = await Promise.all([
+    query<{ id: string; public_id: string; status: string; start_date: string; end_date: string; vehicle_name?: string; contact_name?: string }>(
+      `SELECT b.id, b.public_id, b.status, b.start_date, b.end_date, b.contact_name, v.name AS vehicle_name
+       FROM Booking b
+       LEFT JOIN Vehicle v ON b.vehicle_id = v.id
+       WHERE b.driver_id = ?
+       ORDER BY
+         CASE WHEN b.end_date >= CURDATE() THEN 0 ELSE 1 END,
+         CASE WHEN b.end_date >= CURDATE() THEN b.start_date END ASC,
+         CASE WHEN b.end_date < CURDATE() THEN b.start_date END DESC
+       LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+      [session.driverId]
+    ),
+    queryOne<{ count: number | string }>(
+      'SELECT COUNT(*) AS count FROM Booking WHERE driver_id = ?',
+      [session.driverId]
+    ),
+  ])
+  const total = Number(totalRow?.count ?? 0)
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="font-display font-bold text-[26px] tracking-tight">My Bookings</h1>
-        <p className="text-[14px] text-ink-3 mt-0.5">{bookings.length} trip{bookings.length !== 1 ? 's' : ''} assigned to you</p>
+        <p className="text-[14px] text-ink-3 mt-0.5">{total} trip{total !== 1 ? 's' : ''} assigned to you</p>
       </div>
 
       {bookings.length === 0 ? (
@@ -62,6 +87,21 @@ export default async function DriverBookingsPage() {
             </tbody>
           </table>
         </div>
+      )}
+      {totalPages > 1 && (
+        <nav className="flex items-center justify-between gap-4 mt-6" aria-label="Bookings pagination">
+          {page > 1 ? (
+            <Link href={`/driver/bookings?page=${page - 1}`} className="text-[13px] font-semibold text-accent hover:underline">
+              Previous
+            </Link>
+          ) : <span />}
+          <span className="text-[12.5px] text-ink-3">Page {page} of {totalPages}</span>
+          {page < totalPages ? (
+            <Link href={`/driver/bookings?page=${page + 1}`} className="text-[13px] font-semibold text-accent hover:underline">
+              Next
+            </Link>
+          ) : <span />}
+        </nav>
       )}
     </div>
   )

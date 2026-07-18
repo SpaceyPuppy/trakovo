@@ -1,5 +1,4 @@
 'use client'
-import { useState } from 'react'
 import Link from 'next/link'
 
 function fmtDate(d: string) {
@@ -27,6 +26,7 @@ const SERVICE_LABELS: Record<string, string> = {
 
 interface Props {
   bookings: Booking[]
+  activeStatus: string
 }
 
 const TABS = [
@@ -44,28 +44,20 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-50 text-red-600 border-red-200',
 }
 
-export default function VendorBookingsList({ bookings }: Props) {
-  const [tab, setTab] = useState('all')
-
-  const filtered = tab === 'all' ? bookings : bookings.filter(b => b.status === tab)
-
+export default function VendorBookingsList({ bookings, activeStatus }: Props) {
   return (
     <div>
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-border">
-        {TABS.map(t => {
-          const count = t.key === 'all' ? bookings.length : bookings.filter(b => b.status === t.key).length
-          return (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${tab === t.key ? 'border-accent text-accent' : 'border-transparent text-ink-3 hover:text-ink'}`}>
+        {TABS.map(t => (
+            <Link key={t.key} href={`/vendor?status=${t.key}`}
+              className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 transition-colors flex items-center gap-1.5 ${activeStatus === t.key ? 'border-accent text-accent' : 'border-transparent text-ink-3 hover:text-ink'}`}>
               {t.label}
-              {count > 0 && <span className="text-[11px] bg-ink-4/20 text-ink-3 rounded-full px-1.5 py-0.5 font-bold">{count}</span>}
-            </button>
-          )
-        })}
+            </Link>
+        ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {bookings.length === 0 ? (
         <div className="bg-white border border-border rounded-xl px-8 py-16 text-center">
           <p className="text-ink-3 text-[14px]">No bookings in this category.</p>
           <Link href="/vendor/bookings/new/multi" className="inline-block mt-4 text-accent hover:underline text-[13.5px] font-semibold">Create a new booking →</Link>
@@ -77,7 +69,7 @@ export default function VendorBookingsList({ bookings }: Props) {
               <tr>{['Reference', 'Vehicle', 'Client', 'Dates', 'Duration', 'Status', ''].map(h => <th key={h} className="text-left px-6 py-3">{h}</th>)}</tr>
             </thead>
             <tbody>
-              {filtered.map(b => (
+              {bookings.map(b => (
                 <tr key={b.id} className="border-t border-border hover:bg-bg/50 transition-colors">
                   <td className="px-6 py-4">
                     <span className="font-mono text-[12.5px] font-bold text-ink">{b.public_id}</span>

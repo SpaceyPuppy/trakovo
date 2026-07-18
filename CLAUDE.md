@@ -8,7 +8,7 @@ Pre-built index files are in `.ai-codex/`. Read these FIRST before exploring the
 # Trakovo — Claude Context
 
 Fleet management platform for vehicle hire bookings, drivers, vendors, and dispatch.
-Current version: **v1.14.4**
+Current version: **v1.15.0**
 
 ---
 
@@ -135,58 +135,25 @@ const isActive = Boolean(row.is_active)
 Tables in `prisma/init.sql` (deployed):
 - `Vehicle` — id, public_id, slug, name, description, price, price_poa, chauffeur_price, chauffeur_price_poa, day_rates (TEXT/JSON), currency, hire_modes, passengers, transmission, fuel, is_available
 - `VehicleMedia` — id, vehicle_id, url, content_type, sort_order
-- `Booking` — id, public_id, vehicle_id, hire_type, service_type, status, start_date, end_date, total_days, daily_rate, total_cost, contact_name, contact_email, contact_phone, driver_name, driver_dob, driver_licence_number, driver_licence_expiry, agreement_accepted, id_document_path, licence_document_path, trip_details (JSON), is_enquiry, google_event_id, vendor_id, vendor_client_id
+- `Booking` — booking/service/contact fields plus vendor/client/driver ownership, `currency`, `enquiry_status`, `ms_event_id`, and `completed_at`
 - `BookingNote` — id, booking_id, text, author, created_at
 - `Setting` — key (PK), value, updated_at
 - `PushSubscription` — id, endpoint, p256dh, auth, created_at
-- `Vendor` — id, public_id, name, username, password_hash, contact_email, contact_phone, is_active
+- `Vendor` — identity/login/service toggles plus invoice name, email, address, ABN, currency, terms, and billing-enabled flag
 - `VendorVehicle` — id, vendor_id, vehicle_id, is_enabled
 - `VendorClient` — id, public_id, vendor_id, name, email, phone, reference, notes, is_active
 - `VendorEnquiry` — id, public_id, vendor_id, subject, message, booking_id, client_id, status, staff_reply
+- `AdminUser`, `Driver`, `DriverMessage` — additional administrators and the driver portal/messaging records
+- `BillingRun`, `Invoice`, `InvoiceLine`, `Payment`, `PaymentAllocation`, `BillingEvent` — native cents-based billing ledger
+- `RequestIdempotency`, `PublicIdSequence` — safe mutation retries and atomic public references
 
-**⚠️ Tables/columns used in code but MISSING from init.sql (must be added manually via phpMyAdmin):**
+**Fresh installs versus upgrades:**
 
 ```sql
--- Additional admin users (non-master logins)
-CREATE TABLE `AdminUser` (
-  `id` VARCHAR(191) NOT NULL,
-  `username` VARCHAR(191) NOT NULL,
-  `password_hash` VARCHAR(191) NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE INDEX `AdminUser_username_key` (`username`),
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Drivers (portal users / assignable to bookings)
-CREATE TABLE `Driver` (
-  `id` VARCHAR(191) NOT NULL,
-  `public_id` VARCHAR(191) NOT NULL,
-  `name` VARCHAR(191) NOT NULL,
-  `username` VARCHAR(191) NOT NULL,
-  `password_hash` VARCHAR(191) NOT NULL,
-  `email` VARCHAR(191) NOT NULL DEFAULT '',
-  `phone` VARCHAR(191) NOT NULL DEFAULT '',
-  `is_active` BOOLEAN NOT NULL DEFAULT true,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL,
-  UNIQUE INDEX `Driver_public_id_key` (`public_id`),
-  UNIQUE INDEX `Driver_username_key` (`username`),
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Messages between admin and drivers
-CREATE TABLE `DriverMessage` (
-  `id` VARCHAR(191) NOT NULL,
-  `driver_id` VARCHAR(191) NOT NULL,
-  `body` TEXT NOT NULL,
-  `direction` VARCHAR(20) NOT NULL DEFAULT 'admin_to_driver',  -- 'admin_to_driver' | 'driver_to_admin'
-  `status` VARCHAR(20) NOT NULL DEFAULT 'open',               -- 'open' | 'read'
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- Booking.driver_id column (link booking to Driver)
-ALTER TABLE `Booking` ADD COLUMN `driver_id` VARCHAR(191) NULL AFTER `vendor_client_id`;
+-- Resolved in v1.15.0: the fresh-install schema now includes AdminUser,
+-- Driver, the code-accurate DriverMessage columns, and Booking.driver_id.
+-- Existing installations must still use the reviewed upgrade SQL in
+-- PENDING-DEPLOY.md; init.sql is not an in-place migration script.
 ```
 
 ---
@@ -400,12 +367,11 @@ After any `git push` or version release, always update both files:
 
 ## Open TODOs / known gaps
 
-### Schema not yet in init.sql
-The following must be applied manually on any fresh install (see schema section above):
-- `AdminUser` table
-- `Driver` table
-- `DriverMessage` table
-- `Booking.driver_id` column
+### Schema deployment discipline
+`prisma/init.sql` is synchronized for fresh v1.15.0 installations, including admin users,
+drivers, driver messages, booking ownership/status fields, and the native billing ledger.
+Existing installations still require the ordered SQL in `PENDING-DEPLOY.md`; the app does
+not execute migrations automatically.
 
 ### Features not yet built
 - **Admin password reset via email** — the master admin has no reset flow; password is env-var set. Intended: email auth/OTP flow to securely reset. (Noted as open TODO to prevent unauthorised resets.)
@@ -415,7 +381,7 @@ The following must be applied manually on any fresh install (see schema section 
 - **Homepage placeholder text** — editable via admin or content update needed. (In TODO.md)
 
 ### Partially complete / known rough edges
-- `DriverMessage` table structure is inferred from code — exact column names should be verified against live DB before adding new queries
+- The fresh-install `DriverMessage` shape now matches its API (`subject`, `message`, `booking_id`, `staff_reply`, status and timestamps); verify older live installations before applying constraints
 - Google Calendar integration exists (OAuth2 flow + event creation) but event sync is one-way (booking → GCal only; no read-back)
 - Microsoft Calendar: OAuth2 connected but primary usage is email sending via Graph API; calendar write-back may not be wired
 - Email templates are functional but the template editor UI is basic (raw HTML editing in textarea)

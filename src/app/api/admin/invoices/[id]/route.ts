@@ -1,41 +1,70 @@
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { queryOne, execute } from '@/lib/db'
+import {
+  BillingError,
+  billingErrorResponse,
+  getInvoice,
+  issueInvoice,
+  readBillingJsonObject,
+  updateInvoiceDraft,
+  voidInvoice,
+} from '@/lib/billing'
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+interface Context { params: { id: string } }
+
+export async function GET(_req: Request, { params }: Context) {
+  const session = await getAdminSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+  try {
+    return NextResponse.json(await getInvoice(params.id))
+  } catch (error) {
+    return billingErrorResponse(error)
+  }
+}
+
+export async function PATCH(req: Request, { params }: Context) {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const body = await req.json()
-  const { status, due_date, paid_at, notes } = body
+  try {
+    const body = await readBillingJsonObject(req)
+    const requestedAction = body.action ?? body.status
+    const action = requestedAction === 'sent' || requestedAction === 'issued'
+      ? 'issue'
+      : requestedAction
 
-  if (status !== undefined && !['draft', 'sent', 'paid', 'void'].includes(status)) {
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    if (action === 'issue') {
+      await issueInvoice({
+        actor: session.username,
+        invoiceId: params.id,
+        issueDate: body.issue_date as string | null | undefined,
+        dueDate: body.due_date as string | null | undefined,
+      })
+    } else if (action === 'void') {
+      await voidInvoice({
+        actor: session.username,
+        invoiceId: params.id,
+        reason: body.reason as string | null | undefined,
+      })
+    } else if (action === 'update' || action === undefined || action === 'draft') {
+      await updateInvoiceDraft({
+        actor: session.username,
+        invoiceId: params.id,
+        dueDate: body.due_date as string | null | undefined,
+        notes: body.notes as string | null | undefined,
+      })
+    } else if (action === 'paid') {
+      throw new BillingError(
+        'Record a payment instead of directly changing invoice status',
+        409,
+        'payment_record_required'
+      )
+    } else {
+      throw new BillingError('Invalid invoice action', 400, 'invalid_invoice_action')
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    return billingErrorResponse(error)
   }
-
-  const invoice = await queryOne<{ id: string; status: string }>(
-    'SELECT id, status FROM Invoice WHERE id = ? LIMIT 1', [params.id]
-  )
-  if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
-
-  // Auto-set paid_at when marking as paid
-  const resolvedPaidAt = status === 'paid' ? (paid_at ?? null) : (status && status !== 'paid' ? null : undefined)
-
-  const fields: string[] = ['updated_at = NOW()']
-  const values: unknown[] = []
-
-  if (status !== undefined) { fields.push('status = ?'); values.push(status) }
-  if (due_date !== undefined) { fields.push('due_date = ?'); values.push(due_date ?? null) }
-  if (notes !== undefined) { fields.push('notes = ?'); values.push(notes ?? null) }
-  if (status === 'paid') {
-    fields.push('paid_at = IFNULL(?, NOW())')
-    values.push(paid_at ?? null)
-  } else if (status !== undefined && status !== 'paid') {
-    fields.push('paid_at = NULL')
-  }
-
-  values.push(params.id)
-  await execute(`UPDATE Invoice SET ${fields.join(', ')} WHERE id = ?`, values)
-
-  return NextResponse.json({ ok: true })
 }

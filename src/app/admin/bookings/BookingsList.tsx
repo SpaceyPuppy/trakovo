@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
+import type { AdminBookingStatusFilter } from '@/lib/api'
 import type { BookingResponse } from '@/types'
 
 function fmtDate(d: string) {
@@ -40,22 +41,14 @@ function hireTypeLabel(b: BookingResponse) {
   return b.hire_type?.replace('-', ' ') ?? '—'
 }
 
-export default function BookingsList({ bookings: initial }: { bookings: (BookingResponse & { is_enquiry?: boolean })[] }) {
-  const [filter, setFilter] = useState('all')
+export default function BookingsList({
+  bookings,
+  activeStatus,
+}: {
+  bookings: (BookingResponse & { is_enquiry?: boolean })[]
+  activeStatus: AdminBookingStatusFilter
+}) {
   const [view, setView] = useState<'card' | 'list'>('card')
-
-  const filtered = filter === 'all'
-    ? initial
-    : filter === 'enquiry'
-      ? initial.filter(b => (b as { is_enquiry?: boolean }).is_enquiry)
-      : initial.filter(b => b.status === filter && !(b as { is_enquiry?: boolean }).is_enquiry)
-
-  const counts: Record<string, number> = { all: initial.length }
-  for (const tab of STATUS_TABS.slice(1)) {
-    counts[tab.key] = tab.key === 'enquiry'
-      ? initial.filter(b => (b as { is_enquiry?: boolean }).is_enquiry).length
-      : initial.filter(b => b.status === tab.key && !(b as { is_enquiry?: boolean }).is_enquiry).length
-  }
 
   return (
     <div>
@@ -63,24 +56,17 @@ export default function BookingsList({ bookings: initial }: { bookings: (Booking
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div className="flex gap-1 bg-white border border-border rounded-[8px] p-1 w-fit">
           {STATUS_TABS.map(tab => (
-            <button
+            <Link
               key={tab.key}
-              onClick={() => setFilter(tab.key)}
+              href={`/admin/bookings?status=${tab.key}`}
               className={`px-3.5 py-1.5 rounded-[5px] text-[12.5px] font-semibold transition-all flex items-center gap-1.5 ${
-                filter === tab.key
+                activeStatus === tab.key
                   ? 'bg-ink text-white'
                   : 'text-ink-3 hover:text-ink hover:bg-bg'
               }`}
             >
               {tab.label}
-              {counts[tab.key] > 0 && (
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                  filter === tab.key ? 'bg-white/20 text-white' : 'bg-bg text-ink-4'
-                }`}>
-                  {counts[tab.key]}
-                </span>
-              )}
-            </button>
+            </Link>
           ))}
         </div>
 
@@ -114,18 +100,18 @@ export default function BookingsList({ bookings: initial }: { bookings: (Booking
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {bookings.length === 0 ? (
         <div className="bg-white border border-border rounded-xl px-8 py-12 text-center">
           <p className="text-[28px] mb-2">📋</p>
-          <p className="font-display font-bold text-[16px] mb-1">No {filter === 'all' ? '' : filter} bookings</p>
+          <p className="font-display font-bold text-[16px] mb-1">No {activeStatus === 'all' ? '' : activeStatus} bookings</p>
           <p className="text-[13px] text-ink-3">
-            {filter === 'all' ? 'Bookings will appear here once customers submit requests.' : `No ${filter} bookings at this time.`}
+            {activeStatus === 'all' ? 'Bookings will appear here once customers submit requests.' : `No ${activeStatus} bookings at this time.`}
           </p>
         </div>
       ) : view === 'card' ? (
         /* ── Card view ── */
         <div className="space-y-3">
-          {filtered.map((b) => {
+          {bookings.map((b) => {
             const isEnquiry = (b as { is_enquiry?: boolean }).is_enquiry
             return (
               <div key={b.public_id} className="bg-white border border-border rounded-xl overflow-hidden">
@@ -184,7 +170,7 @@ export default function BookingsList({ bookings: initial }: { bookings: (Booking
               </tr>
             </thead>
             <tbody>
-              {filtered.map((b) => {
+              {bookings.map((b) => {
                 const isEnquiry = (b as { is_enquiry?: boolean }).is_enquiry
                 return (
                   <tr key={b.public_id} className="border-t border-border hover:bg-bg/50 transition-colors">

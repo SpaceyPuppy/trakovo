@@ -1,365 +1,392 @@
-# cPanel Deployment Guide
+# Trakovo cPanel Deployment Guide
 
-This app runs on Node.js via **CloudLinux Phusion Passenger**, which cPanel uses to manage
-Node.js applications on shared hosting. Passenger handles process management and restarts.
+Trakovo runs on Next.js through CloudLinux/Phusion Passenger and connects directly to
+MySQL with `mysql2`. The application does **not** use Prisma or any database engine
+binary at runtime. The `prisma/` directory is retained only as the location of the SQL
+schema and historical reference files.
 
----
+This guide covers fresh installations, full release ZIP deployments, and the smaller
+OTA bundle available under **Admin → Settings → Updates**.
+
+## Deployment rules at a glance
+
+| Change | Full release ZIP | OTA bundle | Other required action |
+|---|---:|---:|---|
+| First installation | Yes | No | Import `prisma/init.sql`, configure environment, run NPM Install |
+| Compiled application code only | Optional | Yes | Apply any pending SQL before clicking Deploy |
+| `public/`, `app.js`, or root configuration | Yes | No | Restart Passenger |
+| Dependencies or lockfile | Yes | No | Run NPM Install before restart |
+| Database schema | Either delivery method | Either delivery method | Apply upgrade SQL manually before the new build restarts |
+| Environment variables | No | No | Change them in cPanel and restart |
+
+An OTA bundle contains only `.next/` and `package.json`. It does not install packages,
+copy public assets, apply SQL, change cPanel environment variables, or back up uploads.
 
 ## Prerequisites
 
-- cPanel hosting with **Node.js support** (Setup Node.js App must be available)
-- cPanel hosting with **MySQL support** (MySQL Databases + phpMyAdmin)
-- Node.js **18.x** available on the server (v20 may cause issues on some hosts)
-- Node.js 18+ installed on your **local machine** for building
+- cPanel with **Setup Node.js App**, MySQL, and phpMyAdmin.
+- A cPanel Node.js version satisfying `package.json` (`>=18.17.0`). Use the same major
+  Node.js version locally and on the server when practical.
+- A local development machine with Node.js, npm, Git, and PowerShell for
+  `make-zip.ps1`.
+- An application domain with end-to-end HTTPS for production use.
+- A current database backup before every upgrade that changes SQL.
 
----
+## Prepare and verify a release locally
 
-## 1. Build the app locally
+Read `PENDING-DEPLOY.md` before building. It is the release-specific source of truth for
+upgrade SQL, new environment variables, cron changes, and post-deployment checks.
 
-Run this in the project folder on your local machine:
+Values whose names start with `NEXT_PUBLIC_` can be embedded into browser JavaScript by
+Next.js. Set the intended production public values in the local build environment as well
+as in cPanel, and never place a secret in a `NEXT_PUBLIC_` variable. A cPanel-only change
+to an embedded public value requires a new build.
+
+For a clean checkout whose lockfile is already correct:
 
 ```bash
-npm install
-npx prisma generate
+npm ci
+npm run lint
+npx tsc --noEmit
 npm run build
 ```
 
-This creates the `.next/` folder and generates Linux Prisma engine binaries into
-`node_modules/.prisma/client/`. Both must be uploaded to the server.
+Use `npm install` instead of `npm ci` only when intentionally adding or updating
+dependencies. A production build must leave `.next/BUILD_ID` present.
 
-To create the deployment zip, run the PowerShell build script:
+Create both deployment artifacts from PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "make-zip.ps1"
 ```
 
----
+The script reads `version`/`build_label` from `package.json` and produces:
 
-## 2. Create the MySQL database
+- `trakovo-vX.X.X.zip` — full deployment files, including `.next`, `src`, `public`,
+  `prisma`, runtime configuration, and package manifests.
+- `next-bundle-vX.X.X.zip` — `.next` plus `package.json` for the OTA updater.
 
-1. Log in to cPanel
-2. Go to **Databases → MySQL Databases**
-3. Create a new database (e.g. `myusername_trakovo`)
-4. Create a new database user with a strong password
-5. Add the user to the database with **All Privileges**
-6. Note the database name, username, and password — needed for `DATABASE_URL`
+Neither artifact contains production secrets or persistent uploads.
 
----
+## Fresh installation
 
-## 3. Create the database tables
+### 1. Create the MySQL database
 
-1. Open **phpMyAdmin** from cPanel
-2. Select your newly created database on the left
-3. Click the **Import** tab
-4. Choose `prisma/init.sql` from the uploaded app folder
-5. Set encoding to **utf8** and click **Go**
+In **cPanel → MySQL Databases**:
 
-> You only need to do this once. The app does not run migrations automatically.
+1. Create a database.
+2. Create a dedicated database user with a strong unique password.
+3. Grant that user all required privileges on the Trakovo database.
+4. Record the cPanel-prefixed database and user names exactly.
 
----
+In phpMyAdmin, select the new database and import `prisma/init.sql` using UTF-8. This
+file is for a fresh database. Do not repeatedly import the full file over a production
+database as an upgrade mechanism.
 
-## 4. Create the Node.js app in cPanel
+There is no migration runner at application startup. A successful NPM install or
+Passenger restart does not create or alter database tables.
 
-1. Go to **Software → Setup Node.js App**
-2. Click **Create Application**
+### 2. Create persistent upload storage
+
+Create an upload directory outside the application root so a deployment cannot replace
+customer documents or media:
+
+```bash
+mkdir -p "$HOME/trakovo-uploads"
+chmod 750 "$HOME/trakovo-uploads"
+```
+
+The Passenger application must run as an account that can read and write this directory.
+Use the least-permissive mode supported by the host; do not use `chmod 777`.
+
+### 3. Create the Node.js application
+
+In **cPanel → Setup Node.js App**, create an application with values similar to:
 
 | Field | Value |
-|-------|-------|
-| Node.js version | **18.x** |
+|---|---|
+| Node.js version | A supported version `>=18.17.0` |
 | Application mode | `production` |
-| Application root | `trakovo` (relative to home, e.g. `/home/youruser/trakovo`) |
-| Application URL | Your domain (e.g. `ckb.services`) |
-| Application startup file | `app.js` |
+| Application root | `trakovo` or the chosen directory under the account home |
+| Application URL | The production domain/subdomain |
+| Startup file | `app.js` |
 
-3. Click **Create** — do not run npm install yet
+Passenger supplies `PORT`; do not hard-code a public port in cPanel.
 
----
+### 4. Upload the full release
 
-## 5. Upload files to the server
+Upload `trakovo-vX.X.X.zip` to the application root and extract it there. Confirm these
+paths exist afterward:
 
-Extract the deployment zip and upload all contents to your app folder (e.g. `~/trakovo/`).
-
-**What to upload from the zip:**
-
-| Path | Notes |
-|------|-------|
-| `src/` | Source files |
-| `public/` | Static assets |
-| `prisma/` | Schema + init.sql |
-| `.next/` | Built app — required |
-| `app.js`, `next.config.js`, `package.json`, etc. | Root config files |
-| `node_modules/.prisma/client/` | Pre-built Prisma Linux binaries |
-| `node_modules/@prisma/client/` | Prisma client shell |
-
-**Do NOT upload:**
-- `.env` or `.env.local` (set secrets via cPanel UI instead)
-- `.git/`
-- `uploads/` (create a separate persistent folder — see step 8)
-
----
-
-## 6. Run NPM Install
-
-In cPanel → **Setup Node.js App** → your app → click **"Run NPM Install"**.
-
-> **Important:** This does two things:
-> 1. Installs all packages into the nodevenv virtual environment
-> 2. Creates `~/trakovo/node_modules` as a **symlink** to the nodevenv
->
-> The symlink means uploads to `~/trakovo/node_modules/` go directly into the nodevenv.
-> **Never delete or rename this symlink** — if you do, re-run NPM Install to recreate it.
-
-Alternatively, in cPanel Terminal:
-```bash
-cd ~/trakovo && npm install --omit=dev --ignore-scripts
-```
-- `--omit=dev` skips ESLint, TypeScript, etc. not needed at runtime
-- `--ignore-scripts` prevents `prisma generate` from running (it would fail — pre-built binaries are uploaded instead)
-
----
-
-## 7. Upload Prisma client binaries
-
-After npm install creates the `node_modules` symlink, upload (or copy) the Prisma client:
-
-Via cPanel File Manager: upload `node_modules/.prisma/client/` from the zip into
-`~/trakovo/node_modules/.prisma/client/`
-
-Because `node_modules` is a symlink to the nodevenv, the files land in the right place automatically.
-
-Verify the binary is there in Terminal:
-```bash
-ls ~/trakovo/node_modules/.prisma/client/*.so.node
-```
-You should see `libquery_engine-rhel-openssl-1.0.x.so.node` (and possibly others).
-
----
-
-## 8. Fix file permissions
-
-After uploading, set correct permissions:
-
-```bash
-find ~/trakovo -type d -exec chmod 755 {} \; 2>/dev/null
-find ~/trakovo -type f -exec chmod 644 {} \; 2>/dev/null
-chmod 755 ~/trakovo/node_modules/.prisma/client/*.so.node 2>/dev/null
+```text
+app.js
+package.json
+package-lock.json
+.next/BUILD_ID
+public/
+prisma/init.sql
 ```
 
-The `.so.node` binary needs execute permission to be loaded by Node.js.
+Do not upload `.env`, `.env.local`, `.git`, a local `node_modules`, or a local `uploads`
+directory. Production secrets belong in the cPanel environment-variable UI.
 
----
+### 5. Install runtime dependencies
 
-## 9. Create the uploads folder
+Use **Run NPM Install** in cPanel after the files are extracted. cPanel commonly manages
+`node_modules` through its Node virtual environment, so its button is the safest way to
+create or repair the link.
 
-Create a folder **outside** your app directory so uploads survive redeployments:
+If the host instructs you to use Terminal, activate the exact virtual-environment command
+shown by cPanel, change to the application root, and run:
 
 ```bash
-mkdir -p ~/trakovo-uploads
-chmod 755 ~/trakovo-uploads
+npm install --omit=dev
 ```
 
-Set `UPLOAD_DIR` to the full path (e.g. `/home/youruser/trakovo-uploads`) in step 10.
+Do not upload platform-specific `node_modules`. Do not run any Prisma generation command;
+there is no Prisma runtime dependency. Avoid `npm ci` on the server unless the hosting
+provider confirms that it will not remove cPanel's managed `node_modules` link.
 
----
+Run NPM Install again whenever `package.json` or `package-lock.json` changes.
 
-## 10. Set environment variables
+### 6. Configure environment variables
 
-In cPanel → **Setup Node.js App** → your app → **Environment Variables**:
+Set variables in **Setup Node.js App → Environment Variables**. Use `.env.example` as the
+complete non-secret reference.
 
-### Required
+Required core settings:
 
-| Key | Value |
-|-----|-------|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | `mysql://dbuser:dbpassword@localhost:3306/myusername_trakovo` |
-| `ADMIN_JWT_SECRET` | Long random string — generate with `openssl rand -hex 32` |
-| `ADMIN_USERNAME` | Your admin login username |
-| `ADMIN_PASSWORD` | Your admin login password |
-| `VENDOR_JWT_SECRET` | Another long random string (different from admin secret) |
-| `NEXT_PUBLIC_SITE_URL` | `https://your-domain.com` |
-| `UPLOAD_DIR` | `/home/youruser/trakovo-uploads` |
+| Key | Purpose |
+|---|---|
+| `NODE_ENV=production` | Production Next.js behavior |
+| `DB_HOST` | MySQL host, commonly `localhost` |
+| `DB_PORT` | MySQL port, normally `3306` |
+| `DB_USER` | Dedicated MySQL user |
+| `DB_PASSWORD` | MySQL password |
+| `DB_NAME` | MySQL database name |
+| `ADMIN_USERNAME` | Master administrator username |
+| `ADMIN_PASSWORD` | Master administrator password |
+| `ADMIN_JWT_SECRET` | Long random admin signing secret |
+| `VENDOR_JWT_SECRET` | Separate long random vendor signing secret |
+| `DRIVER_JWT_SECRET` | Separate long random driver signing secret |
+| `NEXT_PUBLIC_SITE_URL` | Canonical HTTPS site URL |
+| `UPLOAD_DIR` | Absolute persistent upload path |
 
-### HTTPS / Cookie security
+Recommended operational settings:
 
-| Key | Value | Notes |
-|-----|-------|-------|
-| `COOKIE_SECURE` | `false` | Set this if your site is HTTP-only (see HTTPS section below). Remove it once HTTPS is working. |
+| Key | Notes |
+|---|---|
+| `COOKIE_SECURE=true` | Use for production HTTPS. Set false only for deliberate HTTP development/testing. |
+| `DB_CONNECTION_LIMIT` | Optional pool limit; defaults to `5` and is capped by the app at `20`. |
+| `DB_SLOW_QUERY_MS` | Optional slow-query threshold; defaults to `250`. |
+| `CRON_SECRET` | Protects scheduled email-sequence requests. |
+| `GITHUB_TOKEN` | Optional for GitHub release checks/downloads and bug reports. |
 
-### Branding (optional)
+Optional integrations include SMTP, Microsoft 365, Mapbox, VAPID web push, branding,
+and maintenance-mode settings. Keep signing secrets different from one another.
 
-| Key | Value |
-|-----|-------|
-| `NEXT_PUBLIC_SITE_NAME` | Public-facing site name (default: `Trakovo`) |
-| `NEXT_PUBLIC_ADMIN_NAME` | Admin portal label (default: `Hire Manager`) |
+For production, terminate TLS end to end. If Cloudflare is used, prefer **Full (strict)**
+with a valid origin certificate rather than Flexible SSL. Login and customer data should
+not traverse the origin connection over plain HTTP.
 
-> These can also be changed under **Admin → Settings → Site Branding** without redeploying.
+### 7. Permissions and first start
 
-### Email — SMTP (optional)
+Application files must be readable by the cPanel account. If extraction produced bad
+permissions, repair only the application files:
 
-| Key | Value |
-|-----|-------|
-| `SMTP_HOST` | e.g. `smtp.gmail.com` |
-| `SMTP_PORT` | `587` |
-| `SMTP_SECURE` | `false` |
-| `SMTP_USER` | Sending email address |
-| `SMTP_PASS` | Email app password |
-| `SMTP_FROM` | e.g. `Bookings <bookings@yourdomain.com>` |
-
-### Email — Microsoft 365 (optional, takes priority over SMTP)
-
-| Key | Value |
-|-----|-------|
-| `MS_CLIENT_ID` | Azure app client ID |
-| `MS_CLIENT_SECRET` | Azure app client secret |
-| `MS_TENANT_ID` | Azure tenant ID |
-
-### Web Push Notifications (optional)
-
-| Key | Value |
-|-----|-------|
-| `VAPID_PUBLIC_KEY` | Generate with `npx web-push generate-vapid-keys` |
-| `VAPID_PRIVATE_KEY` | (from above) |
-| `VAPID_SUBJECT` | `mailto:admin@yourdomain.com` |
-
-### Maintenance / Development mode (optional)
-
-| Key | Value |
-|-----|-------|
-| `MAINTENANCE_MODE` | `true` to show maintenance page to public |
-| `DEVELOPMENT_MODE` | `true` to show "coming soon" page |
-| `MAINTENANCE_PASSWORD` | Bypass password for admin access during lock |
-
----
-
-## 11. Start the application
-
-In cPanel → **Setup Node.js App** → click **Restart**.
-
-Or from Terminal:
 ```bash
-touch ~/trakovo/tmp/restart.txt
+find "$HOME/trakovo/.next" -type d -exec chmod 755 {} +
+find "$HOME/trakovo/.next" -type f -exec chmod 644 {} +
+mkdir -p "$HOME/trakovo/tmp"
 ```
 
-Visit your domain — the home page should load.
+Adjust the root path to match the configured application. Do not recursively chmod the
+external upload directory or cPanel's managed Node environment without checking ownership.
 
----
+Click **Restart** in Setup Node.js App, or use:
 
-## 12. Access the admin panel
+```bash
+touch "$HOME/trakovo/tmp/restart.txt"
+```
 
-Go to `http://your-domain.com/admin` (or `https://` once SSL is working).
+Then verify:
 
-Log in with the `ADMIN_USERNAME` and `ADMIN_PASSWORD` set in step 10.
+1. The public home page loads over HTTPS.
+2. Admin login works.
+3. A booking list and booking detail page can read from MySQL.
+4. An upload can be written and served back.
+5. The displayed app version and `.next/BUILD_ID` match the intended release.
+6. Passenger/application logs contain no missing-table, missing-module, or connection errors.
 
----
+## Upgrade with the full release ZIP
 
-## HTTPS on cPanel + LiteSpeed
+Use the full ZIP for a first install, dependency changes, public assets, startup/config
+changes, or whenever the OTA limitations are unsuitable.
 
-On some cPanel hosts using LiteSpeed, HTTPS gives a 503 even after AutoSSL runs.
-This is because the LiteSpeed SSL virtual host is not automatically configured to proxy
-to the Node.js/Passenger app — only the HTTP vhost is.
+1. Back up the MySQL database and confirm the backup can be downloaded.
+2. Confirm `UPLOAD_DIR` points outside the application root; back up irreplaceable uploads.
+3. Review every item in `PENDING-DEPLOY.md`.
+4. If SQL is pending, apply the upgrade SQL in phpMyAdmin **before restarting the new code**.
+   Use maintenance mode for changes that are not backward compatible with the running build.
+5. Upload and extract `trakovo-vX.X.X.zip` over the application root. Do not remove the
+   cPanel-managed `node_modules` link or the external uploads directory.
+6. If package manifests changed, run **Run NPM Install**.
+7. Confirm `.next/BUILD_ID`, permissions, and environment changes.
+8. Restart Passenger.
+9. Run the release-specific checks in `PENDING-DEPLOY.md`.
 
-**Workaround options:**
+A full ZIP extraction does not automatically create a `.next.backup`. Retain the previous
+full artifact and a database backup until verification is complete.
 
-### Option A — Cloudflare (recommended)
-1. Sign up at cloudflare.com → Add your domain
-2. Update your domain's nameservers at your registrar to Cloudflare's
-3. In Cloudflare → **SSL/TLS** → set to **Flexible** (Cloudflare handles HTTPS, proxies HTTP to origin)
-4. Set `COOKIE_SECURE=false` in your env vars (cookies travel over HTTP between Cloudflare and origin)
-5. Done — users see HTTPS, your app runs on HTTP
+## Upgrade with the OTA bundle
 
-### Option B — Contact hosting support
-Ask them to ensure the Node.js/Passenger proxy is configured on the SSL virtual host:
-> "My Node.js app works on HTTP but returns 503 on HTTPS. The HTTPS virtual host for
-> [domain] is not proxying to the Passenger application. Can you ensure AllowOverride All
-> and the Passenger configuration are applied to the SSL vhost?"
+Use OTA only when `.next` plus the version in `package.json` is a complete representation
+of the release. Changes to `public/`, dependencies, startup files, or other root assets
+require a full deployment.
 
-### Option C — HTTP only (temporary)
-Set `COOKIE_SECURE=false` and use the site over HTTP while you resolve HTTPS.
-Not suitable for production with real customer data.
+Before starting OTA:
 
----
+1. Back up MySQL.
+2. Read `PENDING-DEPLOY.md`.
+3. Apply all required upgrade SQL and environment changes first. The OTA action restarts
+   Passenger automatically, so applying SQL afterward creates an avoidable failure window.
+4. Confirm dependencies and public assets are unchanged.
 
-## Updating the site
+There are two OTA paths under **Admin → Settings → Updates**:
 
-When you make code changes locally:
+- **Check for Updates → Pull & Deploy** downloads the `next-bundle-*.zip` asset from the
+  latest GitHub release in `SpaceyPuppy/trakovo`. `GITHUB_TOKEN` is optional for a public
+  release and useful for authenticated access/rate limits.
+- **Manual Deploy** uploads a locally generated `next-bundle-vX.X.X.zip` when the server
+  cannot reach GitHub.
 
-1. Run `npm run build` locally
-2. Re-run the zip build script
-3. Upload updated files — at minimum `.next/` and any changed source files
-4. If Prisma schema changed: regenerate `prisma/init.sql` and apply changes via phpMyAdmin
-5. If `package.json` dependencies changed: also re-upload `node_modules/.prisma/client/` and re-run npm install
-6. Fix permissions (step 8) after each upload
-7. Restart: `touch ~/trakovo/tmp/restart.txt`
+Do not upload the full `trakovo-vX.X.X.zip` to the OTA form.
 
----
+The updater:
 
-## Data that persists between deployments
+1. Extracts into a temporary directory.
+2. requires `.next/BUILD_ID`.
+3. copies bundled `package.json` into the app root.
+4. replaces the single previous `.next.backup` with the current `.next`.
+5. installs the new `.next`, repairs its read permissions, and touches `tmp/restart.txt`.
+6. restores the previous `.next` automatically if the swap itself fails.
 
-### MySQL database
-All booking, vehicle, vendor, and settings data lives in MySQL.
-Not affected by redeployments — only app files change.
+After the restart, refresh the Updates page, verify the build/version, and complete the
+same smoke tests used for a full deployment.
 
-Back up regularly via **phpMyAdmin → Export** (SQL format) or **cPanel → Backup**.
+## Rollback
 
-### Uploads folder
-As long as `UPLOAD_DIR` points outside the app directory, uploaded files survive redeployments.
+### OTA rollback
 
----
+The Updates page can restore the one `.next.backup` retained by the most recent successful
+OTA deployment. Each new OTA deployment replaces that backup, and a successful rollback
+consumes it.
+
+This is a **compiled-build rollback only**:
+
+- It restores `.next` and restarts Passenger.
+- It does not roll back MySQL schema/data, environment variables, dependencies, public files,
+  uploads, or other root files.
+- The current implementation does not restore the previous `package.json`, so the displayed
+  version can remain newer than the restored build.
+
+If a release changed anything beyond `.next`, perform a full rollback using the previous
+release artifact and restore the database only when the release's rollback procedure says
+that is safe. Never improvise destructive reverse SQL on production data.
+
+### Full-deployment rollback
+
+1. Enable maintenance mode if the current app is unsafe to serve.
+2. Restore the previous full release files.
+3. Run NPM Install if the dependency set changed.
+4. Follow the release-specific database rollback procedure, if one exists.
+5. Restart Passenger and repeat all smoke tests.
+
+## Persistent data and backups
+
+- **MySQL** contains bookings, vehicles, vendors, settings, invoices, payments, and audit
+  records. Export it before schema changes and include it in regular cPanel backups.
+- **`UPLOAD_DIR`** contains uploaded documents and media. Keep it outside the application
+  root and back it up independently.
+- **OAuth tokens and application settings** may be stored in MySQL; a file-only rollback
+  does not restore them.
+- **`.next.backup`** is only a convenience for one OTA build, not a disaster-recovery backup.
+
+## Publishing GitHub release assets
+
+After the version, changelog, tests, commit, and push are complete, publish both artifacts
+against the matching tag. For example:
+
+```bash
+git tag vX.X.X
+git push origin vX.X.X
+gh release create vX.X.X trakovo-vX.X.X.zip next-bundle-vX.X.X.zip --title "vX.X.X" --notes-file RELEASE-NOTES.md
+```
+
+Use the actual release-notes source chosen for the release. The OTA checker compares the
+GitHub tag without its leading `v` to `package.json.version` and looks for an asset whose
+name starts with `next-bundle-` and ends in `.zip`.
 
 ## Troubleshooting
 
-**503 Service Unavailable**
-- Run `node app.js` in cPanel Terminal to see the startup error
-- Check that `node_modules` is still a symlink: `ls -la ~/trakovo/ | grep node_modules`
-- If the symlink is broken/missing: go to Setup Node.js App → Run NPM Install to recreate it
-- Check file permissions — `.next/` and `.so.node` binaries need to be readable
+### 503 Service Unavailable or Passenger will not start
 
-**Prisma: "Could not locate the Query Engine for runtime rhel-openssl-1.0.x"**
-- The Prisma Linux binary wasn't uploaded or is in the wrong location
-- Ensure `node_modules/.prisma/client/libquery_engine-rhel-openssl-1.0.x.so.node` exists
-- Ensure the file has execute permission: `chmod 755 ~/trakovo/node_modules/.prisma/client/*.so.node`
+- Open the cPanel application/Passenger log and use the first startup error, not only the 503.
+- Confirm the configured startup file is `app.js` and the selected Node version satisfies
+  `package.json`.
+- Confirm `.next/BUILD_ID` exists and is readable.
+- Run NPM Install if a module is missing or the cPanel `node_modules` link is absent.
+- Confirm all required environment variables are configured without printing secret values.
+- Restart from Setup Node.js App or touch `tmp/restart.txt` after correcting the cause.
 
-**WebAssembly memory error at startup (undici)**
-- This is a known issue on shared hosting with memory restrictions
-- It is handled in `app.js` — the app continues running normally
+### Database connection errors
 
-**Cookies not being set / login not working**
-- If on HTTP: set `COOKIE_SECURE=false` in environment variables
-- If on HTTPS: ensure the SSL vhost is properly configured (see HTTPS section)
-- Check there are no leading/trailing spaces in env var values
+- Check `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_NAME`, and the user's database privileges.
+- Update `DB_PASSWORD` through cPanel rather than echoing it into terminal output.
+- Confirm the database server accepts connections from the application account.
+- Trakovo reads the five `DB_*` connection settings rather than a single connection string.
 
-**Admin login returns "Invalid credentials"**
-- Verify `ADMIN_USERNAME` and `ADMIN_PASSWORD` match exactly (case-sensitive, no spaces)
-- Check in Terminal: `echo "user: '$ADMIN_USERNAME' pass: '$ADMIN_PASSWORD'"`
+### Missing table or unknown column
 
-**"Cannot find module" error**
-- `node_modules` symlink is missing — run NPM Install via Setup Node.js App
-- Do not upload a real `node_modules` folder — it must be the cPanel-managed symlink
+- Stop retrying the failing action and compare the server schema with the pending release SQL.
+- Apply the required upgrade statements from `PENDING-DEPLOY.md` through phpMyAdmin.
+- Import `prisma/init.sql` only for a genuinely fresh database.
+- Restart only after the schema expected by the build is present.
 
-**Permission denied on files**
-- Run the chmod commands in step 8 after every upload
+### Cannot find module
 
-**App lock / "Can't acquire lock on app"**
-```bash
-pkill -f "node app.js"
-touch ~/trakovo/tmp/restart.txt
-```
+- Run **Run NPM Install** after extracting the full release.
+- Confirm `package.json` and `package-lock.json` came from the same release.
+- If the failure followed OTA and a dependency changed, deploy the full ZIP and run NPM Install.
+- There is no Prisma client or query-engine binary to upload or generate.
 
-**Database connection error**
-- Verify `DATABASE_URL` format: `mysql://user:pass@localhost:3306/dbname`
-- Confirm the database user has All Privileges on the database
-- Test credentials in phpMyAdmin
+### OTA bundle rejected or update check fails
 
-**Tables don't exist / 500 on first load**
-- Import `prisma/init.sql` via phpMyAdmin before starting the app
+- Confirm the selected file is `next-bundle-vX.X.X.zip`, not the full ZIP.
+- Inspect the archive: it must contain `.next/BUILD_ID` at the archive root.
+- Check free disk space and write access to the app root and system temporary directory.
+- If GitHub is unreachable or rate-limited, configure `GITHUB_TOKEN` or use Manual Deploy.
 
-**File uploads failing**
-- Ensure `UPLOAD_DIR` path exists and is writable: `chmod 755 ~/trakovo-uploads`
+### New images or static assets are missing after OTA
 
----
+Files in `public/` are not part of the OTA bundle. Perform a full release deployment.
 
-## Notes
+### Uploads fail or disappear
 
-- `ecosystem.config.js` and `nginx.conf.example` are for VPS/PM2 deployments — ignore for cPanel
-- Passenger restarts the app automatically if it crashes
-- cPanel's "Run NPM Install" button installs packages AND creates the `node_modules` symlink — it is safe to re-run at any time
+- Confirm `UPLOAD_DIR` is an absolute path outside the application root.
+- Confirm the directory exists and is writable by the cPanel application owner.
+- Check disk quota and filename/path errors in the application log.
+- Do not fix this with world-writable permissions.
+
+### Login cookie is not retained
+
+- Use HTTPS end to end and set `COOKIE_SECURE=true` in production.
+- Check domain/proxy configuration and server time.
+- Use `COOKIE_SECURE=false` only for intentional HTTP development/testing.
+
+## Files not used for this cPanel flow
+
+- `ecosystem.config.js` and `nginx.conf.example` target VPS-style deployments.
+- `deploy-cpanel.sh` is a separate Git-remote staging workflow and is not part of the ZIP/OTA
+  procedure above.
+- `prisma/schema.prisma` is historical reference only; it is not generated or loaded at runtime.

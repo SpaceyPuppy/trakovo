@@ -17,6 +17,13 @@ interface VendorForTabs {
   is_active: boolean
   taxi_enabled: boolean
   vehicle_hire_enabled: boolean
+  billing_name: string
+  billing_email: string
+  billing_address: string | null
+  billing_abn: string
+  billing_currency: string
+  billing_terms_days: number
+  billing_enabled: boolean
   vehicles: {
     vehicle_id: string
     is_enabled: boolean
@@ -79,6 +86,13 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
     is_active: vendor.is_active,
     taxi_enabled: vendor.taxi_enabled,
     vehicle_hire_enabled: vendor.vehicle_hire_enabled,
+    billing_name: vendor.billing_name,
+    billing_email: vendor.billing_email,
+    billing_address: vendor.billing_address ?? '',
+    billing_abn: vendor.billing_abn,
+    billing_currency: vendor.billing_currency,
+    billing_terms_days: vendor.billing_terms_days,
+    billing_enabled: vendor.billing_enabled,
   })
   const [detailSaving, setDetailSaving] = useState(false)
   const [detailMsg, setDetailMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -319,6 +333,62 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
               <button onClick={saveDetails} disabled={detailSaving}
                 className="bg-accent hover:bg-accent-dark text-white font-display font-bold text-[13.5px] px-5 py-2.5 rounded-[6px] transition-colors disabled:opacity-50">
                 {detailSaving ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+
+          {/* Billing profile */}
+          <div className="bg-white border border-border rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border bg-bg">
+              <h3 className="font-display font-bold text-[14px]">Billing Profile</h3>
+              <p className="text-[12px] text-ink-3 mt-0.5">Used as the recipient snapshot on future vendor invoices.</p>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="flex items-center justify-between border border-border rounded-[6px] px-4 py-3">
+                <div>
+                  <p className="text-[13.5px] font-semibold">Include in bill runs</p>
+                  <p className="text-[12px] text-ink-3">Completed bookings remain visible as needing attention when disabled.</p>
+                </div>
+                <button type="button" onClick={() => setDetails(d => ({ ...d, billing_enabled: !d.billing_enabled }))}
+                  className={`w-10 h-6 rounded-full transition-colors ${details.billing_enabled ? 'bg-accent' : 'bg-ink-4'}`}>
+                  <span className={`block w-4 h-4 bg-white rounded-full mx-1 transition-transform ${details.billing_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <div>
+                <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Legal / Billing Name</label>
+                <input className={inp} value={details.billing_name} onChange={e => setDetails(d => ({ ...d, billing_name: e.target.value }))} placeholder={details.name} maxLength={191} />
+              </div>
+              <div>
+                <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Billing Email</label>
+                <input className={inp} type="email" value={details.billing_email} onChange={e => setDetails(d => ({ ...d, billing_email: e.target.value }))} placeholder={details.contact_email} maxLength={191} />
+              </div>
+              <div>
+                <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">ABN</label>
+                <input className={inp} value={details.billing_abn} onChange={e => setDetails(d => ({ ...d, billing_abn: e.target.value }))} maxLength={32} />
+              </div>
+              <div>
+                <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Billing Address</label>
+                <textarea className={inp} rows={3} value={details.billing_address} onChange={e => setDetails(d => ({ ...d, billing_address: e.target.value }))} maxLength={2000} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Currency</label>
+                  <input className={inp} value={details.billing_currency} onChange={e => setDetails(d => ({ ...d, billing_currency: e.target.value.toUpperCase() }))} maxLength={3} />
+                </div>
+                <div>
+                  <label className="block text-[12.5px] font-semibold text-ink-3 mb-1.5">Payment Terms (days)</label>
+                  <input className={inp} type="number" min={0} max={365} step={1} value={details.billing_terms_days} onChange={e => setDetails(d => ({ ...d, billing_terms_days: Number(e.target.value) }))} />
+                </div>
+              </div>
+              <p className="text-[11.5px] text-ink-4">Save Changes in Organisation Info above to apply this billing profile.</p>
+              {detailMsg && (
+                <p className={`text-[13px] rounded-[6px] px-3 py-2 ${detailMsg.type === 'success' ? 'text-success bg-success-bg border border-success/30' : 'text-red-600 bg-red-50 border border-red-200'}`}>
+                  {detailMsg.text}
+                </p>
+              )}
+              <button type="button" onClick={saveDetails} disabled={detailSaving}
+                className="bg-accent hover:bg-accent-dark text-white font-display font-bold text-[13.5px] px-5 py-2.5 rounded-[6px] transition-colors disabled:opacity-50">
+                {detailSaving ? 'Saving…' : 'Save Billing Profile'}
               </button>
             </div>
           </div>

@@ -5,21 +5,73 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.14.4 (unreleased)
+## Current pending version: v1.15.0 (production deployment pending)
 
 ### Deploy checklist
-- [ ] Pause booking writes for the migration/cutover window
-- [ ] Back up the production database
-- [ ] Apply and verify the DB migration below immediately before cutover
-- [ ] Upload and extract the release zip (or install the OTA bundle)
+- [ ] Schedule a maintenance window and tell staff not to use Admin Quick Add, status changes, invoices, or vendor booking forms during the cutover
+- [ ] Put the site into maintenance mode and confirm booking writes are paused
+- [ ] Create a full database backup and verify that it can be downloaded/restored
+- [ ] Record the current application path, release version, and `.next` backup/rollback location
+- [ ] Run the preflight queries below; resolve every unexpected result before changing schema
+- [ ] If a prototype `Invoice` table exists, rename it to `InvoiceLegacyBackup`; never drop it during this release
+- [ ] Apply the migration in the documented order and run each verification query before continuing
+- [ ] Upload/extract the full release archive or install the OTA bundle
 - [ ] Run NPM Install only for a full archive deployment
-- [ ] Restart app
-- [ ] Complete post-deploy verification, then resume booking writes
+- [ ] Restart Passenger and complete all smoke/acceptance checks while writes remain paused
+- [ ] Resume booking writes only after billing, Quick Add, calendar, and concurrency checks pass
 
 ### Pending SQL
 
+This is a one-time existing-install migration, not a fresh-install script. Run it in order with booking writes paused. `prisma/init.sql` remains the source for fresh databases.
+
+> **Do not execute this whole Markdown code block blindly.** The repository has no automatic migration ledger. Run the preflight first, then execute each individually labelled statement only when its table/column/index is absent. A duplicate column, index, or foreign-key error is a hard stop: inspect the schema before continuing rather than skipping an unknown failure.
+
+Preflight expectations:
+
+- `Invoice` is either absent or has the prototype `amount` column. If it already has `total_amount`, stop: the native ledger has already been installed.
+- `InvoiceLegacyBackup` must not coexist with a prototype `Invoice`; if both exist, stop and investigate instead of overwriting either table.
+- Check whether each older pending column/index is already present. Skip only the individually labelled pre-v1.15 statement when the preflight result proves it has already been applied.
+
 ```sql
--- v1.14.4 — atomic public IDs and indexed availability locks
+-- Read-only preflight: save these results with the deployment record.
+SELECT TABLE_NAME
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME IN ('Invoice', 'InvoiceLegacyBackup', 'BillingRun', 'InvoiceLine',
+                     'Payment', 'PaymentAllocation', 'BillingEvent', 'RequestIdempotency',
+                     'AdminUser', 'Driver', 'DriverMessage');
+
+SELECT TABLE_NAME, COLUMN_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND ((TABLE_NAME = 'Invoice' AND COLUMN_NAME IN ('amount', 'total_amount'))
+    OR (TABLE_NAME = 'Booking' AND COLUMN_NAME IN ('google_event_id', 'ms_event_id', 'currency', 'completed_at'))
+    OR (TABLE_NAME = 'Booking' AND COLUMN_NAME IN ('driver_id', 'enquiry_status'))
+    OR (TABLE_NAME = 'Vehicle' AND COLUMN_NAME IN
+        ('licence_category', 'public_bookings_enabled', 'vendor_bookings_enabled'))
+    OR (TABLE_NAME = 'Vendor' AND COLUMN_NAME IN
+        ('vehicle_hire_enabled', 'taxi_enabled', 'billing_name', 'billing_email',
+         'billing_address', 'billing_abn', 'billing_currency', 'billing_terms_days',
+         'billing_enabled')))
+ORDER BY TABLE_NAME, COLUMN_NAME;
+
+-- These structures pre-date v1.15 and are used in production code. Verify
+-- their deployed definitions against prisma/init.sql; do not recreate or drop
+-- populated identity/messaging tables during this migration.
+SHOW CREATE TABLE `AdminUser`;
+SHOW CREATE TABLE `Driver`;
+SHOW CREATE TABLE `DriverMessage`;
+
+SELECT TABLE_NAME, INDEX_NAME
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND INDEX_NAME IN ('Booking_vehicle_status_dates_idx', 'Booking_vendor_billing_idx',
+                     'VehicleBlockout_vehicle_dates_idx', 'VehicleBlockout_vehicle_idx')
+ORDER BY TABLE_NAME, INDEX_NAME;
+```
+
+```sql
+-- Outstanding pre-v1.15 atomic public IDs and indexed availability locks.
 -- Apply this block before restarting the new application build.
 CREATE TABLE IF NOT EXISTS `PublicIdSequence` (
   `prefix` VARCHAR(10) NOT NULL,
@@ -67,26 +119,265 @@ ALTER TABLE `Booking` DROP COLUMN `google_event_id`;
 ALTER TABLE `Vendor` ADD COLUMN `vehicle_hire_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_active`;
 ALTER TABLE `Vendor` ADD COLUMN `taxi_enabled` TINYINT(1) NOT NULL DEFAULT 0 AFTER `vehicle_hire_enabled`;
 
--- v1.14.4 — Invoices
-CREATE TABLE IF NOT EXISTS `Invoice` (
-  `id`         VARCHAR(191) NOT NULL,
-  `public_id`  VARCHAR(191) NOT NULL,
+-- v1.15.0 native billing ledger and safe prototype preservation.
+-- v1.15.0 native billing prerequisites. These ALTER statements are one-time.
+-- Run each statement only when preflight shows that exact item is missing.
+ALTER TABLE `Booking`
+  ADD COLUMN `currency` VARCHAR(10) NOT NULL DEFAULT 'AUD' AFTER `total_cost`;
+ALTER TABLE `Booking`
+  ADD COLUMN `completed_at` DATETIME NULL AFTER `vendor_client_id`;
+ALTER TABLE `Booking`
+  ADD INDEX `Booking_vendor_billing_idx`
+    (`vendor_id`(36), `status`(20), `is_enquiry`, `end_date`(10));
+
+UPDATE `Booking`
+SET `currency` = 'AUD'
+WHERE `currency` IS NULL OR TRIM(`currency`) = '';
+
+-- Preserve the currency of existing vehicle-priced bookings. Invalid legacy
+-- vehicle currency values remain AUD and must be reviewed manually.
+UPDATE `Booking` b
+JOIN `Vehicle` v ON v.`id` = b.`vehicle_id`
+SET b.`currency` = UPPER(TRIM(v.`currency`))
+WHERE TRIM(v.`currency`) REGEXP '^[A-Za-z]{3}$';
+
+UPDATE `Booking`
+SET `completed_at` = `updated_at`
+WHERE `status` = 'completed' AND `completed_at` IS NULL;
+
+ALTER TABLE `Vendor`
+  ADD COLUMN `billing_name` VARCHAR(191) NOT NULL DEFAULT '' AFTER `contact_phone`;
+ALTER TABLE `Vendor`
+  ADD COLUMN `billing_email` VARCHAR(191) NOT NULL DEFAULT '' AFTER `billing_name`;
+ALTER TABLE `Vendor`
+  ADD COLUMN `billing_address` TEXT NULL AFTER `billing_email`;
+ALTER TABLE `Vendor`
+  ADD COLUMN `billing_abn` VARCHAR(32) NOT NULL DEFAULT '' AFTER `billing_address`;
+ALTER TABLE `Vendor`
+  ADD COLUMN `billing_currency` VARCHAR(10) NOT NULL DEFAULT 'AUD' AFTER `billing_abn`;
+ALTER TABLE `Vendor`
+  ADD COLUMN `billing_terms_days` INTEGER NOT NULL DEFAULT 14 AFTER `billing_currency`;
+ALTER TABLE `Vendor`
+  ADD COLUMN `billing_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `billing_terms_days`;
+
+UPDATE `Vendor` SET `billing_name` = `name` WHERE TRIM(`billing_name`) = '';
+UPDATE `Vendor` SET `billing_email` = `contact_email` WHERE TRIM(`billing_email`) = '';
+
+-- No-vehicle vendor work is denominated in the vendor billing currency. At
+-- first migration this is AUD unless staff deliberately configured otherwise.
+UPDATE `Booking` b
+JOIN `Vendor` v ON v.`id` = b.`vendor_id`
+SET b.`currency` = UPPER(TRIM(v.`billing_currency`))
+WHERE b.`vehicle_id` IS NULL
+  AND TRIM(v.`billing_currency`) REGEXP '^[A-Za-z]{3}$';
+
+-- Preserve the prototype before creating the new Invoice table. The rename is
+-- a no-op when Invoice is absent. Preflight must show no conflicting backup.
+SET @prototype_invoice_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Invoice' AND COLUMN_NAME = 'amount'
+);
+SET @invoice_backup_exists := (
+  SELECT COUNT(*) FROM information_schema.TABLES
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'InvoiceLegacyBackup'
+);
+SET @rename_invoice_sql := IF(
+  @prototype_invoice_exists = 1 AND @invoice_backup_exists = 0,
+  'RENAME TABLE `Invoice` TO `InvoiceLegacyBackup`',
+  'SELECT 1'
+);
+PREPARE rename_invoice_statement FROM @rename_invoice_sql;
+EXECUTE rename_invoice_statement;
+DEALLOCATE PREPARE rename_invoice_statement;
+
+-- Empty only when the prototype never existed. Never drop this backup in the
+-- v1.15.0 deployment or rollback.
+CREATE TABLE IF NOT EXISTS `InvoiceLegacyBackup` (
+  `id` VARCHAR(191) NOT NULL,
+  `public_id` VARCHAR(191) NOT NULL,
   `booking_id` VARCHAR(191) NOT NULL,
-  `amount`     INTEGER NOT NULL,
-  `currency`   VARCHAR(10) NOT NULL DEFAULT 'AUD',
-  `status`     VARCHAR(20) NOT NULL DEFAULT 'draft',
-  `due_date`   VARCHAR(10) NULL,
-  `paid_at`    DATETIME NULL,
-  `notes`      TEXT NULL,
+  `amount` INTEGER NOT NULL,
+  `currency` VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'draft',
+  `due_date` VARCHAR(10) NULL,
+  `paid_at` DATETIME NULL,
+  `notes` TEXT NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE INDEX `InvoiceLegacyBackup_public_id_unique` (`public_id`),
+  UNIQUE INDEX `InvoiceLegacyBackup_booking_id_unique` (`booking_id`),
+  INDEX `InvoiceLegacyBackup_status_idx` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `BillingRun` (
+  `id` VARCHAR(191) NOT NULL,
+  `idempotency_key` VARCHAR(128) NOT NULL,
+  `cutoff_date` DATE NOT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'processing',
+  `vendor_filter` TEXT NULL,
+  `invoice_count` INTEGER NOT NULL DEFAULT 0,
+  `booking_count` INTEGER NOT NULL DEFAULT 0,
+  `total_amount` BIGINT NOT NULL DEFAULT 0,
+  `currency` VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `notes` TEXT NULL,
+  `created_by` VARCHAR(191) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `completed_at` DATETIME NULL,
+  PRIMARY KEY (`id`),
+  INDEX `BillingRun_idempotency_key_idx` (`idempotency_key`),
+  INDEX `BillingRun_cutoff_created_idx` (`cutoff_date`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `Invoice` (
+  `id`                    VARCHAR(191) NOT NULL,
+  `public_id`             VARCHAR(191) NOT NULL,
+  `billing_run_id`        VARCHAR(191) NULL,
+  `booking_id`            VARCHAR(191) NULL,
+  `vendor_id`             VARCHAR(191) NULL,
+  `invoice_type`          VARCHAR(20) NOT NULL DEFAULT 'direct',
+  `status`                VARCHAR(20) NOT NULL DEFAULT 'draft',
+  `currency`              VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `issuer_name`           VARCHAR(191) NOT NULL,
+  `issuer_abn`            VARCHAR(32) NOT NULL DEFAULT '',
+  `issuer_email`          VARCHAR(191) NOT NULL DEFAULT '',
+  `issuer_phone`          VARCHAR(50) NOT NULL DEFAULT '',
+  `issuer_address`        TEXT NULL,
+  `recipient_name`        VARCHAR(191) NOT NULL,
+  `recipient_abn`         VARCHAR(32) NOT NULL DEFAULT '',
+  `recipient_email`       VARCHAR(191) NOT NULL DEFAULT '',
+  `recipient_phone`       VARCHAR(50) NOT NULL DEFAULT '',
+  `recipient_address`     TEXT NULL,
+  `issue_date`            DATE NULL,
+  `due_date`              DATE NULL,
+  `payment_terms_days`    INTEGER NOT NULL DEFAULT 14,
+  `tax_mode`              VARCHAR(20) NOT NULL DEFAULT 'none',
+  `tax_rate_bps`          INTEGER NOT NULL DEFAULT 0,
+  `subtotal_amount`       BIGINT NOT NULL DEFAULT 0,
+  `tax_amount`            BIGINT NOT NULL DEFAULT 0,
+  `total_amount`          BIGINT NOT NULL DEFAULT 0,
+  `amount_paid`           BIGINT NOT NULL DEFAULT 0,
+  `balance_due`           BIGINT NOT NULL DEFAULT 0,
+  `notes`                 TEXT NULL,
+  `issued_at`             DATETIME NULL,
+  `paid_at`               DATETIME NULL,
+  `voided_at`             DATETIME NULL,
+  `created_by`            VARCHAR(191) NOT NULL,
+  `created_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
   UNIQUE INDEX `Invoice_public_id_unique` (`public_id`),
-  UNIQUE INDEX `Invoice_booking_id_unique` (`booking_id`),
-  INDEX `Invoice_status_idx` (`status`)
+  INDEX `Invoice_billing_run_idx` (`billing_run_id`),
+  INDEX `Invoice_booking_idx` (`booking_id`),
+  INDEX `Invoice_vendor_status_idx` (`vendor_id`(36), `status`),
+  INDEX `Invoice_status_due_idx` (`status`, `due_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- v1.14.4 — Contact enquiries
+CREATE TABLE IF NOT EXISTS `InvoiceLine` (
+  `id` VARCHAR(191) NOT NULL,
+  `invoice_id` VARCHAR(191) NOT NULL,
+  `booking_id` VARCHAR(191) NULL,
+  `booking_claim` VARCHAR(191) NULL,
+  `description` TEXT NOT NULL,
+  `service_start` DATE NULL,
+  `service_end` DATE NULL,
+  `quantity` DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+  `unit_amount` BIGINT NOT NULL,
+  `subtotal_amount` BIGINT NOT NULL,
+  `tax_rate_bps` INTEGER NOT NULL DEFAULT 0,
+  `tax_amount` BIGINT NOT NULL DEFAULT 0,
+  `total_amount` BIGINT NOT NULL,
+  `sort_order` INTEGER NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `InvoiceLine_booking_claim_unique` (`booking_claim`),
+  INDEX `InvoiceLine_invoice_sort_idx` (`invoice_id`, `sort_order`),
+  INDEX `InvoiceLine_booking_idx` (`booking_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `Payment` (
+  `id` VARCHAR(191) NOT NULL,
+  `vendor_id` VARCHAR(191) NULL,
+  `amount` BIGINT NOT NULL,
+  `currency` VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `payment_date` DATE NOT NULL,
+  `method` VARCHAR(50) NOT NULL DEFAULT 'manual',
+  `reference` VARCHAR(191) NOT NULL DEFAULT '',
+  `notes` TEXT NULL,
+  `status` VARCHAR(20) NOT NULL DEFAULT 'posted',
+  `created_by` VARCHAR(191) NOT NULL,
+  `reversed_at` DATETIME NULL,
+  `reversed_by` VARCHAR(191) NULL,
+  `reversal_reason` TEXT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `Payment_vendor_date_idx` (`vendor_id`(36), `payment_date`),
+  INDEX `Payment_reference_idx` (`reference`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `PaymentAllocation` (
+  `id` VARCHAR(191) NOT NULL,
+  `payment_id` VARCHAR(191) NOT NULL,
+  `invoice_id` VARCHAR(191) NOT NULL,
+  `amount` BIGINT NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `PaymentAllocation_payment_invoice_unique` (`payment_id`, `invoice_id`),
+  INDEX `PaymentAllocation_invoice_idx` (`invoice_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `BillingEvent` (
+  `id` VARCHAR(191) NOT NULL,
+  `invoice_id` VARCHAR(191) NULL,
+  `billing_run_id` VARCHAR(191) NULL,
+  `payment_id` VARCHAR(191) NULL,
+  `event_type` VARCHAR(50) NOT NULL,
+  `actor` VARCHAR(191) NOT NULL,
+  `details` JSON NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `BillingEvent_invoice_created_idx` (`invoice_id`, `created_at`),
+  INDEX `BillingEvent_run_created_idx` (`billing_run_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `RequestIdempotency` (
+  `id` VARCHAR(191) NOT NULL,
+  `scope` VARCHAR(63) NOT NULL,
+  `key` VARCHAR(128) NOT NULL,
+  `request_hash` VARCHAR(64) NOT NULL,
+  `status_code` INTEGER NULL,
+  `response_body` TEXT NULL,
+  `resource_id` VARCHAR(191) NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expires_at` DATETIME NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `RequestIdempotency_scope_key_unique` (`scope`, `key`),
+  INDEX `RequestIdempotency_expires_idx` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `Invoice`
+  ADD CONSTRAINT `Invoice_billing_run_id_fkey` FOREIGN KEY (`billing_run_id`) REFERENCES `BillingRun`(`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `Invoice_booking_id_fkey` FOREIGN KEY (`booking_id`) REFERENCES `Booking`(`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `Invoice_vendor_id_fkey` FOREIGN KEY (`vendor_id`) REFERENCES `Vendor`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE `InvoiceLine`
+  ADD CONSTRAINT `InvoiceLine_invoice_id_fkey` FOREIGN KEY (`invoice_id`) REFERENCES `Invoice`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `InvoiceLine_booking_id_fkey` FOREIGN KEY (`booking_id`) REFERENCES `Booking`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE `Payment`
+  ADD CONSTRAINT `Payment_vendor_id_fkey` FOREIGN KEY (`vendor_id`) REFERENCES `Vendor`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE `PaymentAllocation`
+  ADD CONSTRAINT `PaymentAllocation_payment_id_fkey` FOREIGN KEY (`payment_id`) REFERENCES `Payment`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `PaymentAllocation_invoice_id_fkey` FOREIGN KEY (`invoice_id`) REFERENCES `Invoice`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE `BillingEvent`
+  ADD CONSTRAINT `BillingEvent_invoice_id_fkey` FOREIGN KEY (`invoice_id`) REFERENCES `Invoice`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `BillingEvent_billing_run_id_fkey` FOREIGN KEY (`billing_run_id`) REFERENCES `BillingRun`(`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `BillingEvent_payment_id_fkey` FOREIGN KEY (`payment_id`) REFERENCES `Payment`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- Outstanding pre-v1.15 contact-enquiry table.
 CREATE TABLE IF NOT EXISTS `ContactEnquiry` (
   `id` VARCHAR(191) NOT NULL,
   `public_id` VARCHAR(191) NOT NULL,
@@ -102,23 +393,209 @@ CREATE TABLE IF NOT EXISTS `ContactEnquiry` (
 
 -- Invoice and ContactEnquiry are created above on installations upgrading to
 -- v1.14.4, so seed their counters after those tables exist.
+-- Migrate prototype invoices without modifying the backup. Old totals were
+-- already integer cents. Tax is recorded as none because the prototype did not
+-- retain a tax snapshot.
+INSERT IGNORE INTO `Invoice` (
+  `id`, `public_id`, `billing_run_id`, `booking_id`, `vendor_id`, `invoice_type`,
+  `status`, `currency`, `issuer_name`, `issuer_abn`, `issuer_email`,
+  `issuer_phone`, `issuer_address`, `recipient_name`, `recipient_abn`,
+  `recipient_email`, `recipient_phone`, `recipient_address`, `issue_date`,
+  `due_date`, `payment_terms_days`, `tax_mode`, `tax_rate_bps`,
+  `subtotal_amount`, `tax_amount`, `total_amount`, `amount_paid`, `balance_due`,
+  `notes`, `issued_at`, `paid_at`, `voided_at`, `created_by`, `created_at`, `updated_at`
+)
+SELECT
+  legacy.`id`, legacy.`public_id`, NULL, legacy.`booking_id`, booking.`vendor_id`,
+  IF(booking.`vendor_id` IS NULL, 'direct', 'vendor'),
+  CASE legacy.`status`
+    WHEN 'sent' THEN 'issued'
+    WHEN 'paid' THEN 'paid'
+    WHEN 'void' THEN 'void'
+    ELSE 'draft'
+  END,
+  COALESCE(NULLIF(legacy.`currency`, ''), booking.`currency`, 'AUD'),
+  COALESCE(
+    NULLIF((SELECT `value` FROM `Setting` WHERE `key` = 'billing_legal_name' LIMIT 1), ''),
+    NULLIF((SELECT `value` FROM `Setting` WHERE `key` = 'site_name' LIMIT 1), ''),
+    'Trakovo'
+  ),
+  COALESCE((SELECT `value` FROM `Setting` WHERE `key` = 'billing_abn' LIMIT 1), ''),
+  COALESCE((SELECT `value` FROM `Setting` WHERE `key` = 'billing_email' LIMIT 1), ''),
+  COALESCE((SELECT `value` FROM `Setting` WHERE `key` = 'billing_phone' LIMIT 1), ''),
+  (SELECT `value` FROM `Setting` WHERE `key` = 'billing_address' LIMIT 1),
+  IF(booking.`vendor_id` IS NULL,
+     COALESCE(NULLIF(booking.`contact_name`, ''), booking.`contact_email`),
+     COALESCE(NULLIF(vendor.`billing_name`, ''), vendor.`name`)),
+  IF(booking.`vendor_id` IS NULL, '', COALESCE(vendor.`billing_abn`, '')),
+  IF(booking.`vendor_id` IS NULL, booking.`contact_email`,
+     COALESCE(NULLIF(vendor.`billing_email`, ''), vendor.`contact_email`)),
+  IF(booking.`vendor_id` IS NULL, booking.`contact_phone`, vendor.`contact_phone`),
+  IF(booking.`vendor_id` IS NULL, NULL, vendor.`billing_address`),
+  IF(legacy.`status` IN ('sent', 'paid'), DATE(legacy.`created_at`), NULL),
+  CASE
+    WHEN legacy.`due_date` REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+      THEN STR_TO_DATE(legacy.`due_date`, '%Y-%m-%d')
+    ELSE NULL
+  END,
+  COALESCE(vendor.`billing_terms_days`, 14),
+  'none', 0,
+  legacy.`amount`, 0, legacy.`amount`,
+  IF(legacy.`status` = 'paid', legacy.`amount`, 0),
+  IF(legacy.`status` = 'paid', 0, legacy.`amount`),
+  legacy.`notes`,
+  IF(legacy.`status` IN ('sent', 'paid'), legacy.`created_at`, NULL),
+  IF(legacy.`status` = 'paid', COALESCE(legacy.`paid_at`, legacy.`updated_at`), NULL),
+  IF(legacy.`status` = 'void', legacy.`updated_at`, NULL),
+  'v1.15.0 migration', legacy.`created_at`, legacy.`updated_at`
+FROM `InvoiceLegacyBackup` legacy
+JOIN `Booking` booking ON booking.`id` = legacy.`booking_id`
+LEFT JOIN `Vendor` vendor ON vendor.`id` = booking.`vendor_id`;
+
+INSERT IGNORE INTO `InvoiceLine` (
+  `id`, `invoice_id`, `booking_id`, `booking_claim`, `description`,
+  `service_start`, `service_end`, `quantity`, `unit_amount`, `subtotal_amount`,
+  `tax_rate_bps`, `tax_amount`, `total_amount`, `sort_order`, `created_at`
+)
+SELECT
+  CONCAT('legacy-line-', SHA2(legacy.`id`, 256)),
+  legacy.`id`, legacy.`booking_id`,
+  IF(legacy.`status` = 'void', NULL, legacy.`booking_id`),
+  CONCAT(COALESCE(vehicle.`name`, IF(booking.`service_type` = 'taxi', 'Taxi service', 'Vehicle hire')),
+         ' - booking ', booking.`public_id`, ' - ', booking.`start_date`, ' to ', booking.`end_date`),
+  booking.`start_date`, booking.`end_date`, 1.00,
+  legacy.`amount`, legacy.`amount`, 0, 0, legacy.`amount`, 0, legacy.`created_at`
+FROM `InvoiceLegacyBackup` legacy
+JOIN `Invoice` invoice_record ON invoice_record.`id` = legacy.`id`
+JOIN `Booking` booking ON booking.`id` = legacy.`booking_id`
+LEFT JOIN `Vehicle` vehicle ON vehicle.`id` = booking.`vehicle_id`;
+
+INSERT IGNORE INTO `Payment` (
+  `id`, `vendor_id`, `amount`, `currency`, `payment_date`, `method`,
+  `reference`, `notes`, `status`, `created_by`, `created_at`
+)
+SELECT
+  CONCAT('legacy-payment-', SHA2(legacy.`id`, 256)),
+  booking.`vendor_id`, legacy.`amount`,
+  COALESCE(NULLIF(legacy.`currency`, ''), booking.`currency`, 'AUD'),
+  DATE(COALESCE(legacy.`paid_at`, legacy.`updated_at`)),
+  'legacy', legacy.`public_id`, 'Migrated from InvoiceLegacyBackup',
+  'posted', 'v1.15.0 migration', legacy.`updated_at`
+FROM `InvoiceLegacyBackup` legacy
+JOIN `Booking` booking ON booking.`id` = legacy.`booking_id`
+WHERE legacy.`status` = 'paid';
+
+INSERT IGNORE INTO `PaymentAllocation` (`id`, `payment_id`, `invoice_id`, `amount`, `created_at`)
+SELECT
+  CONCAT('legacy-allocation-', SHA2(legacy.`id`, 256)),
+  CONCAT('legacy-payment-', SHA2(legacy.`id`, 256)),
+  legacy.`id`, legacy.`amount`, legacy.`updated_at`
+FROM `InvoiceLegacyBackup` legacy
+JOIN `Invoice` invoice_record ON invoice_record.`id` = legacy.`id`
+WHERE legacy.`status` = 'paid';
+
+INSERT IGNORE INTO `BillingEvent` (
+  `id`, `invoice_id`, `billing_run_id`, `payment_id`, `event_type`,
+  `actor`, `details`, `created_at`
+)
+SELECT
+  CONCAT('legacy-event-', SHA2(legacy.`id`, 256)),
+  legacy.`id`, NULL, NULL, 'invoice_migrated', 'v1.15.0 migration',
+  JSON_OBJECT('source', 'InvoiceLegacyBackup', 'legacy_status', legacy.`status`),
+  legacy.`updated_at`
+FROM `InvoiceLegacyBackup` legacy
+JOIN `Invoice` invoice_record ON invoice_record.`id` = legacy.`id`;
+
+-- Seed invoice references only after the new ledger and any legacy rows exist.
 INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
 SELECT 'INV', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `Invoice`
 ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
 INSERT INTO `PublicIdSequence` (`prefix`, `last_value`)
 SELECT 'CNT', COALESCE(MAX(CAST(SUBSTRING(`public_id`, 5) AS UNSIGNED)), 0) FROM `ContactEnquiry`
 ON DUPLICATE KEY UPDATE `last_value` = GREATEST(`last_value`, VALUES(`last_value`));
+
+-- Migration verification. Do not deploy the application if these expose a
+-- mismatch, duplicate booking claim, negative balance, or missing constraint.
+SELECT
+  (SELECT COUNT(*) FROM `InvoiceLegacyBackup`) AS legacy_invoice_rows,
+  (SELECT COUNT(*) FROM `Invoice` WHERE `created_by` = 'v1.15.0 migration') AS migrated_invoice_rows,
+  (SELECT COUNT(*) FROM `InvoiceLine` line_item
+   JOIN `Invoice` invoice_record ON invoice_record.`id` = line_item.`invoice_id`
+   WHERE invoice_record.`created_by` = 'v1.15.0 migration') AS migrated_line_rows;
+
+SELECT `booking_claim`, COUNT(*) AS claim_count
+FROM `InvoiceLine`
+WHERE `booking_claim` IS NOT NULL
+GROUP BY `booking_claim`
+HAVING COUNT(*) > 1;
+
+SELECT `id`, `public_id`, `total_amount`, `amount_paid`, `balance_due`
+FROM `Invoice`
+WHERE `total_amount` < 0 OR `amount_paid` < 0 OR `balance_due` < 0
+   OR `amount_paid` + `balance_due` <> `total_amount`;
+
+SELECT `prefix`, `last_value`
+FROM `PublicIdSequence`
+WHERE `prefix` IN ('VHB', 'VHC', 'VND', 'VNC', 'VNE', 'DRV', 'CRQ', 'INV', 'CNT')
+ORDER BY `prefix`;
+
+SELECT TABLE_NAME, CONSTRAINT_NAME
+FROM information_schema.REFERENTIAL_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA = DATABASE()
+  AND TABLE_NAME IN ('Invoice', 'InvoiceLine', 'Payment', 'PaymentAllocation', 'BillingEvent')
+ORDER BY TABLE_NAME, CONSTRAINT_NAME;
 ```
 
 ### New env vars
-None.
+No new v1.15.0 environment variables. The existing `CRON_SECRET` remains required, and the daily `POST /api/cron/email-sequences` cPanel job must be active so expired idempotency records are cleaned up.
+
+### Strict migration order
+
+1. Pause all writes and take the verified database backup.
+2. Run the read-only preflight and compare deployed identity, driver, booking, vehicle, vendor, and messaging structures with `prisma/init.sql`.
+3. Apply only genuinely outstanding pre-v1.15 columns/indexes (`ms_event_id`, vendor service toggles, `PublicIdSequence`, availability indexes, `ContactEnquiry`).
+4. Add Booking currency/completion fields and Vendor billing-profile fields; run their backfills.
+5. Rename a prototype `Invoice` to `InvoiceLegacyBackup`. Stop if both already exist or if `Invoice` already contains `total_amount`.
+6. Create the native billing/idempotency tables, indexes, and foreign keys.
+7. Migrate any prototype invoice rows, lines, and paid-payment records from the untouched backup.
+8. Seed every `PublicIdSequence` prefix, including `INV`, after migration.
+9. Run every verification query and save the results.
+10. Deploy/restart the application, then complete acceptance checks before resuming writes.
+
+### Rollback
+
+- Keep maintenance mode enabled and stop all writes.
+- Roll back the application bundle to the pre-v1.15 build.
+- Restore the complete pre-migration database backup. This is the preferred rollback because Booking and Vendor rows are changed as part of the cutover.
+- Do not try to make the old build use the new `Invoice` table.
+- Do not drop or rename `InvoiceLegacyBackup`; retain it until the release and migrated invoice counts have been independently accepted.
+- Restart Passenger against the restored database, verify the old build, then resume writes.
 
 ### Post-deploy steps
+1. Configure and review issuer/vendor billing profiles before issuing a production invoice
+2. Confirm `CRON_SECRET` and the daily cPanel email-sequences job are active; its JSON must report `idempotency_cleanup: true`
+3. Keep `InvoiceLegacyBackup` and the database backup until financial history and staff acceptance are signed off
 1. Confirm all pending SQL above was applied successfully before the application restart
 2. In Admin → Settings → Connections, **disconnect and reconnect Microsoft 365** if not already done (required for `Calendars.ReadWrite` scope)
 3. In Admin → Settings → General → Site Branding: set a **Vendor Portal Name** to distinguish it from the Admin portal in browser tabs
 
 ### Post-deploy verification
+- [ ] Confirm all migration verification queries returned expected counts, no duplicate booking claims, no invalid balances, and all billing foreign keys
+- [ ] Confirm `InvoiceLegacyBackup` still exists and its row count matches the saved preflight count
+- [ ] Confirm `Booking.currency`, `Booking.completed_at`, vendor billing fields, and both billing/availability indexes exist
+- [ ] Confirm `AdminUser`, `Driver`, and `DriverMessage` definitions still match `prisma/init.sql` and existing row counts are unchanged
+- [ ] Configure issuer legal name/contact/address and confirm GST mode is intentionally `none` or `inclusive`
+- [ ] Review vendor billing names, emails, terms, currencies, and enabled flags
+- [ ] Complete a priced vendor booking, review the queue, and create a consolidated draft bill run
+- [ ] After review, reprice one selected booking and confirm run creation returns `billing_review_stale` and creates no invoices
+- [ ] Repeat the cutoff and confirm the same booking is not invoiced twice
+- [ ] Create a direct draft invoice, issue it, record a partial payment, then record the balance
+- [ ] Confirm paid/part-paid totals and audit events are correct and an invoice with payment cannot be voided
+- [ ] Retry an invoice/payment/run write with the same idempotency key and confirm it replays without duplication
+- [ ] Run the authenticated daily email-sequences cron and confirm HTTP 200 with `idempotency_cleanup: true`
+- [ ] Open several booking details rapidly in separate tabs and confirm none return 500/server unavailable
+- [ ] Exercise Admin Quick Add twice with the same idempotency key and confirm only one booking is created
+- [ ] Verify booking list/calendar pagination/date windows and vendor multi-booking options load correctly
 - [ ] Confirm `PublicIdSequence` is seeded and both new availability indexes exist
 - [ ] Submit a public vehicle booking and confirm its booking reference, notifications, and calendar sync
 - [ ] Submit vendor single and bulk bookings and confirm successful rows and validation errors are reported correctly
@@ -160,14 +637,18 @@ None.
 
 # Changelog / Release Notes
 
-## v1.14.4 — unreleased
+## v1.15.0 — 2026-07-18
 
 ### New features
 
-**Invoices and revenue reporting**
-- Added admin invoice list and detail screens with draft, sent, paid, and void states
-- Added invoice creation from booking details, overdue highlighting, and a printer-friendly invoice view
-- Added revenue reports with date presets, vehicle and vendor breakdowns, and printable vendor booking statements
+**Native billing and vendor bill runs**
+- Replaced the one-booking invoice prototype with a native cents-based ledger for invoices, lines, payments, allocations, bill runs, and audit events
+- Completed, priced vendor bookings now enter a reviewed billing queue and can be consolidated into one draft invoice per vendor
+- Added direct booking invoices, issue/void controls, full and partial payment recording, paid balances, overdue display, and printer-friendly invoice detail
+- Added issuer/vendor billing profiles, immutable invoice snapshots, and optional tax-inclusive GST calculation
+- Added transactional row locks, unique active booking claims, and idempotency replay protection to prevent duplicate invoices or payments
+- Bill-run confirmation locks only the exact reviewed booking snapshots and returns `billing_review_stale` instead of silently adding or repricing work after review
+- Preserves any prototype table as `InvoiceLegacyBackup` during deployment and migrates compatible history without dropping the backup
 
 **Contact enquiries**
 - Added a public contact form with admin email notification
@@ -176,15 +657,38 @@ None.
 
 ### Admin and vendor improvements
 
+- Rebuilt Admin Quick Add, enquiry conversion, status changes, blockouts, and vehicle writes on shared transactional services with stricter validation
+- Added idempotent Admin Quick Add submission so network retries cannot create duplicate bookings
+- Reduced vendor multi-booking startup requests and client-side recalculation by returning consolidated calendar/options data
+- Added bounded booking/calendar reads and shared date-window navigation for large datasets
+- Added vendor billing-profile controls for billing identity, terms, currency, and enable/disable state
+- Booking status tabs now filter the complete admin/vendor dataset in SQL and preserve the filter through pagination
+- Fleet-wide blockouts now appear in vendor multi-booking availability and prevent selecting globally unavailable dates
+
 - Added “Login as Vendor” from the admin vendor detail page
 - Added clear inline feedback when changing a vendor username
 
 ### Bug fixes
 
+- Reduced booking-detail database work and isolated optional invoice metadata so rapid multi-tab use is less likely to time out or return a 500
+- Fixed inconsistent booking response mapping, date-window behaviour, driver trip parsing, and status/completion timestamps
+- Fixed prototype invoice cents/dollars handling and replaced unsafe direct paid-status changes with payment ledger entries
+- Centralised Microsoft token refresh to avoid competing refresh writes and intermittent calendar/email failures
+- Fixed booking currency snapshots so vehicle work retains the vehicle currency and no-vehicle vendor work retains the vendor billing currency
+- Kept internal bill-run notes off customer-visible invoice printouts and made void balances clearly non-payable
+- Preserved Admin Quick Add idempotency keys across ambiguous upstream failures and surfaced status-update conflicts to staff
+
 - Fixed the contact page client/server component boundary
 - Fixed invoice date serialisation
 
 ### Performance and reliability
+
+**v1.15 stability and diagnostics**
+- Added slow-query timing and authenticated database diagnostics without exposing credentials or raw customer data
+- Reduced booking-detail query fan-out, cached low-volatility driver metadata, and made optional billing metadata fail gracefully
+- Added shared API error handling and canonical booking mapping to reduce route drift
+- Added daily expiry cleanup for idempotency records through the existing email-sequences cron
+- Vendor bill runs load issuer settings once and allocate invoice references in one atomic block, reducing invoice-creation SQL from approximately `6N` calls to `3N + 3` for `N` vendor invoices
 
 **Transactional booking creation**
 - Public, vendor single-booking, and vendor bulk-booking creation now validate availability and write each booking inside a database transaction
@@ -212,8 +716,12 @@ None.
 
 ### Deployment notes
 
-- Apply the `PublicIdSequence` and index SQL at the top of this file before restarting v1.14.4
-- No new environment variables are required
+- This is a schema cutover: run the v1.15.0 migration with writes paused before starting the new build
+- Back up and preserve any prototype invoice data as `InvoiceLegacyBackup`; do not deploy the new code against the old Invoice shape
+- Apply/verify all genuinely outstanding pre-v1.15 SQL, including public-ID sequences and availability indexes
+- No new environment variables are required, but `CRON_SECRET` and the daily email-sequences cron must already be active
+- Use [BILLING-MVP.md](BILLING-MVP.md) for billing rules and staff acceptance testing
+- Use [RELEASE-NOTES-v1.15.0.md](RELEASE-NOTES-v1.15.0.md) as the curated GitHub release notes
 
 ---
 

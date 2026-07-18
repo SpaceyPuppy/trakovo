@@ -8,39 +8,82 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = { title: 'Dashboard' }
 export const dynamic = 'force-dynamic'
 
-export default async function VendorDashboard() {
+const PAGE_SIZE = 50
+
+interface Props {
+  searchParams?: { page?: string; status?: string }
+}
+
+const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const
+type StatusFilter = typeof STATUS_FILTERS[number]
+
+export default async function VendorDashboard({ searchParams }: Props) {
   const session = await getVendorSession()
   if (!session) redirect('/vendor/login')
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
+  const status = STATUS_FILTERS.includes(searchParams?.status as StatusFilter)
+    ? searchParams?.status as StatusFilter
+    : 'all'
+  const requestedPage = Number.parseInt(searchParams?.page ?? '1', 10)
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const offset = (page - 1) * PAGE_SIZE
 
-  const [bookingsThisMonthRow, pendingCountRow, clientCountRow, allBookings] = await Promise.all([
-    queryOne<{ count: number }>(
-      `SELECT COUNT(*) as count FROM Booking b WHERE b.vendor_id = ? AND b.created_at >= ?`,
-      [session.vendorId, startOfMonth]
+  const [stats, allBookings] = await Promise.all([
+    queryOne<{
+      total_bookings: number | string
+      bookings_this_month: number | string
+      pending_bookings: number | string
+      confirmed_bookings: number | string
+      completed_bookings: number | string
+      cancelled_bookings: number | string
+      active_clients: number | string
+    }>(
+      `SELECT
+         COUNT(*) AS total_bookings,
+         COALESCE(SUM(CASE WHEN b.created_at >= ? THEN 1 ELSE 0 END), 0) AS bookings_this_month,
+         COALESCE(SUM(CASE WHEN b.status = 'pending' THEN 1 ELSE 0 END), 0) AS pending_bookings,
+         COALESCE(SUM(CASE WHEN b.status = 'confirmed' THEN 1 ELSE 0 END), 0) AS confirmed_bookings,
+         COALESCE(SUM(CASE WHEN b.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_bookings,
+         COALESCE(SUM(CASE WHEN b.status = 'cancelled' THEN 1 ELSE 0 END), 0) AS cancelled_bookings,
+         (SELECT COUNT(*) FROM VendorClient vc WHERE vc.vendor_id = ? AND vc.is_active = 1) AS active_clients
+       FROM Booking b
+       WHERE b.vendor_id = ?`,
+      [startOfMonth, session.vendorId, session.vendorId]
     ),
-    queryOne<{ count: number }>(
-      `SELECT COUNT(*) as count FROM Booking b WHERE b.vendor_id = ? AND b.status = ?`,
-      [session.vendorId, 'pending']
-    ),
-    queryOne<{ count: number }>('SELECT COUNT(*) as count FROM VendorClient WHERE vendor_id = ? AND is_active = 1', [session.vendorId]),
     query<{
-      vehicle_name?: string; vendor_client_name?: string;
+      id: string; public_id: string; status: string; service_type: string | null;
+      start_date: string; end_date: string; total_days: number; total_cost: number;
+      contact_name: string | null; vehicle_name?: string; vendor_client_name?: string;
       [k: string]: unknown
     }>(
-      `SELECT b.*, v.name as vehicle_name, vc.name as vendor_client_name
+      `SELECT b.id, b.public_id, b.status, b.service_type, b.start_date, b.end_date,
+              b.total_days, b.total_cost, b.contact_name,
+              v.name AS vehicle_name, vc.name AS vendor_client_name
        FROM Booking b
        LEFT JOIN Vehicle v ON b.vehicle_id = v.id
        LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id
        WHERE b.vendor_id = ?
-       ORDER BY b.created_at DESC`,
-      [session.vendorId]
+       ${status === 'all' ? '' : 'AND b.status = ?'}
+       ORDER BY b.created_at DESC
+       LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+      status === 'all' ? [session.vendorId] : [session.vendorId, status]
     ),
   ])
-  const bookingsThisMonth = bookingsThisMonthRow?.count ?? 0
-  const pendingCount = pendingCountRow?.count ?? 0
-  const clientCount = clientCountRow?.count ?? 0
+  const totalBookings = Number(stats?.total_bookings ?? 0)
+  const bookingsThisMonth = Number(stats?.bookings_this_month ?? 0)
+  const pendingCount = Number(stats?.pending_bookings ?? 0)
+  const clientCount = Number(stats?.active_clients ?? 0)
+  const totalsByStatus: Record<StatusFilter, number> = {
+    all: totalBookings,
+    pending: pendingCount,
+    confirmed: Number(stats?.confirmed_bookings ?? 0),
+    completed: Number(stats?.completed_bookings ?? 0),
+    cancelled: Number(stats?.cancelled_bookings ?? 0),
+  }
+  const filteredTotal = totalsByStatus[status]
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / PAGE_SIZE))
 
   const bookings = allBookings.map(b => ({
     ...b,
@@ -80,7 +123,25 @@ export default async function VendorDashboard() {
       </div>
 
       {/* Full bookings list */}
-      <VendorBookingsList bookings={bookings as Parameters<typeof VendorBookingsList>[0]['bookings']} />
+      <VendorBookingsList
+        bookings={bookings as Parameters<typeof VendorBookingsList>[0]['bookings']}
+        activeStatus={status}
+      />
+      {totalPages > 1 && (
+        <nav className="flex items-center justify-between gap-4 mt-6" aria-label="Bookings pagination">
+          {page > 1 ? (
+            <Link href={`/vendor?status=${status}&page=${page - 1}`} className="text-[13px] font-semibold text-accent hover:underline">
+              Previous
+            </Link>
+          ) : <span />}
+          <span className="text-[12.5px] text-ink-3">Page {page} of {totalPages}</span>
+          {page < totalPages ? (
+            <Link href={`/vendor?status=${status}&page=${page + 1}`} className="text-[13px] font-semibold text-accent hover:underline">
+              Next
+            </Link>
+          ) : <span />}
+        </nav>
+      )}
     </div>
   )
 }

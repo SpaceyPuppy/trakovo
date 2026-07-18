@@ -1,31 +1,52 @@
 import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
-import { queryOne, execute, newId, generatePublicId } from '@/lib/db'
+import {
+  billingErrorResponse,
+  createDirectInvoice,
+  getIdempotencyKey,
+  hashRequestPayload,
+  listInvoices,
+  readBillingJsonObject,
+} from '@/lib/billing'
+
+export async function GET(req: Request) {
+  const session = await getAdminSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
+  try {
+    const url = new URL(req.url)
+    const result = await listInvoices({
+      status: url.searchParams.get('status'),
+      vendorId: url.searchParams.get('vendor_id'),
+      limit: url.searchParams.get('limit'),
+      offset: url.searchParams.get('offset'),
+    })
+    return NextResponse.json(result)
+  } catch (error) {
+    return billingErrorResponse(error)
+  }
+}
 
 export async function POST(req: Request) {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const { booking_id } = await req.json()
-  if (!booking_id) return NextResponse.json({ error: 'booking_id required' }, { status: 400 })
-
-  const existing = await queryOne<{ id: string }>(
-    'SELECT id FROM Invoice WHERE booking_id = ? LIMIT 1', [booking_id]
-  )
-  if (existing) return NextResponse.json({ error: 'Invoice already exists for this booking' }, { status: 409 })
-
-  const booking = await queryOne<{ id: string; total_cost: number; currency: string }>(
-    'SELECT id, total_cost, currency FROM Booking WHERE id = ? LIMIT 1', [booking_id]
-  )
-  if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
-
-  const id = newId()
-  const public_id = await generatePublicId('INV')
-
-  await execute(
-    'INSERT INTO Invoice (id, public_id, booking_id, amount, currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-    [id, public_id, booking_id, booking.total_cost, booking.currency ?? 'AUD', 'draft']
-  )
-
-  return NextResponse.json({ id, public_id })
+  try {
+    const key = getIdempotencyKey(req)
+    const body = await readBillingJsonObject(req)
+    const requestHash = await hashRequestPayload(body)
+    const result = await createDirectInvoice({
+      actor: session.username,
+      bookingId: typeof body.booking_id === 'string' ? body.booking_id : '',
+      dueDate: body.due_date as string | null | undefined,
+      notes: body.notes as string | null | undefined,
+      idempotency: { scope: 'invoice:create-direct', key: key!, requestHash },
+    })
+    return NextResponse.json(result.value, {
+      status: result.statusCode,
+      headers: { 'Idempotency-Replayed': String(result.replayed) },
+    })
+  } catch (error) {
+    return billingErrorResponse(error)
+  }
 }

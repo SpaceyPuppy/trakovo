@@ -15,7 +15,10 @@ CREATE TABLE `Vehicle` (
     `passengers` VARCHAR(191) NOT NULL DEFAULT '',
     `transmission` VARCHAR(191) NOT NULL DEFAULT 'Automatic',
     `fuel` VARCHAR(191) NOT NULL DEFAULT 'Petrol',
+    `licence_category` VARCHAR(10) NOT NULL DEFAULT '',
     `is_available` BOOLEAN NOT NULL DEFAULT true,
+    `public_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1,
+    `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
@@ -48,6 +51,7 @@ CREATE TABLE `Booking` (
     `total_days` INTEGER NOT NULL,
     `daily_rate` INTEGER NOT NULL,
     `total_cost` INTEGER NOT NULL,
+    `currency` VARCHAR(10) NOT NULL DEFAULT 'AUD',
     `contact_name` VARCHAR(191) NULL,
     `contact_email` VARCHAR(191) NOT NULL,
     `contact_phone` VARCHAR(191) NOT NULL,
@@ -60,14 +64,18 @@ CREATE TABLE `Booking` (
     `licence_document_path` VARCHAR(191) NULL,
     `trip_details` TEXT NULL,
     `is_enquiry` BOOLEAN NOT NULL DEFAULT false,
+    `enquiry_status` VARCHAR(20) NULL DEFAULT 'new',
     `ms_event_id` VARCHAR(191) NULL,
     `vendor_id` VARCHAR(191) NULL,
     `vendor_client_id` VARCHAR(191) NULL,
+    `driver_id` VARCHAR(191) NULL,
+    `completed_at` DATETIME NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `Booking_public_id_key`(`public_id`),
     INDEX `Booking_vehicle_status_dates_idx` (`vehicle_id`(36), `status`(20), `start_date`(10), `end_date`(10)),
+    INDEX `Booking_vendor_billing_idx` (`vendor_id`(36), `status`(20), `is_enquiry`, `end_date`(10)),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -122,7 +130,16 @@ CREATE TABLE `Vendor` (
     `password_hash` VARCHAR(191) NOT NULL,
     `contact_email` VARCHAR(191) NOT NULL DEFAULT '',
     `contact_phone` VARCHAR(191) NOT NULL DEFAULT '',
+    `billing_name` VARCHAR(191) NOT NULL DEFAULT '',
+    `billing_email` VARCHAR(191) NOT NULL DEFAULT '',
+    `billing_address` TEXT NULL,
+    `billing_abn` VARCHAR(32) NOT NULL DEFAULT '',
+    `billing_currency` VARCHAR(10) NOT NULL DEFAULT 'AUD',
+    `billing_terms_days` INTEGER NOT NULL DEFAULT 14,
+    `billing_enabled` BOOLEAN NOT NULL DEFAULT true,
     `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `vehicle_hire_enabled` TINYINT(1) NOT NULL DEFAULT 1,
+    `taxi_enabled` TINYINT(1) NOT NULL DEFAULT 0,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
@@ -194,6 +211,50 @@ CREATE TABLE `ContactEnquiry` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- Additional administrator accounts. The master account remains environment-backed.
+CREATE TABLE `AdminUser` (
+    `id` VARCHAR(191) NOT NULL,
+    `username` VARCHAR(191) NOT NULL,
+    `password_hash` VARCHAR(191) NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE INDEX `AdminUser_username_key` (`username`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `Driver` (
+    `id` VARCHAR(191) NOT NULL,
+    `public_id` VARCHAR(191) NOT NULL,
+    `name` VARCHAR(191) NOT NULL,
+    `username` VARCHAR(191) NOT NULL,
+    `password_hash` VARCHAR(191) NOT NULL,
+    `email` VARCHAR(191) NOT NULL DEFAULT '',
+    `phone` VARCHAR(191) NOT NULL DEFAULT '',
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL,
+
+    UNIQUE INDEX `Driver_public_id_key` (`public_id`),
+    UNIQUE INDEX `Driver_username_key` (`username`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `DriverMessage` (
+    `id` VARCHAR(191) NOT NULL,
+    `driver_id` VARCHAR(191) NOT NULL,
+    `subject` VARCHAR(191) NOT NULL,
+    `message` TEXT NOT NULL,
+    `booking_id` VARCHAR(191) NULL,
+    `staff_reply` TEXT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'open',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL,
+
+    INDEX `DriverMessage_driver_created_idx` (`driver_id`, `created_at`),
+    INDEX `DriverMessage_booking_idx` (`booking_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `VehicleMedia` ADD CONSTRAINT `VehicleMedia_vehicle_id_fkey` FOREIGN KEY (`vehicle_id`) REFERENCES `Vehicle`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -205,6 +266,9 @@ ALTER TABLE `Booking` ADD CONSTRAINT `Booking_vendor_id_fkey` FOREIGN KEY (`vend
 
 -- AddForeignKey
 ALTER TABLE `Booking` ADD CONSTRAINT `Booking_vendor_client_id_fkey` FOREIGN KEY (`vendor_client_id`) REFERENCES `VendorClient`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Booking` ADD CONSTRAINT `Booking_driver_id_fkey` FOREIGN KEY (`driver_id`) REFERENCES `Driver`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `BookingNote` ADD CONSTRAINT `BookingNote_booking_id_fkey` FOREIGN KEY (`booking_id`) REFERENCES `Booking`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
@@ -220,6 +284,12 @@ ALTER TABLE `VendorClient` ADD CONSTRAINT `VendorClient_vendor_id_fkey` FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE `VendorEnquiry` ADD CONSTRAINT `VendorEnquiry_vendor_id_fkey` FOREIGN KEY (`vendor_id`) REFERENCES `Vendor`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `DriverMessage` ADD CONSTRAINT `DriverMessage_driver_id_fkey` FOREIGN KEY (`driver_id`) REFERENCES `Driver`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `DriverMessage` ADD CONSTRAINT `DriverMessage_booking_id_fkey` FOREIGN KEY (`booking_id`) REFERENCES `Booking`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 
 -- ─── Tables added post-v1.3 ─────────────────────────────────────────────────
@@ -269,15 +339,6 @@ CREATE TABLE IF NOT EXISTS `CustomerAlias` (
   INDEX `CustomerAlias_primary_email_idx` (`primary_email`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-ALTER TABLE `Booking`
-  ADD COLUMN IF NOT EXISTS `driver_id` VARCHAR(191) NULL AFTER `vendor_client_id`,
-  ADD COLUMN IF NOT EXISTS `enquiry_status` VARCHAR(20) NULL DEFAULT 'new' AFTER `is_enquiry`;
-
-ALTER TABLE `Vehicle`
-  ADD COLUMN IF NOT EXISTS `public_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `is_available`,
-  ADD COLUMN IF NOT EXISTS `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1 AFTER `public_bookings_enabled`,
-  ADD COLUMN IF NOT EXISTS `licence_category` VARCHAR(10) NOT NULL DEFAULT '' AFTER `fuel`;
-
 CREATE TABLE IF NOT EXISTS `CorporateEnquiry` (
   `id` VARCHAR(191) NOT NULL,
   `public_id` VARCHAR(191) NOT NULL,
@@ -318,23 +379,165 @@ INSERT IGNORE INTO `ServiceFeature` (`id`, `service_type`, `feature_key`, `is_en
 (UUID(), 'self_drive',  'rating',         0, '{"max_stars":5,"mandatory":false}'),
 (UUID(), 'chauffeured', 'rating',         0, '{"max_stars":5,"mandatory":false}');
 
+-- Native billing ledger. All monetary values are integer minor units (cents).
+-- BillingRun is a single staff-triggered batch; it may create one Invoice per vendor.
+CREATE TABLE IF NOT EXISTS `BillingRun` (
+  `id`                VARCHAR(191) NOT NULL,
+  `idempotency_key`   VARCHAR(128) NOT NULL,
+  `cutoff_date`       DATE NOT NULL,
+  `status`            VARCHAR(20) NOT NULL DEFAULT 'processing',
+  `vendor_filter`     TEXT NULL,
+  `invoice_count`     INTEGER NOT NULL DEFAULT 0,
+  `booking_count`     INTEGER NOT NULL DEFAULT 0,
+  `total_amount`      BIGINT NOT NULL DEFAULT 0,
+  `currency`          VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `notes`             TEXT NULL,
+  `created_by`        VARCHAR(191) NOT NULL,
+  `created_at`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `completed_at`      DATETIME NULL,
+  PRIMARY KEY (`id`),
+  INDEX `BillingRun_idempotency_key_idx` (`idempotency_key`),
+  INDEX `BillingRun_cutoff_created_idx` (`cutoff_date`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `Invoice` (
-  `id`         VARCHAR(191) NOT NULL,
-  `public_id`  VARCHAR(191) NOT NULL,
-  `booking_id` VARCHAR(191) NOT NULL,
-  `amount`     INTEGER NOT NULL,
-  `currency`   VARCHAR(10) NOT NULL DEFAULT 'AUD',
-  `status`     VARCHAR(20) NOT NULL DEFAULT 'draft',
-  `due_date`   VARCHAR(10) NULL,
-  `paid_at`    DATETIME NULL,
-  `notes`      TEXT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `id`                    VARCHAR(191) NOT NULL,
+  `public_id`             VARCHAR(191) NOT NULL,
+  `billing_run_id`        VARCHAR(191) NULL,
+  `booking_id`            VARCHAR(191) NULL,
+  `vendor_id`             VARCHAR(191) NULL,
+  `invoice_type`          VARCHAR(20) NOT NULL DEFAULT 'direct',
+  `status`                VARCHAR(20) NOT NULL DEFAULT 'draft',
+  `currency`              VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `issuer_name`           VARCHAR(191) NOT NULL,
+  `issuer_abn`            VARCHAR(32) NOT NULL DEFAULT '',
+  `issuer_email`          VARCHAR(191) NOT NULL DEFAULT '',
+  `issuer_phone`          VARCHAR(50) NOT NULL DEFAULT '',
+  `issuer_address`        TEXT NULL,
+  `recipient_name`        VARCHAR(191) NOT NULL,
+  `recipient_abn`         VARCHAR(32) NOT NULL DEFAULT '',
+  `recipient_email`       VARCHAR(191) NOT NULL DEFAULT '',
+  `recipient_phone`       VARCHAR(50) NOT NULL DEFAULT '',
+  `recipient_address`     TEXT NULL,
+  `issue_date`            DATE NULL,
+  `due_date`              DATE NULL,
+  `payment_terms_days`    INTEGER NOT NULL DEFAULT 14,
+  `tax_mode`              VARCHAR(20) NOT NULL DEFAULT 'none',
+  `tax_rate_bps`          INTEGER NOT NULL DEFAULT 0,
+  `subtotal_amount`       BIGINT NOT NULL DEFAULT 0,
+  `tax_amount`            BIGINT NOT NULL DEFAULT 0,
+  `total_amount`          BIGINT NOT NULL DEFAULT 0,
+  `amount_paid`           BIGINT NOT NULL DEFAULT 0,
+  `balance_due`           BIGINT NOT NULL DEFAULT 0,
+  `notes`                 TEXT NULL,
+  `issued_at`             DATETIME NULL,
+  `paid_at`               DATETIME NULL,
+  `voided_at`             DATETIME NULL,
+  `created_by`            VARCHAR(191) NOT NULL,
+  `created_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `Invoice_public_id_unique` (`public_id`),
-  UNIQUE INDEX `Invoice_booking_id_unique` (`booking_id`),
-  INDEX `Invoice_status_idx` (`status`)
+  INDEX `Invoice_billing_run_idx` (`billing_run_id`),
+  INDEX `Invoice_booking_idx` (`booking_id`),
+  INDEX `Invoice_vendor_status_idx` (`vendor_id`(36), `status`),
+  INDEX `Invoice_status_due_idx` (`status`, `due_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `InvoiceLine` (
+  `id`             VARCHAR(191) NOT NULL,
+  `invoice_id`     VARCHAR(191) NOT NULL,
+  `booking_id`     VARCHAR(191) NULL,
+  `booking_claim`  VARCHAR(191) NULL,
+  `description`    TEXT NOT NULL,
+  `service_start`  DATE NULL,
+  `service_end`    DATE NULL,
+  `quantity`       DECIMAL(10,2) NOT NULL DEFAULT 1.00,
+  `unit_amount`    BIGINT NOT NULL,
+  `subtotal_amount` BIGINT NOT NULL,
+  `tax_rate_bps`   INTEGER NOT NULL DEFAULT 0,
+  `tax_amount`     BIGINT NOT NULL DEFAULT 0,
+  `total_amount`   BIGINT NOT NULL,
+  `sort_order`     INTEGER NOT NULL DEFAULT 0,
+  `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `InvoiceLine_booking_claim_unique` (`booking_claim`),
+  INDEX `InvoiceLine_invoice_sort_idx` (`invoice_id`, `sort_order`),
+  INDEX `InvoiceLine_booking_idx` (`booking_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `Payment` (
+  `id`             VARCHAR(191) NOT NULL,
+  `vendor_id`      VARCHAR(191) NULL,
+  `amount`         BIGINT NOT NULL,
+  `currency`       VARCHAR(10) NOT NULL DEFAULT 'AUD',
+  `payment_date`   DATE NOT NULL,
+  `method`         VARCHAR(50) NOT NULL DEFAULT 'manual',
+  `reference`      VARCHAR(191) NOT NULL DEFAULT '',
+  `notes`          TEXT NULL,
+  `status`         VARCHAR(20) NOT NULL DEFAULT 'posted',
+  `created_by`     VARCHAR(191) NOT NULL,
+  `reversed_at`    DATETIME NULL,
+  `reversed_by`    VARCHAR(191) NULL,
+  `reversal_reason` TEXT NULL,
+  `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `Payment_vendor_date_idx` (`vendor_id`(36), `payment_date`),
+  INDEX `Payment_reference_idx` (`reference`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `PaymentAllocation` (
+  `id`          VARCHAR(191) NOT NULL,
+  `payment_id`  VARCHAR(191) NOT NULL,
+  `invoice_id`  VARCHAR(191) NOT NULL,
+  `amount`      BIGINT NOT NULL,
+  `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `PaymentAllocation_payment_invoice_unique` (`payment_id`, `invoice_id`),
+  INDEX `PaymentAllocation_invoice_idx` (`invoice_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `BillingEvent` (
+  `id`             VARCHAR(191) NOT NULL,
+  `invoice_id`     VARCHAR(191) NULL,
+  `billing_run_id` VARCHAR(191) NULL,
+  `payment_id`     VARCHAR(191) NULL,
+  `event_type`     VARCHAR(50) NOT NULL,
+  `actor`          VARCHAR(191) NOT NULL,
+  `details`        JSON NULL,
+  `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `BillingEvent_invoice_created_idx` (`invoice_id`, `created_at`),
+  INDEX `BillingEvent_run_created_idx` (`billing_run_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Shared store for safely retrying mutating API requests. response_body is JSON text.
+CREATE TABLE IF NOT EXISTS `RequestIdempotency` (
+  `id`            VARCHAR(191) NOT NULL,
+  `scope`         VARCHAR(63) NOT NULL,
+  `key`           VARCHAR(128) NOT NULL,
+  `request_hash`  VARCHAR(64) NOT NULL,
+  `status_code`   INTEGER NULL,
+  `response_body` TEXT NULL,
+  `resource_id`   VARCHAR(191) NULL,
+  `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expires_at`    DATETIME NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `RequestIdempotency_scope_key_unique` (`scope`, `key`),
+  INDEX `RequestIdempotency_expires_idx` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `Invoice` ADD CONSTRAINT `Invoice_billing_run_id_fkey` FOREIGN KEY (`billing_run_id`) REFERENCES `BillingRun`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `Invoice` ADD CONSTRAINT `Invoice_booking_id_fkey` FOREIGN KEY (`booking_id`) REFERENCES `Booking`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `Invoice` ADD CONSTRAINT `Invoice_vendor_id_fkey` FOREIGN KEY (`vendor_id`) REFERENCES `Vendor`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `InvoiceLine` ADD CONSTRAINT `InvoiceLine_invoice_id_fkey` FOREIGN KEY (`invoice_id`) REFERENCES `Invoice`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `InvoiceLine` ADD CONSTRAINT `InvoiceLine_booking_id_fkey` FOREIGN KEY (`booking_id`) REFERENCES `Booking`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `Payment` ADD CONSTRAINT `Payment_vendor_id_fkey` FOREIGN KEY (`vendor_id`) REFERENCES `Vendor`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `PaymentAllocation` ADD CONSTRAINT `PaymentAllocation_payment_id_fkey` FOREIGN KEY (`payment_id`) REFERENCES `Payment`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `PaymentAllocation` ADD CONSTRAINT `PaymentAllocation_invoice_id_fkey` FOREIGN KEY (`invoice_id`) REFERENCES `Invoice`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `BillingEvent` ADD CONSTRAINT `BillingEvent_invoice_id_fkey` FOREIGN KEY (`invoice_id`) REFERENCES `Invoice`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `BillingEvent` ADD CONSTRAINT `BillingEvent_billing_run_id_fkey` FOREIGN KEY (`billing_run_id`) REFERENCES `BillingRun`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `BillingEvent` ADD CONSTRAINT `BillingEvent_payment_id_fkey` FOREIGN KEY (`payment_id`) REFERENCES `Payment`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 CREATE TABLE IF NOT EXISTS `TripRating` (
   `id`         VARCHAR(36) NOT NULL,

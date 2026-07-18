@@ -1,60 +1,62 @@
-import { query } from '@/lib/db'
-import InvoicesList from './InvoicesList'
 import type { Metadata } from 'next'
+import { listInvoices } from '@/lib/billing'
+import { getSettings } from '@/lib/settings'
+import BillRunPanel from './BillRunPanel'
+import BillingSettingsPanel from './BillingSettingsPanel'
+import InvoicesList from './InvoicesList'
 
-export const metadata: Metadata = { title: 'Invoices' }
+export const metadata: Metadata = { title: 'Billing & Invoices' }
 export const revalidate = 0
+const PAGE_SIZE = 50
+const INVOICE_STATUSES = new Set(['draft', 'issued', 'part_paid', 'paid', 'void'])
 
-interface InvoiceRow {
-  id: string
-  public_id: string
-  booking_id: string
-  booking_public_id: string
-  amount: number
-  currency: string
-  status: string
-  due_date: string | null
-  paid_at: Date | string | null
-  notes: string | null
-  created_at: Date | string
-  contact_name: string | null
-  contact_email: string
-  vehicle_name: string | null
-  vendor_name: string | null
-  hire_type: string
-  service_type: string | null
-  start_date: string
-  end_date: string
-}
+const BILLING_SETTING_KEYS = [
+  'billing_legal_name', 'billing_abn', 'billing_email', 'billing_phone',
+  'billing_address', 'billing_tax_mode', 'billing_tax_rate_bps',
+] as const
 
-export default async function InvoicesPage() {
-  const invoices = await query<InvoiceRow>(`
-    SELECT i.id, i.public_id, i.booking_id, i.amount, i.currency, i.status,
-           i.due_date, i.paid_at, i.notes,
-           i.created_at,
-           b.public_id as booking_public_id, b.contact_name, b.contact_email,
-           b.hire_type, b.service_type, b.start_date, b.end_date,
-           v.name as vehicle_name, ve.name as vendor_name
-    FROM Invoice i
-    JOIN Booking b ON i.booking_id = b.id
-    LEFT JOIN Vehicle v ON b.vehicle_id = v.id
-    LEFT JOIN Vendor ve ON b.vendor_id = ve.id
-    ORDER BY i.created_at DESC
-  `)
-
-  const serialised = invoices.map(inv => ({
-    ...inv,
-    created_at: inv.created_at instanceof Date ? inv.created_at.toISOString() : String(inv.created_at),
-    paid_at: inv.paid_at instanceof Date ? inv.paid_at.toISOString() : inv.paid_at,
-  }))
+export default async function InvoicesPage({ searchParams }: { searchParams?: { page?: string; status?: string } }) {
+  const requestedPage = Number(searchParams?.page ?? 1)
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const status = searchParams?.status && INVOICE_STATUSES.has(searchParams.status)
+    ? searchParams.status
+    : 'all'
+  const [result, billingSettings] = await Promise.all([
+    listInvoices({
+      status: status === 'all' ? null : status,
+      limit: PAGE_SIZE,
+      offset: (page - 1) * PAGE_SIZE,
+    }),
+    getSettings(BILLING_SETTING_KEYS),
+  ])
 
   return (
-    <div className="px-10 py-10">
+    <div className="px-5 py-8 md:px-10 md:py-10">
       <div className="mb-8">
-        <h1 className="font-display font-bold text-[26px] tracking-tight">Invoices</h1>
-        <p className="text-[14px] text-ink-3 mt-0.5">Track and manage invoices for bookings.</p>
+        <h1 className="font-display font-bold text-[26px] tracking-tight">Billing &amp; Invoices</h1>
+        <p className="text-[14px] text-ink-3 mt-0.5">
+          Create reviewed vendor bill runs, issue invoices and record payments.
+        </p>
       </div>
-      <InvoicesList invoices={serialised} />
+
+      <BillingSettingsPanel initialSettings={billingSettings} />
+      <BillRunPanel />
+
+      <div className="mt-9 mb-4 flex items-end justify-between gap-4">
+        <div>
+          <h2 className="font-display font-bold text-[19px]">Invoices</h2>
+          <p className="text-[12.5px] text-ink-4 mt-0.5">
+            Showing {result.invoices.length === 0 ? 0 : result.pagination.offset + 1}–{Math.min(result.pagination.offset + result.invoices.length, result.pagination.total)} of {result.pagination.total} invoices.
+          </p>
+        </div>
+      </div>
+      <InvoicesList
+        invoices={result.invoices}
+        currentPage={page}
+        total={result.pagination.total}
+        pageSize={PAGE_SIZE}
+        status={status}
+      />
     </div>
   )
 }

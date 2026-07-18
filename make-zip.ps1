@@ -20,16 +20,24 @@ if (-not (Test-Path ".next\BUILD_ID")) {
     exit 1
 }
 
+$releaseFiles = @("src","public","prisma","app.js","next.config.js","package.json",
+                  "package-lock.json",".env.example","DEPLOYMENT-CPANEL.md",
+                  "BILLING-MVP.md","PENDING-DEPLOY.md","DOCUMENTATION-DEBT.md","README.md",
+                  "RELEASE-NOTES-v$label.md",
+                  ".cpanel.yml","tailwind.config.js","tsconfig.json","postcss.config.js")
+$missingReleaseFiles = @($releaseFiles | Where-Object { -not (Test-Path -LiteralPath $_) })
+if ($missingReleaseFiles.Count -gt 0) {
+    Write-Error "Required release files are missing: $($missingReleaseFiles -join ', ')"
+    exit 1
+}
+
 # --- Full release zip (via temp dir to exclude .next/cache) ---
 Remove-Item $releaseZip -ErrorAction SilentlyContinue
 $tmpRelease = ".\tmp-release-$timestamp"
 New-Item -ItemType Directory -Path $tmpRelease | Out-Null
 
-$releaseFiles = @("src","public","prisma","app.js","next.config.js","package.json",
-                  "package-lock.json",".env.example","DEPLOYMENT-CPANEL.md",
-                  ".cpanel.yml","tailwind.config.ts","tsconfig.json","postcss.config.js")
 foreach ($f in $releaseFiles) {
-    if (Test-Path $f) { Copy-Item $f "$tmpRelease\" -Recurse }
+    Copy-Item -LiteralPath $f -Destination "$tmpRelease\" -Recurse
 }
 Copy-Item ".next" "$tmpRelease\.next" -Recurse
 Remove-Item "$tmpRelease\.next\cache" -Recurse -Force -ErrorAction SilentlyContinue
@@ -54,4 +62,4 @@ Write-Host ""
 Write-Host ""
 Write-Host "Done. To release:"
 Write-Host "  git tag v$label && git push origin v$label"
-Write-Host "  gh release create v$label $releaseZip $bundleZip --title 'v$label' --notes 'Release v$label'"
+Write-Host "  gh release create v$label $releaseZip $bundleZip --title 'Trakovo v$label' --notes-file 'RELEASE-NOTES-v$label.md'"

@@ -30,10 +30,10 @@ export async function POST(req: NextRequest) {
     await execute(
       `INSERT INTO Booking (
         id, public_id, hire_type, service_type, status,
-        contact_name, contact_phone,
-        total_cost, trip_details,
+        contact_name, contact_email, contact_phone,
+        total_cost, currency, trip_details,
         start_date, end_date, total_days, daily_rate
-      ) VALUES (?, ?, 'chauffeured', 'taxi', 'pending', ?, ?, 0, ?, NOW(), NOW(), 1, 0)`,
+      ) VALUES (?, ?, 'chauffeured', 'taxi', 'pending', ?, '', ?, 0, 'AUD', ?, NOW(), NOW(), 1, 0)`,
       [id, public_id, contact_name, contact_phone, trip_details]
     )
 

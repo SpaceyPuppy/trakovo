@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 interface ExistingBooking {
   date: string   // YYYY-MM-DD (start_date)
@@ -13,6 +13,7 @@ interface UnavailableVehicle {
 
 interface Props {
   onDayClick: (date: string) => void
+  onMonthChange?: (year: number, month: number) => void | Promise<void>
   existingBookings: ExistingBooking[]
   /** Individual-vehicle mode: show hover tooltip listing which vehicles are booked on that date */
   unavailableVehiclesByDate?: Map<string, UnavailableVehicle[]>
@@ -53,39 +54,65 @@ function formatDateShort(ymd: string): string {
   return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-export default function MultiDayPicker({ onDayClick, existingBookings, unavailableVehiclesByDate, blockedDates }: Props) {
+export default function MultiDayPicker({ onDayClick, onMonthChange, existingBookings, unavailableVehiclesByDate, blockedDates }: Props) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [tooltip, setTooltip] = useState<{ ymd: string; x: number; y: number } | null>(null)
+  const [loadingMonth, setLoadingMonth] = useState(false)
+  const [monthLoadFailed, setMonthLoadFailed] = useState(false)
+  const loadSequence = useRef(0)
+
+  function loadMonth(nextYear: number, nextMonth: number) {
+    if (!onMonthChange) return
+    const sequence = ++loadSequence.current
+    setLoadingMonth(true)
+    setMonthLoadFailed(false)
+    Promise.resolve(onMonthChange(nextYear, nextMonth))
+      .catch(() => {
+        if (sequence === loadSequence.current) setMonthLoadFailed(true)
+      })
+      .finally(() => {
+        if (sequence === loadSequence.current) setLoadingMonth(false)
+      })
+  }
 
   function prev() {
-    if (month === 0) { setYear(y => y - 1); setMonth(11) }
-    else setMonth(m => m - 1)
+    const nextYear = month === 0 ? year - 1 : year
+    const nextMonth = month === 0 ? 11 : month - 1
+    setYear(nextYear)
+    setMonth(nextMonth)
+    loadMonth(nextYear, nextMonth)
   }
   function next() {
-    if (month === 11) { setYear(y => y + 1); setMonth(0) }
-    else setMonth(m => m + 1)
+    const nextYear = month === 11 ? year + 1 : year
+    const nextMonth = month === 11 ? 0 : month + 1
+    setYear(nextYear)
+    setMonth(nextMonth)
+    loadMonth(nextYear, nextMonth)
   }
 
   const days = getCalendarDays(year, month)
   const todayYMD = toYMD(now)
 
   // Index bookings by date for dots/sidebar
-  const byDate = new Map<string, { hasPending: boolean; hasConfirmed: boolean; refs: string[] }>()
-  for (const b of existingBookings) {
-    const e = byDate.get(b.date) ?? { hasPending: false, hasConfirmed: false, refs: [] }
-    if (b.status === 'pending')   e.hasPending = true
-    if (b.status === 'confirmed') e.hasConfirmed = true
-    e.refs.push(b.public_id)
-    byDate.set(b.date, e)
-  }
+  const byDate = useMemo(() => {
+    const index = new Map<string, { hasPending: boolean; hasConfirmed: boolean; refs: string[] }>()
+    for (const b of existingBookings) {
+      const entry = index.get(b.date) ?? { hasPending: false, hasConfirmed: false, refs: [] }
+      if (b.status === 'pending') entry.hasPending = true
+      if (b.status === 'confirmed') entry.hasConfirmed = true
+      entry.refs.push(b.public_id)
+      index.set(b.date, entry)
+    }
+    return index
+  }, [existingBookings])
 
   // Sidebar: bookings visible in the current month (pending + confirmed only)
   const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`
-  const sidebarBookings = existingBookings
+  const sidebarBookings = useMemo(() => existingBookings
     .filter(b => b.date.startsWith(monthPrefix) && (b.status === 'pending' || b.status === 'confirmed'))
-    .sort((a, b) => a.date.localeCompare(b.date))
+    .sort((a, b) => a.date.localeCompare(b.date)), [existingBookings, monthPrefix])
 
   const tooltipVehicles = tooltip ? (unavailableVehiclesByDate?.get(tooltip.ymd) ?? []) : []
 
@@ -139,14 +166,16 @@ export default function MultiDayPicker({ onDayClick, existingBookings, unavailab
             {/* Month nav */}
             <div className="flex items-center justify-between mb-5">
               <button onClick={prev}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg transition-colors text-ink-3 hover:text-ink text-[20px] font-light leading-none">
+                disabled={loadingMonth}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg transition-colors text-ink-3 hover:text-ink text-[20px] font-light leading-none disabled:opacity-30 disabled:cursor-not-allowed">
                 ‹
               </button>
               <p className="font-display font-bold text-[15px] tracking-tight">
                 {MONTH_NAMES[month]} {year}
               </p>
               <button onClick={next}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg transition-colors text-ink-3 hover:text-ink text-[20px] font-light leading-none">
+                disabled={loadingMonth}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg transition-colors text-ink-3 hover:text-ink text-[20px] font-light leading-none disabled:opacity-30 disabled:cursor-not-allowed">
                 ›
               </button>
             </div>
@@ -188,7 +217,7 @@ export default function MultiDayPicker({ onDayClick, existingBookings, unavailab
                     <div key={ymd} className="relative">
                       <div
                         className="w-full flex flex-col items-center justify-center rounded-lg py-1.5 select-none cursor-not-allowed bg-red-50 border border-red-200"
-                        title="This vehicle is already booked"
+                        title="This date is unavailable"
                       >
                         <span className="text-[13px] font-medium leading-none text-red-400 line-through">{day.getDate()}</span>
                         <div className="flex items-center gap-0.5 mt-1 h-1.5">
@@ -206,6 +235,7 @@ export default function MultiDayPicker({ onDayClick, existingBookings, unavailab
                   >
                     <button
                       onClick={() => onDayClick(ymd)}
+                      disabled={loadingMonth || monthLoadFailed}
                       className={`w-full flex flex-col items-center justify-center rounded-lg py-1.5 transition-all active:scale-95 select-none
                         ${isToday
                           ? 'bg-accent text-white shadow-sm'
@@ -216,7 +246,7 @@ export default function MultiDayPicker({ onDayClick, existingBookings, unavailab
                               : isWeekend
                                 ? 'text-ink-3 hover:bg-accent/10 hover:text-accent'
                                 : 'text-ink hover:bg-accent/10 hover:text-accent'
-                        }`}
+                        } disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100`}
                     >
                       <span className="text-[13px] font-medium leading-none">{day.getDate()}</span>
                       {/* Dots */}
@@ -235,6 +265,16 @@ export default function MultiDayPicker({ onDayClick, existingBookings, unavailab
 
             {/* Legend */}
             <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-border text-[11px] text-ink-4">
+              {loadingMonth && <span className="text-accent font-semibold">Loading availability...</span>}
+              {monthLoadFailed && (
+                <button
+                  type="button"
+                  onClick={() => loadMonth(year, month)}
+                  className="text-red-600 font-semibold hover:underline"
+                >
+                  Availability unavailable - retry
+                </button>
+              )}
               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" /> Pending</span>
               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-success inline-block" /> Confirmed</span>
               {unavailableVehiclesByDate && unavailableVehiclesByDate.size > 0 && (

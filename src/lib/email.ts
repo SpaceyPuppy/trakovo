@@ -1,61 +1,11 @@
 import nodemailer from 'nodemailer'
-import { queryOne, execute } from './db'
+import { queryOne } from './db'
 import { getSiteName } from './site'
 import type { BookingCreationResponse, BookingResponse } from '@/types'
 import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
+import { getMicrosoftAccessToken } from './microsoft-token'
 
 // ─── Microsoft Graph API helpers ─────────────────────────────────────────────
-
-async function upsertSetting(key: string, value: string) {
-  await execute(
-    'INSERT INTO Setting (`key`, value, updated_at) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()',
-    [key, value]
-  )
-}
-
-async function getMsAccessToken(): Promise<string | null> {
-  const [tokenRow, expiryRow, refreshRow] = await Promise.all([
-    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_access_token']),
-    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_token_expiry']),
-    queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', ['ms_refresh_token']),
-  ])
-  if (!tokenRow?.value || !refreshRow?.value) return null
-
-  const expiry = expiryRow?.value ? new Date(expiryRow.value) : new Date(0)
-  const needsRefresh = Date.now() > expiry.getTime() - 5 * 60 * 1000
-
-  if (!needsRefresh) return tokenRow.value
-
-  try {
-    const res = await fetch(
-      `https://login.microsoftonline.com/${process.env.MS_TENANT_ID ?? 'common'}/oauth2/v2.0/token`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          client_id: process.env.MS_CLIENT_ID!,
-          client_secret: process.env.MS_CLIENT_SECRET!,
-          refresh_token: refreshRow.value,
-          scope: 'Mail.Send User.Read offline_access',
-        }),
-      }
-    )
-    if (!res.ok) return null
-    const data = await res.json()
-    const newExpiry = new Date(Date.now() + data.expires_in * 1000).toISOString()
-
-    const ops = [
-      upsertSetting('ms_access_token', data.access_token),
-      upsertSetting('ms_token_expiry', newExpiry),
-    ]
-    if (data.refresh_token) ops.push(upsertSetting('ms_refresh_token', data.refresh_token))
-    await Promise.all(ops)
-    return data.access_token
-  } catch {
-    return null
-  }
-}
 
 async function sendViaGraph(token: string, to: string, subject: string, html: string): Promise<void> {
   const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
@@ -80,7 +30,7 @@ async function sendViaGraph(token: string, to: string, subject: string, html: st
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
   // Try Microsoft 365 first
-  const msToken = await getMsAccessToken()
+  const msToken = await getMicrosoftAccessToken()
   if (msToken) {
     await sendViaGraph(msToken, to, subject, html)
     return

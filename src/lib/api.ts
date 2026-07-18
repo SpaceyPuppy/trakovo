@@ -4,6 +4,7 @@
  */
 
 import { query, queryOne } from './db'
+import { mapBookingRow, type BookingDatabaseRow } from './booking-mapper'
 import type { Vehicle, AvailabilityRange, BookingResponse } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,34 +61,6 @@ async function vehiclesWithMedia(where: string, params: unknown[]): Promise<Vehi
     mediaByVehicle[m.vehicle_id].push(m)
   }
   return vehicles.map((v) => dbVehicleToVehicle(v, mediaByVehicle[v.id] ?? []))
-}
-
-function dbBookingToResponse(b: Row): BookingResponse {
-  return {
-    id: b.id,
-    public_id: b.public_id,
-    status: b.status as BookingResponse['status'],
-    hire_type: b.hire_type as BookingResponse['hire_type'],
-    service_type: b.service_type ?? 'vehicle',
-    start_date: b.start_date,
-    end_date: b.end_date,
-    total_days: b.total_days,
-    daily_rate: b.daily_rate / 100,
-    total_cost: b.total_cost / 100,
-    vehicle: b.vehicle_id ? { id: b.vehicle_id, name: b.vehicle_name ?? '' } : undefined,
-    contact_name: b.contact_name ?? undefined,
-    contact_email: b.contact_email,
-    contact_phone: b.contact_phone,
-    driver_name: b.driver_name ?? undefined,
-    driver_dob: b.driver_dob ?? undefined,
-    driver_licence_number: b.driver_licence_number ?? undefined,
-    driver_licence_expiry: b.driver_licence_expiry ?? undefined,
-    id_document_url: b.id_document_path ? `/api/uploads/${b.id_document_path}` : undefined,
-    licence_document_url: b.licence_document_path ? `/api/uploads/${b.licence_document_path}` : undefined,
-    is_enquiry: Boolean(b.is_enquiry),
-    vendor_name: b.vendor_name ?? undefined,
-    created_at: b.created_at instanceof Date ? b.created_at.toISOString() : String(b.created_at),
-  }
 }
 
 // ─── Public: Vehicles ─────────────────────────────────────────────────────────
@@ -173,16 +146,48 @@ export async function adminGetDashboardStats(): Promise<AdminDashboardStats> {
 
 // ─── Admin: Bookings ──────────────────────────────────────────────────────────
 
-export async function adminGetBookings(opts?: { limit?: number }): Promise<BookingResponse[]> {
-  const limitClause = opts?.limit ? `LIMIT ${opts.limit}` : ''
+export type AdminBookingStatusFilter = 'all' | 'pending' | 'confirmed' | 'enquiry' | 'completed' | 'cancelled'
+
+function adminBookingStatusWhere(status: AdminBookingStatusFilter | undefined) {
+  if (!status || status === 'all') return { clause: '', params: [] as unknown[] }
+  if (status === 'enquiry') return { clause: 'WHERE b.is_enquiry = 1', params: [] as unknown[] }
+  return {
+    clause: 'WHERE b.status = ? AND COALESCE(b.is_enquiry, 0) = 0',
+    params: [status] as unknown[],
+  }
+}
+
+export async function adminGetBookings(opts?: {
+  limit?: number
+  offset?: number
+  status?: AdminBookingStatusFilter
+}): Promise<BookingResponse[]> {
+  const requestedLimit = Math.trunc(opts?.limit ?? 0)
+  const limit = requestedLimit > 0 ? Math.min(requestedLimit, 200) : 0
+  const offset = Math.max(0, Math.trunc(opts?.offset ?? 0))
+  const limitClause = limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''
+  const statusWhere = adminBookingStatusWhere(opts?.status)
   const bookings = await query<Row>(
     `SELECT b.*, v.name as vehicle_name, vnd.name as vendor_name
      FROM Booking b
      LEFT JOIN Vehicle v ON b.vehicle_id = v.id
      LEFT JOIN Vendor vnd ON b.vendor_id = vnd.id
-     ORDER BY b.created_at DESC ${limitClause}`
+     ${statusWhere.clause}
+     ORDER BY b.created_at DESC ${limitClause}`,
+    statusWhere.params
   )
-  return bookings.map(dbBookingToResponse)
+  return bookings.map((booking) => mapBookingRow<BookingResponse['status']>(
+    booking as BookingDatabaseRow<BookingResponse['status']>
+  ))
+}
+
+export async function adminGetBookingCount(status?: AdminBookingStatusFilter): Promise<number> {
+  const statusWhere = adminBookingStatusWhere(status)
+  const row = await queryOne<{ count: number | string }>(
+    `SELECT COUNT(*) AS count FROM Booking b ${statusWhere.clause}`,
+    statusWhere.params
+  )
+  return Number(row?.count ?? 0)
 }
 
 export async function adminGetBooking(id: string): Promise<Row | null> {

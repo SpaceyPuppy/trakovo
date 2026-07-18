@@ -7,6 +7,7 @@
  */
 import { query, queryOne, execute } from './db'
 import { sendEmail } from './email'
+import { mapBookingRow } from './booking-mapper'
 
 async function isEmailEnabled(key: string): Promise<boolean> {
   const row = await queryOne<{ value: string }>('SELECT value FROM Setting WHERE `key` = ? LIMIT 1', [key])
@@ -56,26 +57,11 @@ async function loadBooking(bookingId: string): Promise<{ booking: BookingRespons
   )
   if (!row) return null
 
-  const booking: BookingResponse = {
-    id: row.id,
-    public_id: row.public_id,
+  const booking = mapBookingRow({
+    ...row,
     status: row.status as BookingResponse['status'],
     hire_type: row.hire_type as BookingResponse['hire_type'],
-    start_date: row.start_date,
-    end_date: row.end_date,
-    total_days: row.total_days,
-    daily_rate: row.daily_rate / 100,
-    total_cost: row.total_cost / 100,
-    contact_name: row.contact_name ?? undefined,
-    contact_email: row.contact_email,
-    contact_phone: row.contact_phone,
-    driver_name: row.driver_name ?? undefined,
-    driver_dob: row.driver_dob ?? undefined,
-    driver_licence_number: row.driver_licence_number ?? undefined,
-    driver_licence_expiry: row.driver_licence_expiry ?? undefined,
-    is_enquiry: Boolean(row.is_enquiry),
-    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
-  }
+  })
   return { booking, vehicleName: row.vehicle_name ?? 'Vehicle' }
 }
 

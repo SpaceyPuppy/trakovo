@@ -4,6 +4,7 @@ import { generatePublicId, newId, queryOne, withTransaction } from '@/lib/db'
 import {
   BookingValidationError,
   lockAndValidateBookingVehicle,
+  normaliseBookingCurrency,
   validateBookingDateRange,
 } from '@/lib/booking-availability'
 import { sendBulkVendorBookingSummary } from '@/lib/email'
@@ -93,8 +94,8 @@ export async function POST(req: Request) {
   }
   const authorisedBy = authorised_by.trim()
 
-  const vendorRow = await queryOne<{ contact_email: string; contact_phone: string }>(
-    'SELECT contact_email, contact_phone FROM Vendor WHERE id = ? LIMIT 1',
+  const vendorRow = await queryOne<{ contact_email: string; contact_phone: string; billing_currency: string }>(
+    'SELECT contact_email, contact_phone, billing_currency FROM Vendor WHERE id = ? LIMIT 1',
     [session.vendorId]
   )
   const vendorEmail = vendorRow?.contact_email || ''
@@ -161,7 +162,7 @@ export async function POST(req: Request) {
       const tripDetails = JSON.stringify(tripDetailsObj)
 
       const committed = await withTransaction(async (transaction) => {
-        let vehicle: { id: string; name: string; chauffeur_price: number } | null = null
+        let vehicle: { id: string; name: string; chauffeur_price: number; currency: string } | null = null
         let dateRange = validateBookingDateRange(start_date, end_date)
 
         if (svcType === 'vehicle') {
@@ -179,6 +180,7 @@ export async function POST(req: Request) {
             id: validated.vehicle.id,
             name: validated.vehicle.name,
             chauffeur_price: validated.vehicle.chauffeur_price,
+            currency: validated.vehicle.currency,
           }
         }
 
@@ -215,18 +217,19 @@ export async function POST(req: Request) {
 
         const dailyRate = vehicle ? vehicle.chauffeur_price : 0
         const totalCost = dateRange.totalDays * dailyRate
+        const currency = vehicle?.currency ?? normaliseBookingCurrency(vendorRow?.billing_currency)
         const id = newId()
         const publicId = await generatePublicId('VHB', transaction)
         await transaction.execute(
           `INSERT INTO Booking (
              id, public_id, vehicle_id, hire_type, service_type, status,
-             start_date, end_date, total_days, daily_rate, total_cost,
+             start_date, end_date, total_days, daily_rate, total_cost, currency,
              contact_name, contact_email, contact_phone, trip_details, is_enquiry,
              vendor_id, vendor_client_id, created_at, updated_at
-           ) VALUES (?, ?, ?, 'chauffeured', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+           ) VALUES (?, ?, ?, 'chauffeured', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
           [
             id, publicId, vehicle?.id ?? null, svcType, isEnquiry ? 'enquiry' : 'confirmed',
-            dateRange.startDate, dateRange.endDate, dateRange.totalDays, dailyRate, totalCost,
+            dateRange.startDate, dateRange.endDate, dateRange.totalDays, dailyRate, totalCost, currency,
             contactName || null, contactEmail, contactPhone, tripDetails, isEnquiry ? 1 : 0,
             session.vendorId, resolvedClientId,
           ]
