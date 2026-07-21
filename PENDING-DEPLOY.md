@@ -5,19 +5,23 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.15.1 (emergency authentication hotfix pending)
+## Current pending version: v1.15.2 (vendor billing cutover and single invoices pending)
 
 ### Deploy checklist
 - [x] v1.15.0 production SQL audited and applied; production tables converted to InnoDB
-- [x] v1.15.0 OTA bundle installed
-- [ ] Preserve `.next` as `.next.broken-v1.15.0` and keep `.next.backup` unchanged
-- [ ] Upload the v1.15.1 `.next` build and replace the root `app.js`
-- [ ] Restart Passenger and confirm admin, vendor, and driver session cookies are accepted
-- [ ] Confirm Passenger logs contain no unhandled WebAssembly rejection
+- [x] v1.15.1 authentication hotfix deployed and admin login verified
+- [ ] Upload/install the v1.15.2 `.next` bundle; retain the corrected v1.15.1 root `app.js`
+- [ ] Restart Passenger and confirm admin login remains healthy
+- [ ] Review vendor billing and confirm no hire starting before 2026-07-01 appears
+- [ ] Create one single vendor-trip draft invoice and confirm it is absent from the next bill-run review
+- [ ] Create a reviewed multi-booking bill run and confirm skipped/unclaimed bookings remain outstanding
+- [ ] Print or save an invoice as PDF and confirm admin navigation and framing are absent
 
 ### Pending production configuration
 
-No SQL, environment-variable, dependency, or cron changes are required for v1.15.1.
+No SQL, environment-variable, dependency, or cron changes are required for v1.15.2.
+The vendor billing commencement date is an application rule fixed at 2026-07-01
+and is evaluated against `Booking.start_date`.
 The v1.15.0 migration below is retained as the audited production deployment record.
 
 ### v1.15.0 deployed SQL record
@@ -636,6 +640,26 @@ No new v1.15.0 environment variables. The existing `CRON_SECRET` remains require
 ---
 
 # Changelog / Release Notes
+
+## v1.15.2 — 2026-07-22
+
+### Vendor billing cutover
+
+- Limits vendor bill-run and single-invoice eligibility to hires starting on or after 2026-07-01
+- Keeps every eligible unclaimed booking outstanding until it is invoiced, regardless of earlier bill-run cutoffs
+- Clarifies the editable upper cutoff as **Include completed trips through**
+
+### Single vendor-trip invoices
+
+- Adds **Create single vendor invoice** to eligible completed vendor booking details
+- Uses the same transactional ledger, recipient snapshot, idempotency and unique booking claim as consolidated bill runs
+- Records the invoice creation source in the existing audit event and prevents the singly invoiced trip entering a later bill run
+
+### Deployment
+
+- No SQL, environment-variable, dependency or cron changes
+- Retain the corrected v1.15.1 root `app.js` when installing the v1.15.2 OTA bundle
+- Curated notes: `RELEASE-NOTES-v1.15.2.md`
 
 ## v1.15.0 — 2026-07-18
 

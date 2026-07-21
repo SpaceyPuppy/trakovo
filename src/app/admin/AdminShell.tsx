@@ -25,13 +25,13 @@ export default function AdminShell({
   const initials = getInitials(username)
 
   return (
-    <div className="flex flex-col h-screen bg-[#f0efe9] overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#f0efe9] overflow-hidden print:block print:h-auto print:bg-white print:overflow-visible">
 
       {/* Desktop top bar — full width, hidden on mobile */}
       <AdminTopBar adminName={adminName} logoUrl={logoUrl} username={username} />
 
       {/* Body row: sidebar + content */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 print:block print:min-h-0">
 
         <AdminSidebar
           adminName={adminName}
@@ -43,10 +43,10 @@ export default function AdminShell({
           onClose={() => setMobileOpen(false)}
         />
 
-        <div className="flex-1 min-w-0 flex flex-col min-h-0">
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 print:block print:min-h-0">
 
           {/* Mobile top bar — only visible below lg */}
-          <header className="lg:hidden sticky top-0 z-20 h-11 bg-slate flex items-center justify-between px-4 border-b border-white/10 flex-shrink-0">
+          <header className="lg:hidden sticky top-0 z-20 h-11 bg-slate flex items-center justify-between px-4 border-b border-white/10 flex-shrink-0 print:hidden">
 
             {/* Left: hamburger */}
             <button
@@ -77,7 +77,7 @@ export default function AdminShell({
 
           </header>
 
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto print:overflow-visible">
             {children}
           </main>
         </div>

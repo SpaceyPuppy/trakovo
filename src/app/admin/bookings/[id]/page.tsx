@@ -316,6 +316,7 @@ export default async function BookingDetailPage({ params }: Props) {
         <BookingInvoiceSection
           bookingId={booking.id}
           bookingStatus={booking.status}
+          bookingStartDate={booking.start_date}
           vendorId={booking.vendor_id}
           invoice={invoice}
         />

@@ -3,10 +3,15 @@
 import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  VENDOR_BILLING_START_DATE,
+  VENDOR_BILLING_START_DATE_LABEL,
+} from '@/lib/billing/constants'
 
 interface Props {
   bookingId: string
   bookingStatus: string
+  bookingStartDate: string
   vendorId: string | null
   invoice: {
     id: string
@@ -30,7 +35,13 @@ async function responseBody(response: Response): Promise<Record<string, unknown>
   return body && typeof body === 'object' ? body as Record<string, unknown> : {}
 }
 
-export default function BookingInvoiceSection({ bookingId, bookingStatus, vendorId, invoice }: Props) {
+export default function BookingInvoiceSection({
+  bookingId,
+  bookingStatus,
+  bookingStartDate,
+  vendorId,
+  invoice,
+}: Props) {
   const router = useRouter()
   const createKey = useRef<string | null>(null)
   const paymentKey = useRef<string | null>(null)
@@ -99,6 +110,8 @@ export default function BookingInvoiceSection({ bookingId, bookingStatus, vendor
   const directInvoice = !vendorId || invoice?.invoice_type === 'direct'
   const canPayDirectly = directInvoice && invoice?.status !== 'paid' && invoice?.status !== 'void'
   const bookingCanBeInvoiced = !['cancelled', 'enquiry'].includes(bookingStatus)
+  const vendorBookingCanBeInvoiced = bookingStatus === 'completed' &&
+    bookingStartDate >= VENDOR_BILLING_START_DATE
 
   return (
     <div className="bg-white border border-border rounded-xl p-6 mt-6">
@@ -110,7 +123,7 @@ export default function BookingInvoiceSection({ bookingId, bookingStatus, vendor
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border capitalize ${STATUS_STYLES[invoice.status] ?? STATUS_STYLES.draft}`}>
               {invoice.status.replace('_', ' ')}
             </span>
-            {invoice.invoice_type === 'vendor' && <span className="text-[11px] text-ink-4">Consolidated vendor invoice</span>}
+            {invoice.invoice_type === 'vendor' && <span className="text-[11px] text-ink-4">Vendor invoice</span>}
             <Link href={`/admin/invoices/${invoice.id}`} className="text-accent hover:underline font-medium text-[13px] ml-auto">
               View invoice →
             </Link>
@@ -129,13 +142,27 @@ export default function BookingInvoiceSection({ bookingId, bookingStatus, vendor
       ) : vendorId ? (
         <div>
           <p className="text-[13.5px] text-ink-3">
-            {bookingStatus === 'completed'
-              ? 'This completed vendor booking is ready for the next reviewed bill run once it has a valid price.'
-              : 'Vendor bookings are added to the bill-run queue after they are marked completed and have a valid price.'}
+            {bookingStartDate < VENDOR_BILLING_START_DATE
+              ? `This hire starts before the vendor billing commencement date of ${VENDOR_BILLING_START_DATE_LABEL}.`
+              : bookingStatus === 'completed'
+                ? 'This completed vendor booking can be invoiced individually or included in the next reviewed bill run.'
+                : 'Vendor bookings can be invoiced after they are marked completed and have a valid price.'}
           </p>
-          <Link href="/admin/invoices" className="inline-block mt-3 text-accent hover:underline font-medium text-[13px]">
-            Open Billing &amp; Invoices →
-          </Link>
+          <div className="flex flex-wrap gap-3 mt-3">
+            {vendorBookingCanBeInvoiced && (
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={working !== null}
+                className="bg-accent text-white font-semibold text-[13px] px-4 py-2 rounded-[6px] hover:bg-accent-dark disabled:opacity-60"
+              >
+                {working === 'create' ? 'Creating…' : 'Create single vendor invoice'}
+              </button>
+            )}
+            <Link href="/admin/invoices" className="inline-flex items-center text-accent hover:underline font-medium text-[13px]">
+              Open Billing &amp; Invoices →
+            </Link>
+          </div>
         </div>
       ) : (
         <div>

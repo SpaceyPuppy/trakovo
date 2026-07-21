@@ -210,6 +210,7 @@ export async function createInvoice(
   input: {
     actor: string
     invoiceType: 'direct' | 'vendor'
+    creationSource: 'direct_booking' | 'vendor_bill_run' | 'vendor_single_booking'
     recipient: RecipientSnapshot
     bookings: BillableBooking[]
     vendorId?: string | null
@@ -337,6 +338,7 @@ export async function createInvoice(
     billingRunId: input.billingRunId,
     details: {
       invoice_type: input.invoiceType,
+      creation_source: input.creationSource,
       booking_ids: input.bookings.map(booking => booking.id),
       total_amount: total,
       subtotal_amount: subtotal,

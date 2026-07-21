@@ -14,6 +14,7 @@ import {
 } from './core'
 import { BillingError } from './errors'
 import { runIdempotently, type IdempotencyInput, type IdempotentResult } from './idempotency'
+import { VENDOR_BILLING_START_DATE, VENDOR_BILLING_START_DATE_LABEL } from './constants'
 
 interface LockedInvoice {
   id: string
@@ -28,9 +29,19 @@ interface LockedInvoice {
   payment_terms_days: number | string
 }
 
-interface DirectBookingRow extends BillableBooking {
+interface BookingInvoiceRow extends BillableBooking {
   status: string
   is_enquiry: number | boolean
+  vendor_name: string | null
+  vendor_contact_email: string | null
+  vendor_contact_phone: string | null
+  billing_name: string | null
+  billing_email: string | null
+  billing_address: string | null
+  billing_abn: string | null
+  billing_currency: string | null
+  billing_terms_days: number | string | null
+  billing_enabled: number | boolean | null
 }
 
 export interface PaymentResult {
@@ -123,7 +134,7 @@ async function issueLockedInvoice(
   return { issueDate, dueDate }
 }
 
-export async function createDirectInvoice(input: {
+export async function createBookingInvoice(input: {
   actor: string
   bookingId: string
   dueDate?: string | null
@@ -148,27 +159,53 @@ export async function createDirectInvoice(input: {
           )
         }
       }
-      const booking = await transaction.queryOne<DirectBookingRow>(
+      const booking = await transaction.queryOne<BookingInvoiceRow>(
         `SELECT b.id, b.public_id, b.vendor_id, b.status, b.is_enquiry,
                 b.contact_name, b.contact_email, b.contact_phone,
                 b.start_date, b.end_date, b.total_cost, b.currency,
-                b.service_type, b.hire_type, v.name AS vehicle_name
+                b.service_type, b.hire_type, vehicle.name AS vehicle_name,
+                vendor.name AS vendor_name,
+                vendor.contact_email AS vendor_contact_email,
+                vendor.contact_phone AS vendor_contact_phone,
+                vendor.billing_name, vendor.billing_email,
+                vendor.billing_address, vendor.billing_abn,
+                vendor.billing_currency, vendor.billing_terms_days,
+                vendor.billing_enabled
          FROM Booking b
-         LEFT JOIN Vehicle v ON v.id = b.vehicle_id
+         LEFT JOIN Vehicle vehicle ON vehicle.id = b.vehicle_id
+         LEFT JOIN Vendor vendor ON vendor.id = b.vendor_id
          WHERE b.id = ?
          FOR UPDATE`,
         [input.bookingId]
       )
       if (!booking) throw new BillingError('Booking not found', 404, 'booking_not_found')
-      if (booking.vendor_id) {
-        throw new BillingError(
-          'Vendor bookings must be invoiced through a vendor bill run',
-          409,
-          'vendor_bill_run_required'
-        )
-      }
       if (Boolean(booking.is_enquiry) || booking.status === 'cancelled') {
         throw new BillingError('This booking cannot be invoiced', 409, 'booking_not_billable')
+      }
+      if (booking.vendor_id && booking.status !== 'completed') {
+        throw new BillingError(
+          'A vendor booking must be completed before it can be invoiced',
+          409,
+          'vendor_booking_not_completed'
+        )
+      }
+      if (booking.vendor_id && booking.start_date < VENDOR_BILLING_START_DATE) {
+        throw new BillingError(
+          `Vendor billing includes hires starting on or after ${VENDOR_BILLING_START_DATE_LABEL}`,
+          409,
+          'vendor_booking_before_billing_start'
+        )
+      }
+      if (booking.vendor_id && !Boolean(booking.billing_enabled)) {
+        throw new BillingError('Billing is disabled for this vendor', 409, 'vendor_billing_disabled')
+      }
+      if (booking.vendor_id &&
+          normaliseCurrency(booking.currency) !== normaliseCurrency(booking.billing_currency)) {
+        throw new BillingError(
+          'Booking currency does not match the vendor billing currency',
+          409,
+          'vendor_billing_currency_mismatch'
+        )
       }
       if (readMoney(booking.total_cost) <= 0) {
         throw new BillingError('Set a positive booking price before invoicing', 409, 'booking_needs_price')
@@ -185,17 +222,32 @@ export async function createDirectInvoice(input: {
         )
       }
 
+      const isVendorInvoice = Boolean(booking.vendor_id)
+      const terms = Number(booking.billing_terms_days)
       const invoice = await createInvoice(transaction, {
         actor: input.actor,
-        invoiceType: 'direct',
-        recipient: {
-          name: booking.contact_name?.trim() || booking.contact_email,
-          abn: '',
-          email: booking.contact_email,
-          phone: booking.contact_phone,
-          address: null,
-          paymentTermsDays: 14,
-        },
+        invoiceType: isVendorInvoice ? 'vendor' : 'direct',
+        creationSource: isVendorInvoice ? 'vendor_single_booking' : 'direct_booking',
+        vendorId: booking.vendor_id,
+        recipient: isVendorInvoice
+          ? {
+              name: booking.billing_name?.trim() || booking.vendor_name || booking.contact_email,
+              abn: booking.billing_abn || '',
+              email: booking.billing_email?.trim() || booking.vendor_contact_email || '',
+              phone: booking.vendor_contact_phone || '',
+              address: booking.billing_address,
+              paymentTermsDays: Number.isInteger(terms)
+                ? Math.max(0, Math.min(365, terms))
+                : 14,
+            }
+          : {
+              name: booking.contact_name?.trim() || booking.contact_email,
+              abn: '',
+              email: booking.contact_email,
+              phone: booking.contact_phone,
+              address: null,
+              paymentTermsDays: 14,
+            },
         bookings: [booking],
         dueDate,
         notes,

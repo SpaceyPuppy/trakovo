@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import {
   billingErrorResponse,
-  createDirectInvoice,
+  createBookingInvoice,
   getIdempotencyKey,
   hashRequestPayload,
   listInvoices,
@@ -35,12 +35,12 @@ export async function POST(req: Request) {
     const key = getIdempotencyKey(req)
     const body = await readBillingJsonObject(req)
     const requestHash = await hashRequestPayload(body)
-    const result = await createDirectInvoice({
+    const result = await createBookingInvoice({
       actor: session.username,
       bookingId: typeof body.booking_id === 'string' ? body.booking_id : '',
       dueDate: body.due_date as string | null | undefined,
       notes: body.notes as string | null | undefined,
-      idempotency: { scope: 'invoice:create-direct', key: key!, requestHash },
+      idempotency: { scope: 'invoice:create-booking', key: key!, requestHash },
     })
     return NextResponse.json(result.value, {
       status: result.statusCode,

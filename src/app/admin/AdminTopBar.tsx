@@ -28,7 +28,7 @@ export default function AdminTopBar({ adminName, logoUrl, username }: Props) {
   }
 
   return (
-    <header className="hidden lg:flex items-center h-[52px] bg-slate border-b border-white/10 flex-shrink-0 z-30">
+    <header className="hidden lg:flex items-center h-[52px] bg-slate border-b border-white/10 flex-shrink-0 z-30 print:hidden">
 
       {/* Brand — left */}
       <Link

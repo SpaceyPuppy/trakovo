@@ -126,7 +126,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
   const displayIssueDate = invoice.issue_date ?? invoice.created_at.slice(0, 10)
 
   return (
-    <div className="px-5 py-8 md:px-10 md:py-10">
+    <div className="px-5 py-8 md:px-10 md:py-10 print:p-0">
       <div className="flex items-center justify-between gap-4 mb-8 print:hidden flex-wrap">
         <Link href="/admin/invoices" className="inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink">
           ← Back to Billing &amp; Invoices
@@ -140,7 +140,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
         />
       </div>
 
-      <div className="bg-white border border-border rounded-xl overflow-hidden max-w-[900px] print:border-none print:max-w-full">
+      <div className="bg-white border border-border rounded-xl overflow-hidden max-w-[900px] print:border-0 print:rounded-none print:overflow-visible print:max-w-none">
         <div className="bg-slate px-6 py-6 md:px-8 print:bg-white print:border-b print:border-border">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -157,7 +157,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="px-5 py-6 md:px-8 md:py-7 space-y-7">
+        <div className="px-5 py-6 md:px-8 md:py-7 space-y-7 print:px-0 print:pb-0">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 text-[13px]">
             <div>
               <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-1">Invoice date</p>
@@ -180,7 +180,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Bill to</p>
-              <div className="bg-bg rounded-lg px-4 py-3 text-[13.5px] space-y-0.5 min-h-[92px]">
+              <div className="bg-bg rounded-lg px-4 py-3 text-[13.5px] space-y-0.5 min-h-[92px] print:border print:border-border print:bg-white">
                 <p className="font-semibold text-ink">{invoice.recipient_name}</p>
                 {invoice.recipient_abn && <p className="text-ink-3">ABN {invoice.recipient_abn}</p>}
                 {invoice.recipient_email && <p className="text-ink-3">{invoice.recipient_email}</p>}
@@ -190,7 +190,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
             </div>
             <div>
               <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Payment summary</p>
-              <div className="bg-bg rounded-lg px-4 py-3 text-[13.5px] min-h-[92px] space-y-1">
+              <div className="bg-bg rounded-lg px-4 py-3 text-[13.5px] min-h-[92px] space-y-1 print:border print:border-border print:bg-white">
                 <p className="flex justify-between gap-4"><span className="text-ink-3">Invoice total</span><strong>{formatCurrencyCents(invoice.total_amount, invoice.currency)}</strong></p>
                 <p className="flex justify-between gap-4"><span className="text-ink-3">Paid</span><strong className="text-success">{formatCurrencyCents(invoice.amount_paid, invoice.currency)}</strong></p>
                 <p className="flex justify-between gap-4 border-t border-border pt-1">
@@ -203,7 +203,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
 
           <div>
             <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Services</p>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full min-w-[650px] text-[13.5px]">
                 <thead>
                   <tr className="border-b border-border text-ink-4 text-[11px] font-semibold uppercase tracking-wider">

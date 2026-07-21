@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatCurrencyCents } from '@/lib/utils'
+import { VENDOR_BILLING_START_DATE_LABEL } from '@/lib/billing/constants'
 
 interface ReadyBooking {
   id: string
@@ -181,14 +182,14 @@ export default function BillRunPanel() {
       <div className="px-5 py-4 md:px-6 border-b border-border bg-bg/40">
         <h2 className="font-display font-bold text-[17px]">Vendor bill run</h2>
         <p className="text-[12.5px] text-ink-3 mt-1">
-          Completed, priced vendor bookings are queued automatically. Review them before creating draft invoices.
+          Completed, priced vendor hires starting on or after {VENDOR_BILLING_START_DATE_LABEL} remain queued until invoiced. Review them before creating draft invoices.
         </p>
       </div>
 
       <div className="p-5 md:p-6">
         <div className="grid gap-4 md:grid-cols-[190px_190px_1fr_auto] md:items-end">
           <label className="block text-[12.5px] font-semibold text-ink-2">
-            Include work completed by
+            Include completed trips through
             <input
               type="date"
               value={cutoff}

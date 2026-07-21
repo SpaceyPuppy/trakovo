@@ -15,6 +15,7 @@ import {
 } from './core'
 import { BillingError } from './errors'
 import { runIdempotently, type IdempotencyInput, type IdempotentResult } from './idempotency'
+import { VENDOR_BILLING_START_DATE } from './constants'
 
 interface VendorBookingRow extends BillableBooking {
   vendor_name: string
@@ -229,6 +230,7 @@ export async function getBillingReadiness(input: {
     `${VENDOR_BOOKING_SELECT}
      WHERE b.status = 'completed'
        AND b.is_enquiry = 0
+       AND b.start_date >= ?
        AND b.end_date <= ?
        AND NOT EXISTS (
          SELECT 1 FROM InvoiceLine line_claim
@@ -236,7 +238,7 @@ export async function getBillingReadiness(input: {
        )
        ${filter.sql}
      ORDER BY v.name, b.end_date, b.public_id`,
-    [cutoff, ...filter.values]
+    [VENDOR_BILLING_START_DATE, cutoff, ...filter.values]
   )
 
   const readyRows: VendorBookingRow[] = []
@@ -325,6 +327,7 @@ export async function createBillingRun(input: {
            AND b.status = 'completed'
            AND b.is_enquiry = 0
            AND b.total_cost > 0
+           AND b.start_date >= ?
            AND b.end_date <= ?
            AND v.billing_enabled = 1
            AND b.currency = v.billing_currency
@@ -334,7 +337,11 @@ export async function createBillingRun(input: {
            )
          ORDER BY b.vendor_id, b.end_date, b.public_id
          FOR UPDATE`,
-        [...reviewedBookings.map(booking => booking.id), cutoff]
+        [
+          ...reviewedBookings.map(booking => booking.id),
+          VENDOR_BILLING_START_DATE,
+          cutoff,
+        ]
       )
       if (rows.length !== reviewedBookings.length) {
         throw new BillingError(
@@ -400,6 +407,7 @@ export async function createBillingRun(input: {
         invoices.push(await createInvoice(transaction, {
           actor: input.actor,
           invoiceType: 'vendor',
+          creationSource: 'vendor_bill_run',
           vendorId,
           billingRunId: runId,
           recipient: recipient(bookings[0]),

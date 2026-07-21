@@ -136,12 +136,12 @@ export default function AdminSidebar({ adminName, logoUrl, expanded, mobileOpen,
     <>
       {/* Mobile backdrop */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={onClose} />
+        <div className="fixed inset-0 z-30 bg-black/50 lg:hidden print:hidden" onClick={onClose} />
       )}
 
       {/* Desktop sidebar */}
       <aside className={cn(
-        'hidden lg:flex flex-col bg-slate flex-shrink-0 overflow-hidden transition-[width] duration-200',
+        'hidden lg:flex flex-col bg-slate flex-shrink-0 overflow-hidden transition-[width] duration-200 print:hidden',
         expanded ? 'w-[220px]' : 'w-[60px]'
       )}>
         {renderDesktop()}
@@ -149,7 +149,7 @@ export default function AdminSidebar({ adminName, logoUrl, expanded, mobileOpen,
 
       {/* Mobile drawer */}
       <aside className={cn(
-        'fixed top-0 left-0 h-full w-[260px] bg-slate z-40 flex flex-col lg:hidden transition-transform duration-200 ease-in-out overflow-hidden',
+        'fixed top-0 left-0 h-full w-[260px] bg-slate z-40 flex flex-col lg:hidden transition-transform duration-200 ease-in-out overflow-hidden print:hidden',
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         {renderMobile()}

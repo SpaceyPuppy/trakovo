@@ -7,6 +7,7 @@ This guide describes the billing functionality introduced in Trakovo v1.15.0. It
 The MVP supports:
 
 - Direct invoices for non-vendor bookings
+- Single-booking vendor draft invoices from booking details
 - Consolidated vendor invoices containing one line per completed booking
 - Staff-triggered vendor bill runs with a review step
 - Draft, issue, partial-payment, paid, and void workflows
@@ -30,7 +31,7 @@ Issued financial history is not deleted. The MVP permits voiding an unpaid draft
 ## Vendor billing flow
 
 1. Staff completes a non-enquiry vendor booking and confirms that it has a positive final price.
-2. The booking automatically appears in **Admin → Billing & Invoices → Vendor bill run** when its service end date is on or before the selected cutoff.
+2. A hire starting on or after 1 July 2026 automatically appears in **Admin → Billing & Invoices → Vendor bill run** when its service end date is on or before the selected cutoff.
 3. Staff selects **Review ready bookings**.
 4. Trakovo groups eligible bookings by vendor and separately identifies records needing attention.
 5. Staff reviews vendors, bookings, totals, cutoff, optional due-date override, and notes.
@@ -45,6 +46,7 @@ A completed booking is ready only when all of the following are true:
 - `Booking.status = 'completed'`
 - `Booking.is_enquiry = 0`
 - The booking has a vendor
+- `Booking.start_date` is on or after `2026-07-01`
 - `Booking.end_date` is on or before the bill-run cutoff
 - `Booking.total_cost` is greater than zero
 - Vendor billing is enabled
@@ -59,11 +61,22 @@ The review screen reports these exceptions:
 - `billing_disabled`: billing is disabled for the vendor
 - `currency_mismatch`: booking and vendor billing currencies differ
 
+The 1 July 2026 lower boundary is deliberately global and has no per-vendor override.
+Every bill-run review includes all otherwise eligible, unclaimed bookings between
+that commencement date and the selected cutoff. A booking deliberately skipped in
+one run remains outstanding for the next run.
+
 Completing a booking queues it for review; it never silently modifies an existing invoice or automatically emails a customer.
 
-## Direct invoices and marking a booking paid
+## Single-booking invoices and marking a booking paid
 
 Direct invoices are created from a non-vendor booking. Cancelled bookings and enquiries cannot be invoiced, and the booking must have a positive price.
+
+A completed vendor booking starting on or after 1 July 2026 can instead be invoiced
+individually from its admin booking detail page. This creates one vendor draft invoice
+with one line and no billing-run ID. Its active booking claim keeps the trip out of all
+later bill runs. Vendor billing must be enabled, and the booking currency must match
+the vendor billing currency.
 
 To mark a direct booking as paid:
 
@@ -75,7 +88,11 @@ To mark a direct booking as paid:
 
 If the invoice is still a draft, recording its first payment issues it automatically. Omitting `amount_cents` at the API level records the full remaining balance. A smaller positive amount creates a partial payment.
 
-Vendor bookings must be invoiced through a vendor bill run. Their paid state is derived from the consolidated vendor invoice.
+Vendor booking paid state is derived from its single or consolidated vendor invoice.
+
+The invoice detail page's **Print / Save PDF** action produces an invoice-only print
+layout. Admin navigation, actions, audit history, payment history and the surrounding
+application frame are excluded from the printed document.
 
 ## Invoice statuses
 
@@ -178,7 +195,7 @@ Empty vendor billing name/email fields fall back to the vendor name and contact 
 All routes require an authenticated admin session.
 
 - `GET /api/admin/invoices?status=&vendor_id=&limit=&offset=` lists invoices with cents-based totals and pagination.
-- `POST /api/admin/invoices` creates a direct draft invoice. Body: `{ booking_id, due_date?, notes? }`. Requires `Idempotency-Key`.
+- `POST /api/admin/invoices` creates a direct or single-booking vendor draft invoice according to the booking owner. Body: `{ booking_id, due_date?, notes? }`. Requires `Idempotency-Key`.
 - `GET /api/admin/invoices/:id` returns the invoice header, lines, payments, and audit events.
 - `PATCH /api/admin/invoices/:id` accepts `{ action: 'issue', issue_date?, due_date? }`, `{ action: 'void', reason? }`, or `{ action: 'update', due_date?, notes? }`.
 - `POST /api/admin/invoices/:id/payments` accepts `{ amount_cents?, payment_date?, method?, reference?, notes? }`. Requires `Idempotency-Key`.
@@ -205,6 +222,7 @@ Dates use `YYYY-MM-DD`. Billing write errors return a stable `code` alongside th
 - No automatic bank-feed reconciliation
 - No online payment gateway or hosted payment link
 - No automatic invoice email/PDF archive yet
+- No editable invoice or invoice-email template yet; template placeholders, preview/test sending and PDF attachment are planned for v1.15.3
 - No recurring scheduled bill runs; runs are staff-triggered
 - No split allocation UI for one remittance across several invoices
 - No general-ledger, BAS, payroll, or double-entry accounting module
@@ -219,6 +237,7 @@ Dates use `YYYY-MM-DD`. Billing write errors return a stable `code` alongside th
 - [ ] Configure and verify issuer identity and tax settings
 - [ ] Verify vendor billing names, emails, terms, currencies, and enabled flags
 - [ ] Complete a priced vendor booking and confirm it appears in bill-run review
+- [ ] Confirm a vendor hire starting before 2026-07-01 never appears in bill-run review
 - [ ] Complete a zero-priced vendor booking and confirm it appears under needs attention
 - [ ] Review a bill run and deselect one vendor
 - [ ] Change a reviewed booking price before confirmation and confirm the complete run returns `billing_review_stale` without creating invoices
@@ -229,9 +248,11 @@ Dates use `YYYY-MM-DD`. Billing write errors return a stable `code` alongside th
 - [ ] Record a partial payment and verify `part_paid`, amount paid, and remaining balance
 - [ ] Record the balance and verify `paid`
 - [ ] Create a direct invoice from a non-vendor booking
+- [ ] Create a single vendor invoice and confirm its booking no longer appears in bill-run review
 - [ ] Record its full payment and confirm a draft auto-issues and becomes paid
 - [ ] Void an unpaid invoice and confirm the booking can be deliberately re-invoiced
 - [ ] Confirm an invoice with a payment cannot be voided
+- [ ] Print or save an invoice as PDF and confirm only the invoice document appears
 - [ ] Retry a write with the same idempotency key and confirm no duplicate is created
 - [ ] Reuse a key with a changed payload and confirm HTTP `409`
 - [ ] Verify invoice audit events identify the staff actor and action
