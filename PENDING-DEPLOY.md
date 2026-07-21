@@ -5,22 +5,22 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.15.0 (production deployment pending)
+## Current pending version: v1.15.1 (emergency authentication hotfix pending)
 
 ### Deploy checklist
-- [ ] Schedule a maintenance window and tell staff not to use Admin Quick Add, status changes, invoices, or vendor booking forms during the cutover
-- [ ] Put the site into maintenance mode and confirm booking writes are paused
-- [ ] Create a full database backup and verify that it can be downloaded/restored
-- [ ] Record the current application path, release version, and `.next` backup/rollback location
-- [ ] Run the preflight queries below; resolve every unexpected result before changing schema
-- [ ] If a prototype `Invoice` table exists, rename it to `InvoiceLegacyBackup`; never drop it during this release
-- [ ] Apply the migration in the documented order and run each verification query before continuing
-- [ ] Upload/extract the full release archive or install the OTA bundle
-- [ ] Run NPM Install only for a full archive deployment
-- [ ] Restart Passenger and complete all smoke/acceptance checks while writes remain paused
-- [ ] Resume booking writes only after billing, Quick Add, calendar, and concurrency checks pass
+- [x] v1.15.0 production SQL audited and applied; production tables converted to InnoDB
+- [x] v1.15.0 OTA bundle installed
+- [ ] Preserve `.next` as `.next.broken-v1.15.0` and keep `.next.backup` unchanged
+- [ ] Upload the v1.15.1 `.next` build and replace the root `app.js`
+- [ ] Restart Passenger and confirm admin, vendor, and driver session cookies are accepted
+- [ ] Confirm Passenger logs contain no unhandled WebAssembly rejection
 
-### Pending SQL
+### Pending production configuration
+
+No SQL, environment-variable, dependency, or cron changes are required for v1.15.1.
+The v1.15.0 migration below is retained as the audited production deployment record.
+
+### v1.15.0 deployed SQL record
 
 This is a one-time existing-install migration, not a fresh-install script. Run it in order with booking writes paused. `prisma/init.sql` remains the source for fresh databases.
 

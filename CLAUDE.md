@@ -8,7 +8,7 @@ Pre-built index files are in `.ai-codex/`. Read these FIRST before exploring the
 # Trakovo — Claude Context
 
 Fleet management platform for vehicle hire bookings, drivers, vendors, and dispatch.
-Current version: **v1.15.0**
+Current version: **v1.15.1**
 
 ---
 

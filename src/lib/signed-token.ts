@@ -38,7 +38,7 @@ function getSigningKey(secret: string): Promise<CryptoKey> {
       encoder.encode(secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
-      ['sign', 'verify']
+      ['sign']
     )
     keyCache.set(secret, key)
   }
@@ -73,13 +73,12 @@ export async function verifySignedToken<T extends ExpiringClaims>(
 
     const payload = token.slice(0, separator)
     const signature = fromBase64Url(token.slice(separator + 1))
-    const isValidSignature = await crypto.subtle.verify(
+    const expectedSignature = new Uint8Array(await crypto.subtle.sign(
       'HMAC',
       await getSigningKey(secret),
-      signature.buffer as ArrayBuffer,
       encoder.encode(payload)
-    )
-    if (!isValidSignature) return null
+    ))
+    if (!constantTimeEqual(signature, expectedSignature)) return null
 
     const claims: unknown = JSON.parse(decoder.decode(fromBase64Url(payload)))
     if (!isValidClaims(claims) || !Number.isFinite(claims.exp) || Date.now() > claims.exp) {
@@ -89,4 +88,16 @@ export async function verifySignedToken<T extends ExpiringClaims>(
   } catch {
     return null
   }
+}
+
+function constantTimeEqual(left: Uint8Array, right: Uint8Array): boolean {
+  // HMAC-SHA256 signatures have a public, fixed length, so rejecting a malformed
+  // length early does not reveal secret-dependent information.
+  if (left.length !== right.length) return false
+
+  let mismatch = 0
+  for (let index = 0; index < left.length; index++) {
+    mismatch |= left[index] ^ right[index]
+  }
+  return mismatch === 0
 }

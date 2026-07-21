@@ -7,7 +7,9 @@
 // Next.js uses its own bundled fetch/undici for server-side requests, so the
 // app continues to function normally.
 process.on('unhandledRejection', (reason) => {
-  if (reason instanceof RangeError && reason.message && reason.message.includes('wasm memory')) {
+  const message = reason instanceof Error ? reason.message : String(reason)
+  const isRangeError = reason instanceof RangeError || reason?.name === 'RangeError'
+  if (isRangeError && message.toLowerCase().includes('wasm memory')) {
     console.warn('[app] WebAssembly memory blocked by host — using JS HTTP fallback')
     return
   }
