@@ -8,6 +8,7 @@ const BILLING_SETTING_KEYS = [
   'billing_email',
   'billing_phone',
   'billing_address',
+  'billing_invoice_footer',
   'billing_tax_mode',
   'billing_tax_rate_bps',
 ] as const
@@ -36,6 +37,7 @@ export const PATCH = withAdminApi(async request => {
     ['billing_email', optionalString(body.billing_email, 'billing_email', 191)],
     ['billing_phone', optionalString(body.billing_phone, 'billing_phone', 50)],
     ['billing_address', optionalString(body.billing_address, 'billing_address', 2000)],
+    ['billing_invoice_footer', optionalString(body.billing_invoice_footer, 'billing_invoice_footer', 5000)],
     ['billing_tax_mode', taxMode],
     ['billing_tax_rate_bps', String(taxRateBps)],
   ]

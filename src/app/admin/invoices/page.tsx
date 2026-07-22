@@ -12,7 +12,7 @@ const INVOICE_STATUSES = new Set(['draft', 'issued', 'part_paid', 'paid', 'void'
 
 const BILLING_SETTING_KEYS = [
   'billing_legal_name', 'billing_abn', 'billing_email', 'billing_phone',
-  'billing_address', 'billing_tax_mode', 'billing_tax_rate_bps',
+  'billing_address', 'billing_invoice_footer', 'billing_tax_mode', 'billing_tax_rate_bps',
 ] as const
 
 export default async function InvoicesPage({ searchParams }: { searchParams?: { page?: string; status?: string } }) {

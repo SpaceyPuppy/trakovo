@@ -62,6 +62,22 @@ export default function InvoiceActions({ invoiceId, status, balanceDue, currency
     }
   }
 
+  async function deleteInvoice() {
+    if (!window.confirm('Permanently delete this void invoice? This removes its invoice lines and cannot be undone.')) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/admin/invoices/${invoiceId}`, { method: 'DELETE' })
+      const body = await jsonBody(response)
+      if (!response.ok) throw new Error(String(body.error ?? 'Invoice could not be deleted'))
+      router.push('/admin/invoices?status=void')
+      router.refresh()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Invoice could not be deleted')
+      setLoading(false)
+    }
+  }
+
   async function saveDueDate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setLoading(true)
@@ -131,6 +147,9 @@ export default function InvoiceActions({ invoiceId, status, balanceDue, currency
       )}
       {['draft', 'issued'].includes(status) && (
         <button type="button" onClick={() => updateInvoice('void')} disabled={loading} className={btnDanger}>Void</button>
+      )}
+      {status === 'void' && (
+        <button type="button" onClick={deleteInvoice} disabled={loading} className={btnDanger}>Delete permanently</button>
       )}
       <button type="button" onClick={() => window.print()} className={btn}>Print / Save PDF</button>
 

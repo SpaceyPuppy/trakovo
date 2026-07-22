@@ -15,6 +15,7 @@ export default function BillingSettingsPanel({ initialSettings }: Props) {
     billing_email: initialSettings.billing_email ?? '',
     billing_phone: initialSettings.billing_phone ?? '',
     billing_address: initialSettings.billing_address ?? '',
+    billing_invoice_footer: initialSettings.billing_invoice_footer ?? '',
     billing_tax_mode: initialSettings.billing_tax_mode === 'inclusive' ? 'inclusive' : 'none',
     billing_tax_rate_bps: Number(initialSettings.billing_tax_rate_bps ?? 1000),
   })
@@ -32,7 +33,7 @@ export default function BillingSettingsPanel({ initialSettings }: Props) {
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(body.error ?? 'Could not save billing settings')
-      setMessage({ type: 'success', text: 'Billing settings saved. New invoices will use this snapshot.' })
+      setMessage({ type: 'success', text: 'Billing settings saved.' })
     } catch (caught) {
       setMessage({ type: 'error', text: caught instanceof Error ? caught.message : 'Could not save billing settings' })
     } finally {
@@ -47,7 +48,7 @@ export default function BillingSettingsPanel({ initialSettings }: Props) {
       </summary>
       <div className="p-5 md:p-6 border-t border-border">
         <p className="text-[12.5px] text-ink-3 mb-5">
-          These values are copied onto each new invoice. Existing invoices keep their original legal and tax snapshot.
+          Identity and tax values are copied onto each new invoice. Payment details are shown on all invoices, including existing ones.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="text-[12.5px] font-semibold text-ink-2">
@@ -69,6 +70,20 @@ export default function BillingSettingsPanel({ initialSettings }: Props) {
           <label className="md:col-span-2 text-[12.5px] font-semibold text-ink-2">
             Billing Address
             <textarea className={inputClass} rows={3} value={settings.billing_address} maxLength={2000} onChange={event => setSettings(current => ({ ...current, billing_address: event.target.value }))} />
+          </label>
+          <label className="md:col-span-2 text-[12.5px] font-semibold text-ink-2">
+            Payment details / invoice footer
+            <textarea
+              className={`${inputClass} font-mono`}
+              rows={6}
+              value={settings.billing_invoice_footer}
+              maxLength={5000}
+              placeholder={'Bank details\nAccount name: Example Pty Ltd\nBSB: 000-000\nAccount number: 00000000\nReference: {{invoice_number}}'}
+              onChange={event => setSettings(current => ({ ...current, billing_invoice_footer: event.target.value }))}
+            />
+            <span className="mt-1.5 block text-[11.5px] font-normal text-ink-4">
+              Use <code className="font-mono">{'{{invoice_number}}'}</code> to insert each invoice reference automatically.
+            </span>
           </label>
           <label className="text-[12.5px] font-semibold text-ink-2">
             Tax treatment

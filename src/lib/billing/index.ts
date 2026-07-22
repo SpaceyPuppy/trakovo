@@ -2,6 +2,7 @@ export { billingErrorResponse, BillingError, readBillingJsonObject } from './err
 export { getIdempotencyKey, hashRequestPayload } from './idempotency'
 export {
   createBookingInvoice,
+  deleteVoidedInvoice,
   issueInvoice,
   recordInvoicePayment,
   updateInvoiceDraft,

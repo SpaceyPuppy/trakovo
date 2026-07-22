@@ -5,21 +5,24 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.15.2 (vendor billing cutover and single invoices pending)
+## Current pending version: v1.15.3 (invoice payment details and void deletion pending)
 
 ### Deploy checklist
 - [x] v1.15.0 production SQL audited and applied; production tables converted to InnoDB
 - [x] v1.15.1 authentication hotfix deployed and admin login verified
-- [ ] Upload/install the v1.15.2 `.next` bundle; retain the corrected v1.15.1 root `app.js`
+- [ ] Upload/install the v1.15.3 `.next` bundle; it supersedes the v1.15.2 OTA bundle and retains the corrected v1.15.1 root `app.js`
 - [ ] Restart Passenger and confirm admin login remains healthy
 - [ ] Review vendor billing and confirm no hire starting before 2026-07-01 appears
 - [ ] Create one single vendor-trip draft invoice and confirm it is absent from the next bill-run review
 - [ ] Create a reviewed multi-booking bill run and confirm skipped/unclaimed bookings remain outstanding
 - [ ] Print or save an invoice as PDF and confirm admin navigation and framing are absent
+- [ ] Save payment details with `Reference: {{invoice_number}}` and confirm the actual reference appears on-screen and in Print / Save PDF
+- [ ] Void an unpaid invoice, delete it permanently, and confirm the booking can be invoiced again
 
 ### Pending production configuration
 
-No SQL, environment-variable, dependency, or cron changes are required for v1.15.2.
+No SQL, environment-variable, dependency, or cron changes are required for v1.15.3.
+Payment details are stored in the existing `Setting` table under `billing_invoice_footer`.
 The vendor billing commencement date is an application rule fixed at 2026-07-01
 and is evaluated against `Booking.start_date`.
 The v1.15.0 migration below is retained as the audited production deployment record.
@@ -640,6 +643,30 @@ No new v1.15.0 environment variables. The existing `CRON_SECRET` remains require
 ---
 
 # Changelog / Release Notes
+
+## v1.15.3 — 2026-07-22
+
+### Invoice payment details
+
+- Adds a multiline **Payment details / invoice footer** field under invoice identity and tax settings
+- Supports `{{invoice_number}}`, replaced with the invoice reference on-screen and in printed/PDF invoices
+- Stores the footer in the existing `Setting` table so it applies immediately without SQL changes
+
+### Void invoice deletion
+
+- Adds **Delete permanently** to void invoices only
+- Rejects deletion when any payment or allocation exists
+- Deletes invoice lines transactionally, keeps the booking available for reinvoicing, adjusts related bill-run totals, and retains a standalone deletion audit event
+
+### Deferred scope
+
+- Editable invoice/email templates, preview/test sending, explicit sending and PDF attachments move to v1.15.4
+
+### Deployment
+
+- No SQL, environment-variable, dependency or cron changes
+- Retain the corrected v1.15.1 root `app.js` when installing the v1.15.3 OTA bundle
+- Curated notes: `RELEASE-NOTES-v1.15.3.md`
 
 ## v1.15.2 — 2026-07-22
 

@@ -160,6 +160,7 @@ GST is disabled by default. Configure these values in the `Setting` table throug
 |---|---|---|
 | `billing_tax_mode` | `none` or `inclusive` | Enables tax derivation without changing the booking total |
 | `billing_tax_rate_bps` | `1000` | Tax rate in basis points; `1000` means 10% |
+| `billing_invoice_footer` | `BSB: 000-000\nAccount: 00000000\nReference: {{invoice_number}}` | Payment instructions shown on every invoice; the placeholder becomes its invoice reference |
 
 With `billing_tax_mode=none`, tax is zero. With `inclusive`, the booking price remains the invoice total and Trakovo derives the tax component per line. Invalid or missing inclusive rates fall back to 1000 basis points. Existing invoices retain their original tax snapshot when settings change.
 
@@ -174,6 +175,7 @@ Configure the issuer before issuing the first production invoice:
 - `billing_email`
 - `billing_phone`
 - `billing_address`
+- `billing_invoice_footer` (payment details; supports `{{invoice_number}}`)
 - GST settings above
 
 If `billing_legal_name` is empty, Trakovo falls back to `site_name`, then `NEXT_PUBLIC_SITE_NAME`, then `Trakovo`.
@@ -198,6 +200,7 @@ All routes require an authenticated admin session.
 - `POST /api/admin/invoices` creates a direct or single-booking vendor draft invoice according to the booking owner. Body: `{ booking_id, due_date?, notes? }`. Requires `Idempotency-Key`.
 - `GET /api/admin/invoices/:id` returns the invoice header, lines, payments, and audit events.
 - `PATCH /api/admin/invoices/:id` accepts `{ action: 'issue', issue_date?, due_date? }`, `{ action: 'void', reason? }`, or `{ action: 'update', due_date?, notes? }`.
+- `DELETE /api/admin/invoices/:id` permanently deletes a void, unpaid invoice and its lines. Non-void invoices and invoices with payment allocations are rejected.
 - `POST /api/admin/invoices/:id/payments` accepts `{ amount_cents?, payment_date?, method?, reference?, notes? }`. Requires `Idempotency-Key`.
 - `GET /api/admin/billing/ready?cutoff=YYYY-MM-DD&vendor_id=...` previews ready and exception bookings. Repeat `vendor_id` to filter multiple vendors.
 - `POST /api/admin/billing/runs` accepts `{ cutoff_date, vendor_ids?, reviewed_bookings, due_date?, notes? }`. Each reviewed booking is `{ id, vendor_id, total_amount, currency }`; the maximum is 1,000. Requires `Idempotency-Key` and creates draft invoices only.
@@ -222,7 +225,7 @@ Dates use `YYYY-MM-DD`. Billing write errors return a stable `code` alongside th
 - No automatic bank-feed reconciliation
 - No online payment gateway or hosted payment link
 - No automatic invoice email/PDF archive yet
-- No editable invoice or invoice-email template yet; template placeholders, preview/test sending and PDF attachment are planned for v1.15.3
+- No editable invoice or invoice-email template yet; template placeholders, preview/test sending and PDF attachment are planned for v1.15.4
 - No recurring scheduled bill runs; runs are staff-triggered
 - No split allocation UI for one remittance across several invoices
 - No general-ledger, BAS, payroll, or double-entry accounting module
@@ -252,6 +255,8 @@ Dates use `YYYY-MM-DD`. Billing write errors return a stable `code` alongside th
 - [ ] Record its full payment and confirm a draft auto-issues and becomes paid
 - [ ] Void an unpaid invoice and confirm the booking can be deliberately re-invoiced
 - [ ] Confirm an invoice with a payment cannot be voided
+- [ ] Save payment details with `{{invoice_number}}` and confirm the reference appears in the invoice and printed PDF
+- [ ] Delete a void invoice and confirm its booking can be invoiced again
 - [ ] Print or save an invoice as PDF and confirm only the invoice document appears
 - [ ] Retry a write with the same idempotency key and confirm no duplicate is created
 - [ ] Reuse a key with a changed payload and confirm HTTP `409`

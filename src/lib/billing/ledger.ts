@@ -19,6 +19,7 @@ import { VENDOR_BILLING_START_DATE, VENDOR_BILLING_START_DATE_LABEL } from './co
 interface LockedInvoice {
   id: string
   public_id: string
+  billing_run_id: string | null
   vendor_id: string | null
   status: InvoiceStatus
   currency: string
@@ -74,7 +75,7 @@ function cleanText(value: unknown, maximum: number, fallback = ''): string {
 
 async function lockInvoice(transaction: DbTransaction, invoiceId: string): Promise<LockedInvoice> {
   const invoice = await transaction.queryOne<LockedInvoice>(
-    `SELECT id, public_id, vendor_id, status, currency, total_amount,
+    `SELECT id, public_id, billing_run_id, vendor_id, status, currency, total_amount,
             amount_paid, balance_due,
             DATE_FORMAT(due_date, '%Y-%m-%d') AS due_date,
             payment_terms_days
@@ -360,6 +361,74 @@ export async function voidInvoice(input: {
       actor: input.actor,
       invoiceId: invoice.id,
       details: { reason },
+    })
+  })
+}
+
+export async function deleteVoidedInvoice(input: {
+  actor: string
+  invoiceId: string
+}): Promise<void> {
+  await withTransaction(async transaction => {
+    const invoice = await lockInvoice(transaction, input.invoiceId)
+    if (invoice.status !== 'void') {
+      throw new BillingError(
+        'Only void invoices can be permanently deleted',
+        409,
+        'invoice_must_be_void'
+      )
+    }
+    if (readMoney(invoice.amount_paid) > 0) {
+      throw new BillingError(
+        'An invoice with payments cannot be deleted',
+        409,
+        'invoice_has_payments'
+      )
+    }
+    const allocation = await transaction.queryOne<{ id: string }>(
+      'SELECT id FROM PaymentAllocation WHERE invoice_id = ? LIMIT 1 FOR UPDATE',
+      [invoice.id]
+    )
+    if (allocation) {
+      throw new BillingError(
+        'An invoice with payment allocations cannot be deleted',
+        409,
+        'invoice_has_payments'
+      )
+    }
+    const summary = await transaction.queryOne<{
+      booking_count: number | string
+      total_amount: number | string
+    }>(
+      `SELECT COUNT(*) AS booking_count, COALESCE(SUM(total_amount), 0) AS total_amount
+       FROM InvoiceLine WHERE invoice_id = ?`,
+      [invoice.id]
+    )
+    const bookingCount = Number(summary?.booking_count ?? 0)
+    const totalAmount = readMoney(summary?.total_amount ?? 0)
+
+    await transaction.execute('DELETE FROM Invoice WHERE id = ? AND status = \'void\'', [invoice.id])
+    if (invoice.billing_run_id) {
+      await transaction.execute(
+        `UPDATE BillingRun
+         SET invoice_count = GREATEST(invoice_count - 1, 0),
+             booking_count = GREATEST(booking_count - ?, 0),
+             total_amount = GREATEST(total_amount - ?, 0)
+         WHERE id = ?`,
+        [bookingCount, totalAmount, invoice.billing_run_id]
+      )
+    }
+    await addBillingEvent(transaction, {
+      eventType: 'invoice_deleted',
+      actor: input.actor,
+      billingRunId: invoice.billing_run_id,
+      details: {
+        deleted_invoice_id: invoice.id,
+        deleted_invoice_public_id: invoice.public_id,
+        booking_count: bookingCount,
+        total_amount: totalAmount,
+        currency: normaliseCurrency(invoice.currency),
+      },
     })
   })
 }

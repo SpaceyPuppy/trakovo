@@ -3,6 +3,7 @@ import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { BillingError, getInvoice } from '@/lib/billing'
+import { getSetting } from '@/lib/settings'
 import { formatCurrencyCents } from '@/lib/utils'
 import InvoiceActions from './InvoiceActions'
 
@@ -112,8 +113,14 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default async function InvoiceDetailPage({ params }: Props) {
   let result: Awaited<ReturnType<typeof getInvoice>>
+  let invoiceFooterTemplate: string | undefined
   try {
-    result = await loadInvoice(params.id)
+    const loaded = await Promise.all([
+      loadInvoice(params.id),
+      getSetting('billing_invoice_footer'),
+    ])
+    result = loaded[0]
+    invoiceFooterTemplate = loaded[1]
   } catch (error) {
     if (error instanceof BillingError && error.status === 404) notFound()
     throw error
@@ -124,6 +131,9 @@ export default async function InvoiceDetailPage({ params }: Props) {
   const payments = result.payments as unknown as InvoicePayment[]
   const events = result.events as unknown as InvoiceEvent[]
   const displayIssueDate = invoice.issue_date ?? invoice.created_at.slice(0, 10)
+  const invoiceFooter = invoiceFooterTemplate
+    ?.replaceAll('{{invoice_number}}', invoice.public_id)
+    .trim()
 
   return (
     <div className="px-5 py-8 md:px-10 md:py-10 print:p-0">
@@ -245,6 +255,13 @@ export default async function InvoiceDetailPage({ params }: Props) {
             <div>
               <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Notes</p>
               <p className="text-[13.5px] text-ink-3 leading-[1.6] whitespace-pre-wrap">{invoice.notes}</p>
+            </div>
+          )}
+
+          {invoiceFooter && (
+            <div className="border-t border-border pt-5 break-inside-avoid">
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ink-4 mb-2">Payment details</p>
+              <p className="text-[13.5px] text-ink-2 leading-[1.65] whitespace-pre-wrap">{invoiceFooter}</p>
             </div>
           )}
 

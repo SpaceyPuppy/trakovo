@@ -3,6 +3,7 @@ import { getAdminSession } from '@/lib/auth'
 import {
   BillingError,
   billingErrorResponse,
+  deleteVoidedInvoice,
   getInvoice,
   issueInvoice,
   readBillingJsonObject,
@@ -17,6 +18,18 @@ export async function GET(_req: Request, { params }: Context) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {
     return NextResponse.json(await getInvoice(params.id))
+  } catch (error) {
+    return billingErrorResponse(error)
+  }
+}
+
+export async function DELETE(_req: Request, { params }: Context) {
+  const session = await getAdminSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
+  try {
+    await deleteVoidedInvoice({ actor: session.username, invoiceId: params.id })
+    return NextResponse.json({ ok: true })
   } catch (error) {
     return billingErrorResponse(error)
   }
