@@ -30,7 +30,7 @@ git push
 | New feature | `Add vendor client export to CSV` |
 | Bug fix | `Fix null vehicle crash on booking detail page` |
 | UI change | `Update booking form layout on mobile` |
-| Config/setup | `Add postinstall prisma generate script` |
+| Config/setup | `Document new SMS environment variables` |
 
 Keep it short. Describe *what* changed, not just "updated files".
 
@@ -86,12 +86,14 @@ After pushing, the tag will appear on GitHub at:
 ## Full Release Checklist
 
 - [ ] Make and test all changes locally (`npm run dev`)
+- [ ] Run TypeScript and lint checks (`npx tsc --noEmit` and `npm run lint`)
 - [ ] Run a build to check for errors (`npm run build`)
 - [ ] Update version in `package.json`
+- [ ] Read `PENDING-DEPLOY.md` and verify its SQL/configuration steps against the release
 - [ ] Commit all changes with a descriptive message
 - [ ] Tag the release (`git tag vX.X.X`)
 - [ ] Push commits and tags (`git push && git push --tags`)
-- [ ] If deploying: upload `.next/` to cPanel and click Restart (see `DEPLOYMENT-CPANEL.md`)
+- [ ] If deploying: follow `docs/DEPLOYMENT.md` and `DEPLOYMENT-CPANEL.md`
 
 ---
 

@@ -1,4 +1,7 @@
-# Task Brief: /book App Redesign — Native Mobile Experience
+# Archived Task Brief: /book App Redesign — Native Mobile Experience
+
+> Historical implementation brief. It records the design intent at the time it was written,
+> not the current production capability. See `../PRODUCT-STATUS.md` for current status.
 
 > **Context:** This spec is for Claude Code. Read `CLAUDE.md` at repo root first — it's the source of truth for current state. This task is a redesign of the public `/book` route into a native-app-feel mobile experience with a new ride-type picker, a taxi booking flow, and integration with the existing hire booking flow.
 >

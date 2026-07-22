@@ -4,6 +4,10 @@ Fleet management platform for bookings, vehicles, drivers, vendors, dispatch, an
 
 Built with Next.js 14 (App Router), MySQL via `mysql2`, and Tailwind CSS.
 
+Production is currently v1.14.4. This checkout is v1.15.0, pending its production SQL and
+deployment. See [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md) for the capability and
+release-state distinction.
+
 ## Stack
 
 - **Framework:** Next.js 14 (App Router)
@@ -41,13 +45,19 @@ powershell -ExecutionPolicy Bypass -File "make-zip.ps1"
 # Upload trakovo-vX.X.X.zip to cPanel, or use OTA update via Admin → Settings → Updates
 ```
 
-Before starting a build that changes the database, apply the version-specific SQL in
-`PENDING-DEPLOY.md`. The application deliberately does not run migrations automatically.
+Before deploying a build that changes the database, follow the version-specific SQL and
+ordering in `PENDING-DEPLOY.md`. The application deliberately does not run migrations
+automatically.
 
 ## Documentation
 
-- `DEPLOYMENT-CPANEL.md` — full cPanel and OTA deployment/rollback procedure
-- `PENDING-DEPLOY.md` — version-specific SQL, configuration, and post-deploy checks
-- `BILLING-MVP.md` — billing workflow, business rules, API behaviour, and acceptance checks
-- `DOCUMENTATION-DEBT.md` — known documentation and repository-hygiene debt
-- `RELEASE-NOTES-v1.15.0.md` — curated v1.15.0 changes and deployment warning
+- [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md) — live, source-ready, partial, and planned capability
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — canonical current technical architecture
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — canonical release and deployment overview
+- [`DEPLOYMENT-CPANEL.md`](DEPLOYMENT-CPANEL.md) — detailed cPanel and OTA procedure
+- [`PENDING-DEPLOY.md`](PENDING-DEPLOY.md) — only the outstanding release-specific production actions
+- [`BILLING-MVP.md`](BILLING-MVP.md) — billing workflow, rules, API behaviour, and acceptance checks
+- [`TODO.md`](TODO.md) — actionable product backlog
+- [`DOCUMENTATION-DEBT.md`](DOCUMENTATION-DEBT.md) — documentation and repository-hygiene risks
+- [`docs/archive/README.md`](docs/archive/README.md) — historical plans and superseded specifications
+- [`RELEASE-NOTES-v1.15.0.md`](RELEASE-NOTES-v1.15.0.md) — v1.15.0 changes and deployment warning

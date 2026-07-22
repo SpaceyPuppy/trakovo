@@ -71,34 +71,34 @@ regenerate and maintain the indexes or remove/update the instruction that requir
 to read them first. Stale generated indexes are worse than an explicit absence, so any
 regeneration process needs an owner and refresh procedure.
 
-### `AGENTS.md` ownership is unresolved
+### `AGENTS.md` is local-only for now
 
-`AGENTS.md` currently exists as an untracked, user-owned workspace file. It contains useful
-project context, but it must not be staged implicitly. Decide explicitly whether it should:
+The owner decided on 19 July 2026 that `AGENTS.md` should remain local-only. It is covered by
+the repository ignore rule and must not be treated as canonical project documentation. If it
+later becomes tracked for cross-platform or cloud development, review it against the
+canonical files in `docs/`, assign an owner, and define how its version/schema inventory is
+kept current.
 
-- become reviewed repository documentation,
-- remain a local-only instruction file covered by an ignore rule, or
-- be replaced by a generated/maintained project-context source.
+### Remaining documentation and assistant-context drift
 
-Until that decision is made, preserve it and exclude it from commits.
+The first consolidation pass on 19 July 2026 established canonical product-status,
+architecture, and deployment documents under `docs/`; moved obsolete plans/specifications to
+`docs/archive/`; corrected the stale fresh-schema TODO; and retained the active v1.15.0
+deployment runbook unchanged before deployment.
 
-### Legacy documentation and indexes have drifted
+Remaining drift risks include:
 
-The project has several overlapping sources of architecture and deployment truth. Verified
-examples of drift include:
-
-- `DEV-WORKFLOW.md` still uses adding a Prisma generate script as a commit-message example.
-- `service-features-spec.md` refers ambiguously to a `prisma/migrations/` pattern despite the
-  current manual raw-SQL approach.
-- `TODO.md`, historical plans, `CLAUDE.md`, and local agent instructions can describe schema
-  or feature state that has since changed.
+- `CLAUDE.md` and local assistant instructions duplicate large schema and feature inventories
+  that can become stale even when the canonical documents are correct.
+- Detailed billing and release notes are intentionally version-specific and need an archive
+  policy after their release is no longer operationally current.
 - No automated check confirms that versions, environment references, schema inventories,
-  deployment instructions, and generated indexes agree.
+  deployment instructions, and internal links agree.
 
 Debt-reduction work:
 
-1. Name one canonical source for architecture, deployment, schema, and release state.
-2. Mark historical plans explicitly as archived rather than current instructions.
+1. Reconcile or generate assistant-specific context from the canonical documents.
+2. Archive version-specific billing/release documentation when its operational life ends.
 3. Audit README, workflow, TODO, specifications, and assistant-context files after each
    material architecture/schema change.
 4. Add lightweight CI checks for broken internal links, forbidden runtime references such

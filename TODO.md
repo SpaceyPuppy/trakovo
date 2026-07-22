@@ -2,6 +2,9 @@
 
 Items are grouped by priority. Top of each group = highest priority.
 
+Current capability and release state are documented in `docs/PRODUCT-STATUS.md`. Keep this
+file limited to actionable work; do not use it as a deployment checklist.
+
 ---
 
 ## Immediate / launch blockers
@@ -55,18 +58,6 @@ Items are grouped by priority. Top of each group = highest priority.
 ## Previously noted / other
 
 - [ ] "Contact Us / POA" vehicle option — premium vehicles that can't be booked online, show a contact CTA instead of booking form
-- [ ] Contact Us page (`/contact`) — general public enquiry form
 - [ ] About page (`/about`)
 - [ ] Homepage placeholder text — update or make editable via admin settings
 - [ ] Admin password reset via email auth (prevent unauthorised reset of master account password)
-
----
-
-## Schema work required before deploying to a fresh server
-
-The following are used in code but missing from `prisma/init.sql` — must be applied manually via phpMyAdmin:
-- `AdminUser` table
-- `Driver` table
-- `DriverMessage` table
-- `Booking.driver_id` column
-(See CLAUDE.md for the exact SQL.)

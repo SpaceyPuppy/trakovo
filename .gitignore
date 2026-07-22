@@ -20,3 +20,6 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/
+
+# Local agent context (canonical project documentation lives in docs/)
+AGENTS.md

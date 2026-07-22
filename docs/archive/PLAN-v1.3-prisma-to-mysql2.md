@@ -1,4 +1,7 @@
-# v1.3.0 Migration Plan — Prisma → mysql2
+# Archived: v1.3.0 Migration Plan — Prisma → mysql2
+
+> Historical record only. This migration is complete. Current architecture and deployment
+> guidance live in `../ARCHITECTURE.md` and `../DEPLOYMENT.md`.
 
 ## Status: COMPLETE — build passing, ready to deploy
 

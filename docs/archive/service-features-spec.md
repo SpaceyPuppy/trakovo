@@ -1,4 +1,8 @@
-# Task Brief: Service Feature Toggles & Rating Infrastructure
+# Archived Task Brief: Service Feature Toggles & Rating Infrastructure
+
+> Historical implementation brief. Do not treat its SQL or implementation sequence as a
+> current migration. See `../ARCHITECTURE.md`, `../PRODUCT-STATUS.md`, and the root
+> `PENDING-DEPLOY.md` for current guidance.
 
 > **Context:** This spec is for Claude Code. Read `CLAUDE.md` at repo root first — it's the source of truth for current state. This task adds a feature-flag system for service-level UI components (ratings, comments, share-trip, etc.) controlled from the admin dispatch settings.
 

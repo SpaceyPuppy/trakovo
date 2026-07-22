@@ -69,7 +69,7 @@ No new required environment variables were added. The new database pool/slow-que
 
 - Billing MVP does not yet include credit notes/refunds, bank feeds, payment links, automatic invoice email/PDF archiving, recurring bill runs, or a vendor self-service billing portal.
 - Database upgrades remain manual raw SQL; there is no automatic migration runner.
-- Repository/security and documentation follow-ups are recorded in `DOCUMENTATION-DEBT.md`, including tracked local environment files, missing `.ai-codex` indexes, unresolved `AGENTS.md` ownership, and older documentation drift.
+- Repository/security and documentation follow-ups are recorded in `DOCUMENTATION-DEBT.md`, including tracked local environment files, missing `.ai-codex` indexes, and remaining assistant-context drift. `AGENTS.md` is local-only for now.
 
 ## Release assets
 

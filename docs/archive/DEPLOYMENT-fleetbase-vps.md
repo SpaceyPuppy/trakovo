@@ -1,4 +1,7 @@
-# Trakovo — Deployment Guide
+# Archived Trakovo Fleetbase/VPS Deployment Guide
+
+> Obsolete historical guidance for the earlier Fleetbase, PM2, and Nginx architecture.
+> Do not use this document to deploy the current application. See `../DEPLOYMENT.md`.
 
 ## Prerequisites
 - Ubuntu 22.04+ VPS
