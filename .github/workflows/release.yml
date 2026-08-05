@@ -86,8 +86,17 @@ jobs:
             Copy-Item -LiteralPath $item -Destination $root -Recurse
           }
 
-          $paths = @(Get-ChildItem -LiteralPath $root -Force | ForEach-Object { $_.FullName })
-          Compress-Archive -Path $paths -DestinationPath "trakovo-docker-v$version.zip"
+          try {
+            Add-Type -AssemblyName System.IO.Compression.ZipFile -ErrorAction Stop
+          } catch {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+          }
+          [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            (Resolve-Path -LiteralPath $root).Path,
+            (Join-Path $pwd "trakovo-docker-v$version.zip"),
+            [System.IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
 
       - name: Resolve release asset names
         id: assets

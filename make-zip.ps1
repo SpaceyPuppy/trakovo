@@ -12,6 +12,12 @@ $releaseZip = "trakovo-v$label.zip"
 $bundleZip = "next-bundle-v$label.zip"
 $timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 
+try {
+    Add-Type -AssemblyName System.IO.Compression.ZipFile -ErrorAction Stop
+} catch {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+}
+
 Write-Host "Packaging Trakovo v$label..."
 
 # Sanity check
@@ -45,8 +51,13 @@ $releaseNextDir = Join-Path $tmpRelease ".next"
 Copy-Item -LiteralPath $nextDir -Destination $releaseNextDir -Recurse
 Remove-Item (Join-Path $releaseNextDir "cache") -Recurse -Force -ErrorAction SilentlyContinue
 
-$releasePaths = @(Get-ChildItem -LiteralPath $tmpRelease -Force | ForEach-Object { $_.FullName })
-Compress-Archive -Path $releasePaths -DestinationPath $releaseZip
+$releaseZipPath = Join-Path (Get-Location) $releaseZip
+[System.IO.Compression.ZipFile]::CreateFromDirectory(
+    (Resolve-Path -LiteralPath $tmpRelease).Path,
+    $releaseZipPath,
+    [System.IO.Compression.CompressionLevel]::Optimal,
+    $false
+)
 Remove-Item $tmpRelease -Recurse -Force
 Write-Host "  Created $releaseZip  ($([Math]::Round((Get-Item $releaseZip).Length / 1MB, 1)) MB)"
 
@@ -59,11 +70,13 @@ $bundleNextDir = Join-Path $tmpBundle ".next"
 Copy-Item -LiteralPath $nextDir -Destination $bundleNextDir -Recurse
 Remove-Item (Join-Path $bundleNextDir "cache") -Recurse -Force -ErrorAction SilentlyContinue
 Copy-Item -LiteralPath "package.json" -Destination (Join-Path $tmpBundle "package.json")
-$bundlePaths = @(
-    (Get-Item -LiteralPath $bundleNextDir).FullName,
-    (Get-Item -LiteralPath (Join-Path $tmpBundle "package.json")).FullName
+$bundleZipPath = Join-Path (Get-Location) $bundleZip
+[System.IO.Compression.ZipFile]::CreateFromDirectory(
+    (Resolve-Path -LiteralPath $tmpBundle).Path,
+    $bundleZipPath,
+    [System.IO.Compression.CompressionLevel]::Optimal,
+    $false
 )
-Compress-Archive -Path $bundlePaths -DestinationPath $bundleZip
 Remove-Item $tmpBundle -Recurse -Force
 Write-Host "  Created $bundleZip  ($([Math]::Round((Get-Item $bundleZip).Length / 1MB, 1)) MB)"
 
