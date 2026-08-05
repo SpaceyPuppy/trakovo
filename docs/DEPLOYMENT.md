@@ -8,10 +8,8 @@ ordering, and verification are controlled by [`PENDING-DEPLOY.md`](../PENDING-DE
 
 ## Current release gate
 
-Production is on v1.14.4. The v1.15.0 code is pending deployment on 20 July 2026, and its SQL
-has not yet been applied. Do not start v1.15.0 against the old production schema. Follow the
-ordered preflight, backup, SQL, verification, deployment, and smoke checks in
-`PENDING-DEPLOY.md`.
+The current repository release is v1.15.3. Confirm the actual live version before changing
+production and follow the release-specific checks in `PENDING-DEPLOY.md`.
 
 ## Sources of truth
 
@@ -20,6 +18,7 @@ ordered preflight, backup, SQL, verification, deployment, and smoke checks in
 | What is live and what is pending? | `docs/PRODUCT-STATUS.md` |
 | What must be done for this release? | `PENDING-DEPLOY.md` |
 | How is cPanel/Passenger installed, updated, and rolled back? | `DEPLOYMENT-CPANEL.md` |
+| How are VPS container instances installed and upgraded? | `DEPLOYMENT-DOCKER.md` |
 | What should a fresh database contain? | `prisma/init.sql` |
 | What version is the source/package? | `package.json` |
 

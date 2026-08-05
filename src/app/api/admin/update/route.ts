@@ -8,6 +8,9 @@ import os from 'os'
 export async function POST(req: NextRequest) {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (process.env.TRAKOVO_CONTAINER === 'true') {
+    return NextResponse.json({ error: 'Container deployments must be upgraded from the VPS.' }, { status: 409 })
+  }
 
   const form = await req.formData()
   const file = form.get('bundle') as File | null

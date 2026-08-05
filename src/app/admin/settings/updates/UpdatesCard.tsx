@@ -7,6 +7,7 @@ interface Props {
   currentBuildId: string | null
   hasBackup: boolean
   backupBuildId: string | null
+  containerMode: boolean
 }
 
 interface ReleaseInfo {
@@ -44,7 +45,7 @@ function formatDate(iso: string) {
   catch { return iso }
 }
 
-export default function UpdatesCard({ version, buildLabel, currentBuildId, hasBackup, backupBuildId }: Props) {
+export default function UpdatesCard({ version, buildLabel, currentBuildId, hasBackup, backupBuildId, containerMode }: Props) {
   // Current build state
   const [deployedBuildId, setDeployedBuildId] = useState(currentBuildId)
   const [backupExists, setBackupExists] = useState(hasBackup)
@@ -163,6 +164,31 @@ export default function UpdatesCard({ version, buildLabel, currentBuildId, hasBa
     } finally {
       setRollingBack(false)
     }
+  }
+
+  if (containerMode) {
+    return (
+      <div className="max-w-[640px] space-y-6">
+        <Card title="Current Build">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[12px] text-ink-4 uppercase tracking-wider font-semibold mb-0.5">App version</p>
+              <p className="text-[15px] font-display font-bold text-ink">v{buildLabel}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[12px] text-ink-4 uppercase tracking-wider font-semibold mb-0.5">Build ID</p>
+              <p className="text-[12.5px] font-mono text-ink">{deployedBuildId ?? 'unknown'}</p>
+            </div>
+          </div>
+        </Card>
+        <Card title="Container deployment">
+          <p className="text-[13px] text-ink-3">
+            This instance is managed by the VPS upgrade script. Ask the server operator to
+            run <code className="font-mono text-[12px] bg-black/5 px-1 py-0.5 rounded">upgrade.sh</code> when a release is ready.
+          </p>
+        </Card>
+      </div>
+    )
   }
 
   return (

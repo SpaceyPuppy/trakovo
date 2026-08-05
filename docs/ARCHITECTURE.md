@@ -21,9 +21,10 @@ Browser / installed web app
         -> persistent upload storage outside the release directory
 ```
 
-The production host is cPanel shared hosting with CloudLinux and Phusion Passenger. This
-constraint favours pure-JavaScript dependencies, raw SQL, durable external upload storage,
-and controlled release bundles.
+The existing production host is cPanel shared hosting with CloudLinux and Phusion Passenger.
+The repository also supports isolated Docker Compose instances on a VPS, using a tagged
+standalone image, persistent uploads, and either shared Caddy or Cloudflare Tunnel ingress.
+Both deployment paths favour pure-JavaScript dependencies and raw SQL.
 
 ## Application surfaces
 
@@ -63,12 +64,17 @@ MySQL is the system of record for vehicles, bookings, notes, drivers, vendors, c
 settings, feature toggles, enquiries, ratings, and billing data. Uploaded documents and media
 are stored under the configured `UPLOAD_DIR`, outside the deployed application directory.
 
-There is no automatic migration runner. The rules are therefore:
+The cPanel path has no automatic migration runner. The Docker path includes a separate
+checksummed migration runner and keeps the cPanel rules below for that deployment mode:
 
 1. Update `prisma/init.sql` for a correct fresh install.
 2. Put ordered upgrade SQL and verification queries in the root `PENDING-DEPLOY.md`.
 3. Back up production and apply the release SQL manually before starting incompatible code.
 4. Record the actual deployed version and applied schema after verification.
+
+Docker upgrades run `tools/db.mjs migrate` before clearing maintenance mode. They verify
+an imported existing schema, record it as a baseline, and apply only ordered files from
+`database/migrations/`. They never re-import `prisma/init.sql` over existing data.
 
 Never run `prisma generate`, add Prisma runtime packages, or treat `init.sql` as an in-place
 upgrade script.

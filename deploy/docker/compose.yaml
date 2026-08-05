@@ -1,0 +1,111 @@
+name: ${COMPOSE_PROJECT_NAME:-trakovo}
+
+services:
+  app:
+    image: ${TRAKOVO_IMAGE:?TRAKOVO_IMAGE must be set}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TRAKOVO_CONTAINER: "true"
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_CONNECTION_LIMIT: ${DB_CONNECTION_LIMIT:-5}
+      DB_SLOW_QUERY_MS: ${DB_SLOW_QUERY_MS:-250}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      VENDOR_JWT_SECRET: ${VENDOR_JWT_SECRET}
+      DRIVER_JWT_SECRET: ${DRIVER_JWT_SECRET}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      MS_CLIENT_ID: ${MS_CLIENT_ID:-}
+      MS_CLIENT_SECRET: ${MS_CLIENT_SECRET:-}
+      MS_TENANT_ID: ${MS_TENANT_ID:-}
+      NEXT_PUBLIC_SITE_NAME: ${NEXT_PUBLIC_SITE_NAME:-Trakovo}
+      NEXT_PUBLIC_ADMIN_NAME: ${NEXT_PUBLIC_ADMIN_NAME:-Hire Manager}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
+      UPLOAD_DIR: /app/uploads
+      DEVELOPMENT_MODE: ${DEVELOPMENT_MODE:-false}
+      MAINTENANCE_MODE: ${MAINTENANCE_MODE:-false}
+      MAINTENANCE_PASSWORD: ${MAINTENANCE_PASSWORD:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      NEXT_PUBLIC_CRAZYTEL_API_KEY: ${NEXT_PUBLIC_CRAZYTEL_API_KEY:-}
+      CRAZYTEL_API_KEY: ${CRAZYTEL_API_KEY:-}
+      CRAZYTEL_SENDER: ${CRAZYTEL_SENDER:-}
+    ports:
+      - "127.0.0.1:${TRAKOVO_HTTP_PORT:-3000}:3000"
+    volumes:
+      - ${UPLOADS_PATH:-./data/uploads}:/app/uploads
+    networks:
+      app:
+      edge:
+        aliases:
+          - ${COMPOSE_PROJECT_NAME:-trakovo}-app
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  db:
+    image: ${DB_IMAGE:-mariadb:11.4}
+    profiles: ["bundled-db"]
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE:-cloudflare/cloudflared:latest}
+    profiles: ["cloudflare"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - app
+
+volumes:
+  db_data:
+    name: ${COMPOSE_PROJECT_NAME:-trakovo}_db_data
+
+networks:
+  app:
+    internal: true
+  edge:
+    external: true
+    name: ${TRAKOVO_PROXY_NETWORK:-trakovo_edge}

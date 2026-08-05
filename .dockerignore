@@ -1,0 +1,13 @@
+.git
+.github
+.next
+node_modules
+uploads
+data
+.env
+.env.*
+*.zip
+*.log
+docs/archive
+tmp-release-*
+tmp-bundle-*

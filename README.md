@@ -4,9 +4,8 @@ Fleet management platform for bookings, vehicles, drivers, vendors, dispatch, an
 
 Built with Next.js 14 (App Router), MySQL via `mysql2`, and Tailwind CSS.
 
-Production is currently v1.14.4. This checkout is v1.15.0, pending its production SQL and
-deployment. See [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md) for the capability and
-release-state distinction.
+The current checkout is v1.15.3. See [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md)
+for the capability and release-state distinction.
 
 ## Stack
 
@@ -18,7 +17,7 @@ release-state distinction.
 - **Push:** Web Push (VAPID)
 - **SMS:** CrazyTel API
 - **Styling:** Tailwind CSS
-- **Hosting:** cPanel shared hosting (CloudLinux + Phusion Passenger)
+- **Hosting:** cPanel shared hosting or Docker on a VPS
 
 ## Getting started
 
@@ -49,7 +48,14 @@ Before deploying a build that changes the database, follow the version-specific 
 ordering in `PENDING-DEPLOY.md`. The application deliberately does not run migrations
 automatically.
 
+For a VPS deployment using tagged container images, see
+[`docs/DEPLOYMENT-DOCKER.md`](docs/DEPLOYMENT-DOCKER.md). The installer supports shared
+Caddy or Cloudflare Tunnel ingress, bundled or external MySQL-compatible databases, and
+the `upgrade.sh` command for controlled upgrades outside the admin dashboard.
+
 ## Documentation
+
+- [`docs/DEPLOYMENT-DOCKER.md`](docs/DEPLOYMENT-DOCKER.md) - Docker, Caddy, Tunnel, import, and upgrade procedure
 
 - [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md) — live, source-ready, partial, and planned capability
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — canonical current technical architecture
