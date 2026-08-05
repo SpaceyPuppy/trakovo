@@ -37,10 +37,13 @@ jobs:
         run: |
           $version = $env:RELEASE_TAG.TrimStart('v')
           $package = Get-Content package.json -Raw | ConvertFrom-Json
-          if ($package.version -ne $version) {
-            throw "Git tag $($env:RELEASE_TAG) does not match package.json version $($package.version)."
+          if ($version -ne $package.version -and -not $version.StartsWith("$($package.version)-")) {
+            throw "Git tag $($env:RELEASE_TAG) must match package.json version $($package.version) or use it as a pre-release base."
           }
-          $notes = "RELEASE-NOTES-v$version.md"
+          $notes = "RELEASE-NOTES-$($env:RELEASE_TAG).md"
+          if ($version -eq $package.version) {
+            $notes = "RELEASE-NOTES-v$version.md"
+          }
           if (-not (Test-Path -LiteralPath $notes)) {
             throw "Missing $notes. Add release notes before creating the tag."
           }
@@ -86,13 +89,25 @@ jobs:
           $paths = @(Get-ChildItem -LiteralPath $root -Force | ForEach-Object { $_.FullName })
           Compress-Archive -Path $paths -DestinationPath "trakovo-docker-v$version.zip"
 
+      - name: Resolve release asset names
+        id: assets
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $version = $env:RELEASE_TAG.TrimStart('v')
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          "cpanel_version=$($package.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "docker_asset=trakovo-docker-v$version.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
           body_path: RELEASE-NOTES-${{ github.ref_name }}.md
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           fail_on_unmatched_files: true
           files: |
-            trakovo-${{ github.ref_name }}.zip
-            next-bundle-${{ github.ref_name }}.zip
-            trakovo-docker-${{ github.ref_name }}.zip
+            trakovo-v${{ steps.assets.outputs.cpanel_version }}.zip
+            next-bundle-v${{ steps.assets.outputs.cpanel_version }}.zip
+            ${{ steps.assets.outputs.docker_asset }}
