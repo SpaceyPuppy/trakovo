@@ -126,6 +126,9 @@ command -v curl >/dev/null 2>&1 || die "curl is required for the final health ch
 INSTANCE="${INSTANCE:-$(prompt_value 'Instance name' 'dev')}"
 DOMAIN="${DOMAIN:-$(prompt_value 'Public hostname' '')}"
 PROXY_MODE="${PROXY_MODE:-$(prompt_value 'Ingress (caddy/cloudflare/external)' 'caddy')}"
+if [[ "$PROXY_MODE" == cloudflare && -z "$CLOUDFLARE_TUNNEL_TOKEN" ]]; then
+  CLOUDFLARE_TUNNEL_TOKEN="$(prompt_secret 'Cloudflare Tunnel token')"
+fi
 DB_MODE="${DB_MODE:-$(prompt_value 'Database (bundled/external)' 'bundled')}"
 DB_BOOTSTRAP="${DB_BOOTSTRAP:-$(prompt_value 'Database bootstrap (fresh/import/existing)' 'fresh')}"
 

@@ -99,6 +99,10 @@ sudo bash deploy/scripts/install.sh \
   --image ghcr.io/spaceypuppy/trakovo:v1.15.3
 ```
 
+In interactive mode, selecting `cloudflare` prompts for the Tunnel connector token.
+For non-interactive installs, provide `--cloudflare-token` or set
+`CLOUDFLARE_TUNNEL_TOKEN` in the environment.
+
 For a host where the installer owns the shared proxy instead:
 
 ```bash
