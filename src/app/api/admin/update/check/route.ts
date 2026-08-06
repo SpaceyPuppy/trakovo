@@ -9,6 +9,9 @@ const BUNDLE_ASSET_PREFIX = 'next-bundle-'
 export async function GET() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (process.env.TRAKOVO_CONTAINER === 'true') {
+    return NextResponse.json({ error: 'Container deployments must be upgraded from the VPS.' }, { status: 409 })
+  }
 
   // Read current installed version from package.json on disk.
   // The bundle swap also replaces package.json, so this stays current.

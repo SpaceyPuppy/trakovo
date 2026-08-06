@@ -39,6 +39,7 @@ export default function UpdatesPage() {
       currentBuildId={currentBuildId}
       hasBackup={hasBackup}
       backupBuildId={backupBuildId}
+      containerMode={process.env.TRAKOVO_CONTAINER === 'true'}
     />
   )
 }

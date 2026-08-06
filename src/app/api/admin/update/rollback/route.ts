@@ -11,6 +11,9 @@ const BACKUP_DIR = path.join(APP_ROOT, '.next.backup')
 export async function POST() {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (process.env.TRAKOVO_CONTAINER === 'true') {
+    return NextResponse.json({ error: 'Container deployments must be upgraded from the VPS.' }, { status: 409 })
+  }
 
   if (!fs.existsSync(BACKUP_DIR)) {
     return NextResponse.json({ error: 'No backup found to roll back to' }, { status: 404 })

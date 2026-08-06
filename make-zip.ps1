@@ -12,10 +12,18 @@ $releaseZip = "trakovo-v$label.zip"
 $bundleZip = "next-bundle-v$label.zip"
 $timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 
+try {
+    Add-Type -AssemblyName System.IO.Compression.ZipFile -ErrorAction Stop
+} catch {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+}
+
 Write-Host "Packaging Trakovo v$label..."
 
 # Sanity check
-if (-not (Test-Path ".next\BUILD_ID")) {
+$nextDir = Join-Path (Get-Location) ".next"
+$buildIdPath = Join-Path $nextDir "BUILD_ID"
+if (-not (Test-Path -LiteralPath $buildIdPath)) {
     Write-Error ".next\BUILD_ID not found. Run 'npm run build' first."
     exit 1
 }
@@ -37,12 +45,19 @@ $tmpRelease = ".\tmp-release-$timestamp"
 New-Item -ItemType Directory -Path $tmpRelease | Out-Null
 
 foreach ($f in $releaseFiles) {
-    Copy-Item -LiteralPath $f -Destination "$tmpRelease\" -Recurse
+    Copy-Item -LiteralPath $f -Destination $tmpRelease -Recurse
 }
-Copy-Item ".next" "$tmpRelease\.next" -Recurse
-Remove-Item "$tmpRelease\.next\cache" -Recurse -Force -ErrorAction SilentlyContinue
+$releaseNextDir = Join-Path $tmpRelease ".next"
+Copy-Item -LiteralPath $nextDir -Destination $releaseNextDir -Recurse
+Remove-Item (Join-Path $releaseNextDir "cache") -Recurse -Force -ErrorAction SilentlyContinue
 
-Compress-Archive -Path "$tmpRelease\*" -DestinationPath $releaseZip
+$releaseZipPath = Join-Path (Get-Location) $releaseZip
+[System.IO.Compression.ZipFile]::CreateFromDirectory(
+    (Resolve-Path -LiteralPath $tmpRelease).Path,
+    $releaseZipPath,
+    [System.IO.Compression.CompressionLevel]::Optimal,
+    $false
+)
 Remove-Item $tmpRelease -Recurse -Force
 Write-Host "  Created $releaseZip  ($([Math]::Round((Get-Item $releaseZip).Length / 1MB, 1)) MB)"
 
@@ -51,10 +66,17 @@ Write-Host "  Created $releaseZip  ($([Math]::Round((Get-Item $releaseZip).Lengt
 Remove-Item $bundleZip -ErrorAction SilentlyContinue
 $tmpBundle = ".\tmp-bundle-$timestamp"
 New-Item -ItemType Directory -Path $tmpBundle | Out-Null
-Copy-Item ".next" "$tmpBundle\.next" -Recurse
-Remove-Item "$tmpBundle\.next\cache" -Recurse -Force -ErrorAction SilentlyContinue
-Copy-Item "package.json" "$tmpBundle\package.json"
-Compress-Archive -Path "$tmpBundle\.next", "$tmpBundle\package.json" -DestinationPath $bundleZip
+$bundleNextDir = Join-Path $tmpBundle ".next"
+Copy-Item -LiteralPath $nextDir -Destination $bundleNextDir -Recurse
+Remove-Item (Join-Path $bundleNextDir "cache") -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -LiteralPath "package.json" -Destination (Join-Path $tmpBundle "package.json")
+$bundleZipPath = Join-Path (Get-Location) $bundleZip
+[System.IO.Compression.ZipFile]::CreateFromDirectory(
+    (Resolve-Path -LiteralPath $tmpBundle).Path,
+    $bundleZipPath,
+    [System.IO.Compression.CompressionLevel]::Optimal,
+    $false
+)
 Remove-Item $tmpBundle -Recurse -Force
 Write-Host "  Created $bundleZip  ($([Math]::Round((Get-Item $bundleZip).Length / 1MB, 1)) MB)"
 

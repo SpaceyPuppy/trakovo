@@ -1,0 +1,6 @@
+{
+  # Site files are generated per Trakovo instance by install.sh.
+  # Caddy provisions and renews HTTPS certificates automatically.
+}
+
+import /etc/caddy/sites/*.caddy

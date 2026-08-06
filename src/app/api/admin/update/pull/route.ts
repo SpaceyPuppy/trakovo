@@ -10,6 +10,9 @@ const GITHUB_REPO = 'SpaceyPuppy/trakovo'
 export async function POST(req: NextRequest) {
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (process.env.TRAKOVO_CONTAINER === 'true') {
+    return NextResponse.json({ error: 'Container deployments must be upgraded from the VPS.' }, { status: 409 })
+  }
 
   const { assetId, assetName } = await req.json()
   if (!assetId || !assetName) {
