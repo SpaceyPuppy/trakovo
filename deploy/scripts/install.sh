@@ -333,10 +333,11 @@ case "$DB_BOOTSTRAP" in
     [[ -f "$DB_DUMP" ]] || die "Database dump not found: $DB_DUMP"
     "${compose[@]}" run --rm --no-deps app node /app/tools/db.mjs empty
     if [[ "$DB_MODE" == bundled ]]; then
-      import_cmd=("${compose[@]}" exec -T db sh -c 'exec mysql --binary-mode=1 -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"')
+      import_cmd=("${compose[@]}" exec -T db sh -c 'if command -v mariadb >/dev/null 2>&1; then exec mariadb --binary-mode=1 -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"; else exec mysql --binary-mode=1 -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"; fi')
     else
-      command -v mysql >/dev/null 2>&1 || die "mysql client is required for external database import."
-      import_cmd=(env MYSQL_PWD="$DB_PASSWORD" mysql --protocol=tcp --host "$DB_HOST" --port "$DB_PORT" --user "$DB_USER" "$DB_NAME")
+      db_client="$(command -v mariadb || command -v mysql || true)"
+      [[ -n "$db_client" ]] || die "mariadb or mysql client is required for external database import."
+      import_cmd=(env MYSQL_PWD="$DB_PASSWORD" "$db_client" --protocol=tcp --host "$DB_HOST" --port "$DB_PORT" --user "$DB_USER" "$DB_NAME")
     fi
     if [[ "$DB_DUMP" == *.gz ]]; then
       gzip -dc -- "$DB_DUMP" | "${import_cmd[@]}"

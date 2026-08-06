@@ -7,7 +7,7 @@ Update it as features are built. Clear it after each successful production deplo
 
 ## Current pending version: v1.15.3 (invoice payment details and void deletion pending)
 
-> Docker test pre-release `v1.15.3-docker.3` is isolated from production and does not
+> Docker test pre-release `v1.15.3-docker.4` is isolated from production and does not
 > replace this pending cPanel deployment.
 
 ### Deploy checklist

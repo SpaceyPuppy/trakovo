@@ -127,6 +127,10 @@ For a new isolated developer instance, MariaDB is the light default. For importi
 existing MySQL database, use MySQL 8 first when compatibility is the priority; it avoids
 surprises from MySQL-specific collations or dump features. The installer supports both:
 
+The backup script detects `mariadb-dump` as well as `mysqldump`. MariaDB 11's official
+container removed the old `mysqldump` symlink, so this detection is required for bundled
+MariaDB backups.
+
 ```bash
 # Fresh bundled MariaDB
 bash deploy/scripts/install.sh --instance dev --domain dev.example.com \
