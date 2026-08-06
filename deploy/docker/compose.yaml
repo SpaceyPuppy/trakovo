@@ -98,6 +98,7 @@ services:
         condition: service_healthy
     networks:
       - app
+      - tunnel-egress
 
 volumes:
   db_data:
@@ -109,3 +110,6 @@ networks:
   edge:
     external: true
     name: ${TRAKOVO_PROXY_NETWORK:-trakovo_edge}
+
+  tunnel-egress:
+    name: ${COMPOSE_PROJECT_NAME:-trakovo}_tunnel_egress

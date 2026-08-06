@@ -349,6 +349,26 @@ esac
 
 "${compose[@]}" "${profiles[@]}" up -d
 
+if [[ "$PROXY_MODE" == cloudflare ]]; then
+  cloudflared_compose=("${compose[@]}" --profile cloudflare)
+  cloudflared_id=""
+  cloudflared_state=""
+  for attempt in {1..15}; do
+    cloudflared_id="$("${cloudflared_compose[@]}" ps -a -q cloudflared 2>/dev/null || true)"
+    if [[ -n "$cloudflared_id" ]]; then
+      cloudflared_state="$(docker inspect --format '{{.State.Status}}' "$cloudflared_id" 2>/dev/null || true)"
+      [[ "$cloudflared_state" == running ]] && break
+    fi
+    sleep 2
+  done
+  if [[ "$cloudflared_state" != running ]]; then
+    echo "Cloudflare Tunnel connector did not remain running. Recent logs:" >&2
+    "${cloudflared_compose[@]}" logs --tail=80 cloudflared >&2 || true
+    die "Cloudflare Tunnel is not running. Check the token and the tunnel public-hostname service target."
+  fi
+  echo "Cloudflare Tunnel connector is running; confirm it is Connected in the Cloudflare dashboard."
+fi
+
 http_port="$(grep '^TRAKOVO_HTTP_PORT=' .env | cut -d= -f2 | tr -d '\"')"
 health_url="http://127.0.0.1:${http_port}/api/health"
 for attempt in {1..30}; do

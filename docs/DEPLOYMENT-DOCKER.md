@@ -37,6 +37,11 @@ Cloudflare DNS records still need to exist. Caddy requires the hostname's A/AAAA
 to reach the VPS and ports 80/443 to be reachable. Tunnel mode requires a Cloudflare
 Tunnel public hostname configured to forward to `http://app:3000` for that instance.
 
+The tunnel connector is given two networks: the isolated application network so it can
+resolve `app:3000`, and a dedicated outbound network so it can reach Cloudflare. The
+application and database remain on the isolated network and do not receive that extra
+egress path.
+
 ## Publish the image
 
 Pushing a `vX.Y.Z` tag runs `.github/workflows/container-image.yml` and publishes:
@@ -196,9 +201,15 @@ Useful commands for one instance:
 cd /opt/trakovo/dev
 docker compose --env-file .env -f compose.yaml ps
 docker compose --env-file .env -f compose.yaml logs --tail=200 app
+docker compose --env-file .env -f compose.yaml logs --tail=200 cloudflared
 docker compose --env-file .env -f compose.yaml run --rm --no-deps app node /app/tools/db.mjs status
 ./backup.sh
 ```
+
+If `cloudflared` is running but Cloudflare reports no connector, verify the token was
+created for the same tunnel and that the dashboard public-hostname service target is
+exactly `http://app:3000`. The installer checks that the connector remains running and
+prints its recent logs if it exits.
 
 The app binds only to localhost. The database has no host port mapping. Do not mount the
 Docker socket into Trakovo or grant a debugging user Docker access unless that user is
