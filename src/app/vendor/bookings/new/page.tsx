@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import PortalIcon, { type PortalIconName } from '@/components/ui/PortalIcon'
 
 type ServiceType = 'taxi' | 'cpv' | 'vehicle'
 
@@ -51,10 +52,10 @@ function Stepper({ step }: { step: number }) {
 }
 
 // ─── Service type options ─────────────────────────────────────────────────────
-const SERVICE_OPTIONS: { type: ServiceType; icon: string; title: string; subtitle: string }[] = [
-  { type: 'taxi',    icon: '🚕', title: 'Taxi',             subtitle: 'Metered trip — rate calculated by meter at time of travel' },
-  { type: 'cpv',     icon: '🚘', title: 'CPV',              subtitle: 'Chauffeur Permit Vehicle at a pre-agreed rate' },
-  { type: 'vehicle', icon: '🚗', title: 'Specific Vehicle', subtitle: 'Choose a vehicle from our available fleet' },
+const SERVICE_OPTIONS: { type: ServiceType; icon: PortalIconName; title: string; subtitle: string }[] = [
+  { type: 'taxi',    icon: 'steering-wheel', title: 'Taxi',             subtitle: 'Metered trip — rate calculated by meter at time of travel' },
+  { type: 'cpv',     icon: 'car-front', title: 'CPV',              subtitle: 'Chauffeur Permit Vehicle at a pre-agreed rate' },
+  { type: 'vehicle', icon: 'car-front', title: 'Specific Vehicle', subtitle: 'Choose a vehicle from our available fleet' },
 ]
 
 // ─── Step 1: Service type + optional vehicle grid ─────────────────────────────
@@ -85,7 +86,7 @@ function StepService({
           <button key={opt.type} onClick={() => onSelectType(opt.type)}
             className={`text-left p-5 rounded-xl border-2 transition-all
               ${serviceType === opt.type ? 'border-accent bg-accent-bg/40' : 'border-border bg-white hover:border-accent/40'}`}>
-            <span className="text-3xl mb-3 block">{opt.icon}</span>
+            <PortalIcon name={opt.icon} size={28} className={`mb-3 ${serviceType === opt.type ? 'text-accent' : 'text-ink-3'}`} />
             <p className={`font-display font-bold text-[15px] mb-1 ${serviceType === opt.type ? 'text-accent' : 'text-ink'}`}>
               {opt.title}
             </p>

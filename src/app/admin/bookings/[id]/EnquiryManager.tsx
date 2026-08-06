@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import PortalIcon from '@/components/ui/PortalIcon'
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   new:       { label: 'New',       color: 'bg-purple-50 text-purple-700 border-purple-200' },
@@ -49,7 +50,7 @@ export default function EnquiryManager({ bookingId, vehicleName, enquiryStatus }
     <div className="bg-purple-50 border border-purple-200 rounded-xl px-5 py-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <span className="text-purple-500 text-xl flex-shrink-0">📋</span>
+          <PortalIcon name="clipboard-list" size={20} className="text-purple-500 flex-shrink-0" />
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <p className="font-semibold text-purple-800 text-[14px]">Waitlist Enquiry</p>

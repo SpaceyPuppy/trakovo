@@ -29,6 +29,7 @@ export interface BookingDatabaseRow<Status extends BookingResponseStatus = Booki
   licence_document_path?: string | null
   is_enquiry?: boolean | number | null
   vendor_name?: string | null
+  vendor_client_name?: string | null
   created_at: string | Date
 }
 
@@ -77,6 +78,7 @@ export function mapBookingRow<Status extends BookingResponseStatus = BookingStat
       : undefined,
     is_enquiry: Boolean(row.is_enquiry),
     vendor_name: row.vendor_name ?? undefined,
+    vendor_client_name: row.vendor_client_name ?? undefined,
     created_at: timestamp(row.created_at),
   }
 }

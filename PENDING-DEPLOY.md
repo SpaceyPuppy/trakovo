@@ -5,7 +5,19 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.15.3 (invoice payment details and void deletion pending)
+## Current pending version: v1.16.0 (Docker test pre-release: v1.16.0-docker.6)
+
+## v1.16.0 — (unreleased)
+
+### Docker test pre-release `v1.16.0-docker.6`
+
+- Admin and vendor portal-wide visual refresh: grouped navigation, inline icons, clearer hierarchy, and more consistent spacing, colour, and states.
+- Admin and vendor booking lists now default to table views with clickable sorting and clearer vendor/vehicle context.
+- Vendor bookings show the actual vehicle name and distinguish vendor organisation, contact, and direct vendor use when no third-party client is supplied.
+- No new SQL, environment variables, dependencies, or scheduled jobs are required for this release.
+- This is a Docker test pre-release only; production/cPanel deployment remains pending until VPS testing is complete.
+
+## v1.15.3 (production pending items)
 
 > Docker test pre-release `v1.15.3-docker.4` is isolated from production and does not
 > replace this pending cPanel deployment.

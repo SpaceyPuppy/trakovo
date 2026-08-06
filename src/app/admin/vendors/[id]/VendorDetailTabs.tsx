@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import type { Vehicle } from '@/types'
+import PortalIcon from '@/components/ui/PortalIcon'
 
 const inp = 'w-full border border-border rounded-[6px] px-3 py-2.5 text-[13.5px] bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all'
 
@@ -442,7 +443,7 @@ export default function VendorDetailTabs({ vendor, allVehicles }: Props) {
                   return (
                     <div key={v.id} className="px-6 py-4 flex items-center gap-4">
                       <div className="w-14 h-10 bg-slate rounded-[4px] overflow-hidden flex-shrink-0 relative flex items-center justify-center">
-                        {img ? <img src={img} alt={v.name} className="absolute inset-0 w-full h-full object-cover" /> : <span className="text-xl opacity-30">🚗</span>}
+                        {img ? <img src={img} alt={v.name} className="absolute inset-0 w-full h-full object-cover" /> : <PortalIcon name="car-front" size={20} className="text-white/35" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-[13.5px]">{v.name}</p>

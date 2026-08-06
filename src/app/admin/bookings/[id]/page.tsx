@@ -26,6 +26,7 @@ interface BookingDetailRow {
   driver_licence_expiry: string | null; id_document_path: string | null;
   licence_document_path: string | null; driver_id: string | null;
   vendor_id: string | null;
+  vendor_name: string | null; vendor_client_name: string | null;
   created_at: Date; vehicle_name: string | null;
 }
 
@@ -66,10 +67,14 @@ const getBooking = cache((id: string) => queryOne<BookingDetailRow>(
      b.licence_document_path,
      b.driver_id,
      b.vendor_id,
+     vnd.name AS vendor_name,
+     vc.name AS vendor_client_name,
      b.created_at,
      v.name AS vehicle_name
    FROM Booking b
    LEFT JOIN Vehicle v ON b.vehicle_id = v.id
+   LEFT JOIN Vendor vnd ON b.vendor_id = vnd.id
+   LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id
    WHERE b.id = ?
    LIMIT 1`,
   [id]
@@ -180,7 +185,13 @@ export default async function BookingDetailPage({ params }: Props) {
 
   const isDryHire = booking.hire_type === 'dry-hire'
   const isEnquiry = Boolean(booking.is_enquiry)
-  const customerName = booking.contact_name ?? booking.driver_name ?? '—'
+  const customerName = booking.contact_name ?? booking.vendor_client_name ?? booking.driver_name ?? '—'
+
+  const bookingTitle = booking.service_type === 'taxi'
+    ? 'Taxi request'
+    : booking.service_type === 'cpv'
+      ? 'CPV service'
+      : (booking.vehicle_name ?? 'Vehicle booking')
 
   const idDocUrl = booking.id_document_path ? `/api/uploads/${booking.id_document_path}` : null
   const licDocUrl = booking.licence_document_path ? `/api/uploads/${booking.licence_document_path}` : null
@@ -203,9 +214,9 @@ export default async function BookingDetailPage({ params }: Props) {
               </span>
             )}
           </div>
-          <h1 className="font-display font-bold text-[26px] tracking-tight">{booking.service_type === 'taxi' ? 'Taxi Request' : (booking.vehicle_name ?? '—')}</h1>
+          <h1 className="font-display font-bold text-[26px] tracking-tight">{bookingTitle}</h1>
           <p className="text-[13px] text-ink-3 mt-0.5 capitalize">
-            {booking.service_type === 'taxi' ? 'Taxi' : booking.hire_type.replace('-', ' ')} · Submitted {new Date(booking.created_at instanceof Date ? booking.created_at : String(booking.created_at)).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {booking.vendor_name ? `Vendor booking · ${booking.vendor_name}` : (booking.service_type === 'taxi' ? 'Taxi' : booking.hire_type.replace('-', ' '))} · Submitted {new Date(booking.created_at instanceof Date ? booking.created_at : String(booking.created_at)).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -243,7 +254,7 @@ export default async function BookingDetailPage({ params }: Props) {
         <section className="bg-white border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 bg-bg border-b border-border flex items-center justify-between">
             <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider">
-              {isDryHire ? 'Driver Details' : 'Contact Details'}
+              {booking.vendor_name ? 'Vendor contact' : (isDryHire ? 'Driver Details' : 'Contact Details')}
             </p>
             <div className="flex gap-2">
               <a
@@ -261,7 +272,8 @@ export default async function BookingDetailPage({ params }: Props) {
             </div>
           </div>
           <div className="px-5 py-5 grid grid-cols-2 md:grid-cols-3 gap-5">
-            <Info label="Name" value={customerName} />
+            {booking.vendor_name && <Info label="Vendor" value={booking.vendor_name} />}
+            <Info label={booking.vendor_name ? 'Contact / client' : 'Name'} value={customerName} />
             <Info label="Email" value={booking.contact_email} />
             <Info label="Phone" value={booking.contact_phone} />
             {isDryHire && booking.driver_dob && <Info label="Date of Birth" value={booking.driver_dob} />}

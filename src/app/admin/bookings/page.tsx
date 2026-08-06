@@ -2,6 +2,9 @@ import Link from 'next/link'
 import {
   adminGetBookingCount,
   adminGetBookings,
+  adminGetBookingStatusCounts,
+  type AdminBookingSort,
+  type AdminBookingSortDirection,
   type AdminBookingStatusFilter,
 } from '@/lib/api'
 import BookingsList from './BookingsList'
@@ -14,12 +17,13 @@ export const revalidate = 0
 const PAGE_SIZE = 50
 
 interface Props {
-  searchParams?: { page?: string; status?: string }
+  searchParams?: { page?: string; status?: string; sort?: string; direction?: string }
 }
 
 const STATUS_FILTERS: AdminBookingStatusFilter[] = [
   'all', 'pending', 'confirmed', 'enquiry', 'completed', 'cancelled',
 ]
+const SORT_FIELDS: AdminBookingSort[] = ['start_date', 'public_id', 'created_at', 'contact_name', 'vehicle']
 
 export default async function AdminBookingsPage({ searchParams }: Props) {
   const status = STATUS_FILTERS.includes(searchParams?.status as AdminBookingStatusFilter)
@@ -27,14 +31,23 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
     : 'all'
   const requestedPage = Number.parseInt(searchParams?.page ?? '1', 10)
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const sort = SORT_FIELDS.includes(searchParams?.sort as AdminBookingSort)
+    ? searchParams?.sort as AdminBookingSort
+    : 'start_date'
+  const direction: AdminBookingSortDirection = searchParams?.direction === 'desc' ? 'desc' : 'asc'
   let bookings: BookingResponse[] = []
   let total = 0
-  try {
-    [bookings, total] = await Promise.all([
-      adminGetBookings({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE, status }),
-      adminGetBookingCount(status),
-    ])
-  } catch { /* show empty */ }
+  let statusCounts: Awaited<ReturnType<typeof adminGetBookingStatusCounts>> = {
+    all: 0, pending: 0, confirmed: 0, enquiry: 0, completed: 0, cancelled: 0,
+  }
+  const [bookingRows, bookingCount, bookingStatusCounts] = await Promise.all([
+    adminGetBookings({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE, status, sort, direction }).catch((): BookingResponse[] => []),
+    adminGetBookingCount(status).catch(() => 0),
+    adminGetBookingStatusCounts().catch(() => statusCounts),
+  ])
+  bookings = bookingRows
+  total = bookingCount
+  statusCounts = bookingStatusCounts
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const firstShown = bookings.length > 0 ? (page - 1) * PAGE_SIZE + 1 : 0
   const lastShown = bookings.length > 0 ? firstShown + bookings.length - 1 : 0
@@ -54,17 +67,17 @@ export default async function AdminBookingsPage({ searchParams }: Props) {
           + Quick Add
         </Link>
       </div>
-      <BookingsList bookings={bookings} activeStatus={status} />
+      <BookingsList bookings={bookings} activeStatus={status} statusCounts={statusCounts} sort={sort} direction={direction} />
       {totalPages > 1 && (
         <nav className="flex items-center justify-between gap-4 mt-6" aria-label="Bookings pagination">
           {page > 1 ? (
-            <Link href={`/admin/bookings?status=${status}&page=${page - 1}`} className="text-[13px] font-semibold text-accent hover:underline">
+            <Link href={`/admin/bookings?status=${status}&sort=${sort}&direction=${direction}&page=${page - 1}`} className="text-[13px] font-semibold text-accent hover:underline">
               Previous
             </Link>
           ) : <span />}
           <span className="text-[12.5px] text-ink-3">Page {page} of {totalPages}</span>
           {page < totalPages ? (
-            <Link href={`/admin/bookings?status=${status}&page=${page + 1}`} className="text-[13px] font-semibold text-accent hover:underline">
+            <Link href={`/admin/bookings?status=${status}&sort=${sort}&direction=${direction}&page=${page + 1}`} className="text-[13px] font-semibold text-accent hover:underline">
               Next
             </Link>
           ) : <span />}

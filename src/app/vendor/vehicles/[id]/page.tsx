@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { getVendorSession } from '@/lib/vendor-auth'
 import { query, queryOne } from '@/lib/db'
 import type { Metadata } from 'next'
+import PortalIcon from '@/components/ui/PortalIcon'
 
 export const revalidate = 0
 
@@ -70,9 +71,9 @@ export default async function VendorVehicleDetailPage({ params }: Props) {
           </span>
         </div>
         <div className="flex flex-wrap gap-4 text-[13px] text-ink-3">
-          {vehicle.passengers && <span>👥 {vehicle.passengers} passengers</span>}
-          {vehicle.transmission && <span>⚙️ {vehicle.transmission}</span>}
-          {vehicle.fuel && <span>⛽ {vehicle.fuel}</span>}
+          {vehicle.passengers && <span className="inline-flex items-center gap-1.5"><PortalIcon name="users" size={14} /> {vehicle.passengers} passengers</span>}
+          {vehicle.transmission && <span className="inline-flex items-center gap-1.5"><PortalIcon name="settings-2" size={14} /> {vehicle.transmission}</span>}
+          {vehicle.fuel && <span className="inline-flex items-center gap-1.5"><PortalIcon name="car-front" size={14} /> {vehicle.fuel}</span>}
         </div>
       </div>
 
