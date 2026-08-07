@@ -147,6 +147,16 @@ export async function adminGetDashboardStats(): Promise<AdminDashboardStats> {
 // ─── Admin: Bookings ──────────────────────────────────────────────────────────
 
 export type AdminBookingStatusFilter = 'all' | 'pending' | 'confirmed' | 'enquiry' | 'completed' | 'cancelled'
+export type AdminBookingSort = 'start_date' | 'public_id' | 'created_at' | 'contact_name' | 'vehicle'
+export type AdminBookingSortDirection = 'asc' | 'desc'
+
+const ADMIN_BOOKING_SORT_COLUMNS: Record<AdminBookingSort, string> = {
+  start_date: 'b.start_date',
+  public_id: 'b.public_id',
+  created_at: 'b.created_at',
+  contact_name: 'COALESCE(b.contact_name, b.driver_name, \'\')',
+  vehicle: 'COALESCE(v.name, b.service_type, \'\')',
+}
 
 function adminBookingStatusWhere(status: AdminBookingStatusFilter | undefined) {
   if (!status || status === 'all') return { clause: '', params: [] as unknown[] }
@@ -161,24 +171,51 @@ export async function adminGetBookings(opts?: {
   limit?: number
   offset?: number
   status?: AdminBookingStatusFilter
+  sort?: AdminBookingSort
+  direction?: AdminBookingSortDirection
 }): Promise<BookingResponse[]> {
   const requestedLimit = Math.trunc(opts?.limit ?? 0)
   const limit = requestedLimit > 0 ? Math.min(requestedLimit, 200) : 0
   const offset = Math.max(0, Math.trunc(opts?.offset ?? 0))
   const limitClause = limit > 0 ? `LIMIT ${limit} OFFSET ${offset}` : ''
   const statusWhere = adminBookingStatusWhere(opts?.status)
+  const sort = opts?.sort && opts.sort in ADMIN_BOOKING_SORT_COLUMNS ? opts.sort : 'start_date'
+  const direction = opts?.direction === 'desc' ? 'DESC' : 'ASC'
+  const sortColumn = ADMIN_BOOKING_SORT_COLUMNS[sort]
   const bookings = await query<Row>(
-    `SELECT b.*, v.name as vehicle_name, vnd.name as vendor_name
+    `SELECT b.*, v.name as vehicle_name, vnd.name as vendor_name, vc.name as vendor_client_name
      FROM Booking b
      LEFT JOIN Vehicle v ON b.vehicle_id = v.id
      LEFT JOIN Vendor vnd ON b.vendor_id = vnd.id
+     LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id
      ${statusWhere.clause}
-     ORDER BY b.created_at DESC ${limitClause}`,
+     ORDER BY ${sortColumn} ${direction}, b.public_id ASC ${limitClause}`,
     statusWhere.params
   )
   return bookings.map((booking) => mapBookingRow<BookingResponse['status']>(
     booking as BookingDatabaseRow<BookingResponse['status']>
   ))
+}
+
+export async function adminGetBookingStatusCounts(): Promise<Record<AdminBookingStatusFilter, number>> {
+  const rows = await query<{ status: string; count: number | string }>(
+    `SELECT
+       CASE WHEN b.is_enquiry = 1 THEN 'enquiry' ELSE b.status END AS status,
+       COUNT(*) AS count
+     FROM Booking b
+     GROUP BY CASE WHEN b.is_enquiry = 1 THEN 'enquiry' ELSE b.status END`
+  )
+  const counts: Record<AdminBookingStatusFilter, number> = {
+    all: 0, pending: 0, confirmed: 0, enquiry: 0, completed: 0, cancelled: 0,
+  }
+  for (const row of rows) {
+    const status = row.status as AdminBookingStatusFilter
+    if (status in counts && status !== 'all') counts[status] = Number(row.count)
+  }
+  counts.all = Object.entries(counts)
+    .filter(([key]) => key !== 'all')
+    .reduce((sum, [, value]) => sum + value, 0)
+  return counts
 }
 
 export async function adminGetBookingCount(status?: AdminBookingStatusFilter): Promise<number> {

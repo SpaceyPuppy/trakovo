@@ -4,6 +4,7 @@ import { adminGetVehicles } from '@/lib/api'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import type { Metadata } from 'next'
 import type { Vehicle } from '@/types'
+import PortalIcon from '@/components/ui/PortalIcon'
 
 export const metadata: Metadata = { title: 'Vehicles' }
 export const revalidate = 0
@@ -27,7 +28,7 @@ export default async function AdminVehiclesPage() {
 
       {vehicles.length === 0 ? (
         <div className="bg-white border border-border rounded-xl px-8 py-16 text-center">
-          <p className="text-[32px] mb-3">🚗</p>
+          <PortalIcon name="car-front" size={32} className="mx-auto mb-3 text-ink-4" />
           <p className="font-display font-bold text-[18px] mb-2">No vehicles yet</p>
           <p className="text-[14px] text-ink-3 mb-6">Add your first vehicle to get started.</p>
           <Link href="/admin/vehicles/new" className="bg-accent text-white font-semibold text-[14px] px-6 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors inline-block">
@@ -48,7 +49,7 @@ export default async function AdminVehiclesPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-9 bg-slate rounded-[4px] overflow-hidden flex-shrink-0 flex items-center justify-center relative">
-                          {img ? <img src={img} alt={v.name} className="absolute inset-0 w-full h-full object-cover" /> : <span className="text-lg opacity-40">🚗</span>}
+                          {img ? <img src={img} alt={v.name} className="absolute inset-0 w-full h-full object-cover" /> : <PortalIcon name="car-front" size={19} className="text-white/35" />}
                         </div>
                         <div>
                           <p className="font-semibold text-ink">{v.name}</p>

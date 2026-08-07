@@ -11,11 +11,13 @@ export const dynamic = 'force-dynamic'
 const PAGE_SIZE = 50
 
 interface Props {
-  searchParams?: { page?: string; status?: string }
+  searchParams?: { page?: string; status?: string; sort?: string; direction?: string }
 }
 
 const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const
 type StatusFilter = typeof STATUS_FILTERS[number]
+const SORT_FIELDS = ['start_date', 'public_id', 'created_at', 'contact_name', 'vehicle'] as const
+type SortField = typeof SORT_FIELDS[number]
 
 export default async function VendorDashboard({ searchParams }: Props) {
   const session = await getVendorSession()
@@ -29,6 +31,17 @@ export default async function VendorDashboard({ searchParams }: Props) {
   const requestedPage = Number.parseInt(searchParams?.page ?? '1', 10)
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
   const offset = (page - 1) * PAGE_SIZE
+  const sort = SORT_FIELDS.includes(searchParams?.sort as SortField)
+    ? searchParams?.sort as SortField
+    : 'start_date'
+  const direction = searchParams?.direction === 'desc' ? 'desc' : 'asc'
+  const sortColumns: Record<SortField, string> = {
+    start_date: 'b.start_date',
+    public_id: 'b.public_id',
+    created_at: 'b.created_at',
+    contact_name: 'COALESCE(vc.name, b.contact_name, \'\')',
+    vehicle: 'COALESCE(v.name, b.service_type, \'\')',
+  }
 
   const [stats, allBookings] = await Promise.all([
     queryOne<{
@@ -55,18 +68,18 @@ export default async function VendorDashboard({ searchParams }: Props) {
     query<{
       id: string; public_id: string; status: string; service_type: string | null;
       start_date: string; end_date: string; total_days: number; total_cost: number;
-      contact_name: string | null; vehicle_name?: string; vendor_client_name?: string;
+      contact_name: string | null; created_at: string | Date; vehicle_name?: string; vendor_client_name?: string;
       [k: string]: unknown
     }>(
       `SELECT b.id, b.public_id, b.status, b.service_type, b.start_date, b.end_date,
-              b.total_days, b.total_cost, b.contact_name,
+              b.total_days, b.total_cost, b.contact_name, b.created_at,
               v.name AS vehicle_name, vc.name AS vendor_client_name
        FROM Booking b
        LEFT JOIN Vehicle v ON b.vehicle_id = v.id
        LEFT JOIN VendorClient vc ON b.vendor_client_id = vc.id
        WHERE b.vendor_id = ?
        ${status === 'all' ? '' : 'AND b.status = ?'}
-       ORDER BY b.created_at DESC
+       ORDER BY ${sortColumns[sort]} ${direction.toUpperCase()}, b.public_id ASC
        LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
       status === 'all' ? [session.vendorId] : [session.vendorId, status]
     ),
@@ -126,17 +139,19 @@ export default async function VendorDashboard({ searchParams }: Props) {
       <VendorBookingsList
         bookings={bookings as Parameters<typeof VendorBookingsList>[0]['bookings']}
         activeStatus={status}
+        sort={sort}
+        direction={direction}
       />
       {totalPages > 1 && (
         <nav className="flex items-center justify-between gap-4 mt-6" aria-label="Bookings pagination">
           {page > 1 ? (
-            <Link href={`/vendor?status=${status}&page=${page - 1}`} className="text-[13px] font-semibold text-accent hover:underline">
+            <Link href={`/vendor?status=${status}&sort=${sort}&direction=${direction}&page=${page - 1}`} className="text-[13px] font-semibold text-accent hover:underline">
               Previous
             </Link>
           ) : <span />}
           <span className="text-[12.5px] text-ink-3">Page {page} of {totalPages}</span>
           {page < totalPages ? (
-            <Link href={`/vendor?status=${status}&page=${page + 1}`} className="text-[13px] font-semibold text-accent hover:underline">
+            <Link href={`/vendor?status=${status}&sort=${sort}&direction=${direction}&page=${page + 1}`} className="text-[13px] font-semibold text-accent hover:underline">
               Next
             </Link>
           ) : <span />}

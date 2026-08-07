@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getVendorSession } from '@/lib/vendor-auth'
 import { query } from '@/lib/db'
 import type { Metadata } from 'next'
+import PortalIcon from '@/components/ui/PortalIcon'
 
 export const metadata: Metadata = { title: 'My Vehicles' }
 export const revalidate = 0
@@ -52,8 +53,8 @@ export default async function VendorVehiclesPage() {
                 </span>
               </div>
               <div className="space-y-1 text-[12.5px] text-ink-3">
-                {v.passengers && <p>👥 {v.passengers} passengers</p>}
-                <p>📋 {v.booking_count} active booking{v.booking_count !== 1 ? 's' : ''}</p>
+                {v.passengers && <p className="flex items-center gap-1.5"><PortalIcon name="users" size={14} /> {v.passengers} passengers</p>}
+                <p className="flex items-center gap-1.5"><PortalIcon name="clipboard-list" size={14} /> {v.booking_count} active booking{v.booking_count !== 1 ? 's' : ''}</p>
               </div>
               <p className="mt-3 text-[12px] text-accent font-medium">View bookings →</p>
             </Link>

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { listVendorSummaries } from '@/lib/repositories/vendors'
+import PortalIcon from '@/components/ui/PortalIcon'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Vendors' }
@@ -23,7 +24,7 @@ export default async function AdminVendorsPage() {
 
       {vendors.length === 0 ? (
         <div className="bg-white border border-border rounded-xl px-8 py-16 text-center">
-          <p className="text-[32px] mb-3">🏢</p>
+          <PortalIcon name="building-2" size={32} className="mx-auto mb-3 text-ink-4" />
           <p className="font-display font-bold text-[18px] mb-2">No vendors yet</p>
           <p className="text-[14px] text-ink-3 mb-6">Add your first B2B partner to get started.</p>
           <Link href="/admin/vendors/new"

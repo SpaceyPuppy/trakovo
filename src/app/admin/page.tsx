@@ -18,7 +18,7 @@ export default async function AdminDashboard() {
 
   const [stats, bookings] = await Promise.all([
     adminGetDashboardStats().catch(() => EMPTY_DASHBOARD_STATS),
-    adminGetBookings({ limit: 5 }).catch((): BookingResponse[] => []),
+    adminGetBookings({ limit: 5, sort: 'created_at', direction: 'desc' }).catch((): BookingResponse[] => []),
   ])
 
   return (
@@ -59,15 +59,10 @@ export default async function AdminDashboard() {
                 <tr key={b.public_id} className="border-t border-border hover:bg-bg/50 transition-colors">
                   <td className="px-6 py-3.5 font-mono font-semibold text-accent">{b.public_id}</td>
                   <td className="px-6 py-3.5">
-                    {b.vehicle?.name ?? (b.service_type === 'taxi' ? 'Taxi' : b.service_type === 'cpv' ? 'CPV' : '—')}
+                    {b.vehicle?.name ?? (b.service_type === 'taxi' ? 'Taxi request' : b.service_type === 'cpv' ? 'CPV service' : 'Vehicle booking')}
                   </td>
                   <td className="px-6 py-3.5 capitalize">
-                    {b.vendor_name
-                      ? b.service_type === 'taxi' ? 'B2B – Taxi'
-                      : b.service_type === 'cpv'  ? 'B2B – CPV'
-                      : 'B2B Vehicle'
-                      : b.hire_type?.replace('-', ' ')
-                    }
+                    {b.vendor_name ? b.vendor_name : b.hire_type?.replace('-', ' ')}
                   </td>
                   <td className="px-6 py-3.5 text-ink-3">{b.start_date} → {b.end_date}</td>
                   <td className="px-6 py-3.5">

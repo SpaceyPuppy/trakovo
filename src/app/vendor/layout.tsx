@@ -12,13 +12,13 @@ export default async function VendorLayout({ children }: { children: React.React
   // No session = this is the login page (middleware blocks everything else).
   // Render children bare without the nav chrome.
   if (!session) {
-    return <div className="min-h-screen bg-[#f0efe9]">{children}</div>
+    return <div className="min-h-screen bg-bg">{children}</div>
   }
 
   const [portalName, logoUrl] = await Promise.all([getVendorPortalName(), getLogoUrl()])
 
   return (
-    <div className="min-h-screen bg-[#f0efe9]">
+    <div className="min-h-screen bg-bg">
       <VendorNav vendorName={session.vendorName} portalName={portalName} logoUrl={logoUrl} />
       <main className="px-4 sm:px-8 md:px-10 py-8 md:py-10 max-w-[1400px]">
         {children}

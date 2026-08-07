@@ -116,6 +116,7 @@ export interface BookingResponse<Status extends BookingResponseStatus = BookingS
   licence_document_url?: string
   is_enquiry?: boolean
   vendor_name?: string
+  vendor_client_name?: string
   created_at: string
 }
 

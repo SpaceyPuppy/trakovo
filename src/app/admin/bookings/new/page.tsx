@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getDailyRate } from '@/lib/utils'
+import PortalIcon, { type PortalIconName } from '@/components/ui/PortalIcon'
 
 interface Vehicle {
   id: string
@@ -159,10 +160,10 @@ export default function AdminNewBookingPage() {
           <div className="bg-white border border-border rounded-xl p-5 space-y-4">
             <p className="font-display font-bold text-[14px]">Service</p>
             <div className="grid grid-cols-3 gap-3">
-              {([['vehicle', '🚗', 'Vehicle Hire'], ['taxi', '🚕', 'Taxi (metered)'], ['cpv', '🚘', 'CPV']] as const).map(([type, icon, label]) => (
+              {([['vehicle', 'car-front', 'Vehicle Hire'], ['taxi', 'steering-wheel', 'Taxi (metered)'], ['cpv', 'car-front', 'CPV']] as const).map(([type, icon, label]) => (
                 <button key={type} type="button" onClick={() => setServiceType(type)}
                   className={`border-2 rounded-[8px] px-4 py-3 text-left transition-all ${serviceType === type ? 'border-accent bg-accent-bg' : 'border-border hover:border-ink-3'}`}>
-                  <span className="text-xl">{icon}</span>
+                  <PortalIcon name={icon as PortalIconName} size={22} className={serviceType === type ? 'text-accent' : 'text-ink-3'} />
                   <p className={`font-semibold text-[13px] mt-1 ${serviceType === type ? 'text-accent-dark' : 'text-ink'}`}>{label}</p>
                 </button>
               ))}

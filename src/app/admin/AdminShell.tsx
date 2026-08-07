@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import AdminSidebar from './AdminSidebar'
 import AdminTopBar from './AdminTopBar'
+import PortalIcon from '@/components/ui/PortalIcon'
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -25,7 +26,7 @@ export default function AdminShell({
   const initials = getInitials(username)
 
   return (
-    <div className="flex flex-col h-screen bg-[#f0efe9] overflow-hidden print:block print:h-auto print:bg-white print:overflow-visible">
+    <div className="flex flex-col h-screen bg-bg overflow-hidden print:block print:h-auto print:bg-white print:overflow-visible">
 
       {/* Desktop top bar — full width, hidden on mobile */}
       <AdminTopBar adminName={adminName} logoUrl={logoUrl} username={username} />
@@ -54,11 +55,7 @@ export default function AdminShell({
               aria-label="Open menu"
               className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded-[6px] hover:bg-white/10 transition-all"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
+              <PortalIcon name="menu" size={19} />
             </button>
 
             {/* Centre: portal name */}
@@ -77,7 +74,7 @@ export default function AdminShell({
 
           </header>
 
-          <main className="flex-1 overflow-auto print:overflow-visible">
+          <main className="flex-1 overflow-auto bg-bg print:overflow-visible">
             {children}
           </main>
         </div>
