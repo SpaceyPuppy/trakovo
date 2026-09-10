@@ -8,9 +8,9 @@ ordering, and verification are controlled by [`PENDING-DEPLOY.md`](../PENDING-DE
 
 ## Current release gate
 
-The current repository release is v1.16.0 and v1.17.0 is the pending release. Confirm the
-actual live version before changing production and follow the release-specific checks in
-`PENDING-DEPLOY.md`.
+The current repository release is v1.17.0. Its production deployment is not yet verified;
+confirm the actual live version before changing production and follow the release-specific
+checks in `PENDING-DEPLOY.md`.
 
 ## Sources of truth
 

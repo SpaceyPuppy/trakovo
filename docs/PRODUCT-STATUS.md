@@ -10,8 +10,8 @@ become. It distinguishes source-code capability from production deployment state
 | Environment | Version | State |
 |---|---:|---|
 | Production | Unverified | Confirm the running version before deployment; the previous v1.14.4 record is stale |
-| Current repository release | v1.16.0 | Stable tag and release published |
-| Repository / next release | v1.17.0 | Licence verification update in preparation |
+| Current repository release | v1.17.0 | Stable tag, release assets, and container image published |
+| Next release | Not selected | No later source release is currently in preparation |
 
 Do not describe pending-release features as live until the SQL, deployment, and smoke-test items in
 [`PENDING-DEPLOY.md`](../PENDING-DEPLOY.md) have been completed.

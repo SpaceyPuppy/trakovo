@@ -5,9 +5,9 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.17.0
+## Current production deployment: v1.17.0 release published; live version unverified
 
-## v1.17.0 — (unreleased)
+## v1.17.0 — released 10 September 2026 (production deployment pending)
 
 ### Customer licence verification
 
