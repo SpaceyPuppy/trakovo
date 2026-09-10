@@ -59,6 +59,7 @@ CREATE TABLE `Booking` (
     `driver_dob` VARCHAR(191) NULL,
     `driver_licence_number` VARCHAR(191) NULL,
     `driver_licence_expiry` VARCHAR(191) NULL,
+    `licence_verification_deferred` BOOLEAN NOT NULL DEFAULT false,
     `agreement_accepted` BOOLEAN NOT NULL DEFAULT false,
     `id_document_path` VARCHAR(191) NULL,
     `licence_document_path` VARCHAR(191) NULL,

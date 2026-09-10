@@ -1,6 +1,6 @@
 # Trakovo Product Status
 
-Last reviewed: 19 July 2026
+Last reviewed: 10 September 2026
 
 This document is the canonical summary of what Trakovo is today and what it is intended to
 become. It distinguishes source-code capability from production deployment state.
@@ -9,11 +9,11 @@ become. It distinguishes source-code capability from production deployment state
 
 | Environment | Version | State |
 |---|---:|---|
-| Production | v1.14.4 | Current live release, as confirmed by the owner |
-| Repository / next release | v1.15.0 | Code and release package prepared |
-| v1.15.0 production upgrade | v1.15.0 | Scheduled for 20 July 2026; required SQL has not yet been applied |
+| Production | Unverified | Confirm the running version before deployment; the previous v1.14.4 record is stale |
+| Current repository release | v1.16.0 | Stable tag and release published |
+| Repository / next release | v1.17.0 | Licence verification update in preparation |
 
-Do not describe v1.15.0 features as live until the SQL, deployment, and smoke-test items in
+Do not describe pending-release features as live until the SQL, deployment, and smoke-test items in
 [`PENDING-DEPLOY.md`](../PENDING-DEPLOY.md) have been completed.
 
 ## Product direction
@@ -34,6 +34,8 @@ experience, followed by acceptance and dispatch coordination.
 - Public vehicle browsing and booking for chauffeured and self-drive hire.
 - Availability checks, multi-leg chauffeured trip details, hire agreements, and identity or
   licence uploads for relevant hire flows.
+- Dry-hire customers can provide licence details online or elect verification on the day of
+  hire; vehicles can display a clear warning when a licence class beyond `C` is required.
 - A mobile-oriented `/book` service picker and taxi request flow.
 - Mapbox map display, address search/geocoding, pickup and destination selection, and route
   presentation when configuration and browser permissions are available.
@@ -53,7 +55,7 @@ experience, followed by acceptance and dispatch coordination.
 - Admin web-push subscription and test infrastructure.
 - cPanel/Passenger deployment packages with OTA update and rollback support.
 
-### v1.15.0 source capability, not yet live
+### Source capability awaiting confirmed production acceptance
 
 - Internal billing runs, invoices, invoice lines, payments, allocations, ledger events, and
   request-idempotency infrastructure.
@@ -76,8 +78,8 @@ experience, followed by acceptance and dispatch coordination.
 
 ## Current priorities
 
-1. Deploy v1.15.0 safely: backup, apply the pending SQL, deploy, and complete production smoke
-   checks.
+1. Confirm the live production version, reconcile outstanding deployment items, and deploy the
+   intended release with its documented SQL and smoke checks.
 2. Finish launch-critical taxi request quality: phone normalisation, SMS wording/delivery,
    address/landmark search, error recovery, and operator visibility.
 3. Operate the request-and-confirm model with explicit status rules and measurable manual

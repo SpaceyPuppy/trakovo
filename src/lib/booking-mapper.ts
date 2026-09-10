@@ -25,6 +25,7 @@ export interface BookingDatabaseRow<Status extends BookingResponseStatus = Booki
   driver_dob?: string | null
   driver_licence_number?: string | null
   driver_licence_expiry?: string | null
+  licence_verification_deferred?: boolean | number | null
   id_document_path?: string | null
   licence_document_path?: string | null
   is_enquiry?: boolean | number | null
@@ -70,6 +71,7 @@ export function mapBookingRow<Status extends BookingResponseStatus = BookingStat
     driver_dob: row.driver_dob ?? undefined,
     driver_licence_number: row.driver_licence_number ?? undefined,
     driver_licence_expiry: row.driver_licence_expiry ?? undefined,
+    licence_verification_deferred: Boolean(row.licence_verification_deferred),
     id_document_url: row.id_document_path
       ? `/api/uploads/${row.id_document_path}`
       : undefined,

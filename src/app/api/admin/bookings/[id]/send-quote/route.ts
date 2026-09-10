@@ -19,6 +19,8 @@ export async function POST(req: NextRequest, { params }: Context) {
       daily_rate: number; total_cost: number; vehicle_id: string | null;
       vehicle_name: string | null; contact_name: string | null;
       contact_email: string; contact_phone: string; driver_name: string | null;
+      driver_dob: string | null; driver_licence_number: string | null;
+      driver_licence_expiry: string | null; licence_verification_deferred: number;
       created_at: Date;
     }>(
       'SELECT b.*, v.name as vehicle_name FROM Booking b LEFT JOIN Vehicle v ON b.vehicle_id = v.id WHERE b.id = ? LIMIT 1',
@@ -43,6 +45,10 @@ export async function POST(req: NextRequest, { params }: Context) {
       contact_email: booking.contact_email,
       contact_phone: booking.contact_phone,
       driver_name: booking.driver_name ?? undefined,
+      driver_dob: booking.driver_dob ?? undefined,
+      driver_licence_number: booking.driver_licence_number ?? undefined,
+      driver_licence_expiry: booking.driver_licence_expiry ?? undefined,
+      licence_verification_deferred: Boolean(booking.licence_verification_deferred),
       created_at: booking.created_at instanceof Date ? booking.created_at.toISOString() : String(booking.created_at),
     }
 

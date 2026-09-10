@@ -24,6 +24,7 @@ interface Booking {
   contact_name: string | null
   contact_email: string
   contact_phone: string
+  licence_verification_deferred: number
 }
 
 export default async function ConfirmationPage({ searchParams: sp }: Props) {
@@ -59,6 +60,10 @@ export default async function ConfirmationPage({ searchParams: sp }: Props) {
     ['Name', booking?.contact_name ?? '—'],
     ['Email', booking?.contact_email ?? '—'],
     ['Phone', booking?.contact_phone ?? '—'],
+    isDry ? [
+      'Licence Verification',
+      booking?.licence_verification_deferred ? 'On the day of hire' : 'Details provided online',
+    ] : null,
   ].filter(Boolean) as string[][]
 
   return (

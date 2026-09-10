@@ -4,7 +4,7 @@ Fleet management platform for bookings, vehicles, drivers, vendors, dispatch, an
 
 Built with Next.js 14 (App Router), MySQL via `mysql2`, and Tailwind CSS.
 
-The current checkout is v1.15.3. See [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md)
+The current checkout is v1.17.0. See [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md)
 for the capability and release-state distinction.
 
 ## Stack

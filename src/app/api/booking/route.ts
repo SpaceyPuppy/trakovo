@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
     const {
       product_id, start_date, end_date, hire_type,
       contact_name, contact_email, contact_phone,
-      driver_name, driver_dob, agreement_accepted,
+      driver_name, driver_dob, driver_licence_number, driver_licence_expiry,
+      licence_verification_deferred, agreement_accepted,
       is_enquiry, trip_details,
     } = body
 
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
 
     const resolvedHireType: HireType = hire_type === 'dry-hire' ? 'dry-hire' : 'chauffeured'
     const isEnquiry = Boolean(is_enquiry)
+    const deferLicenceVerification = licence_verification_deferred === true
+    const licenceNumber = typeof driver_licence_number === 'string' ? driver_licence_number.trim() : ''
+    const licenceExpiry = typeof driver_licence_expiry === 'string' ? driver_licence_expiry.trim() : ''
 
     if (resolvedHireType === 'dry-hire' && !isEnquiry) {
       if (!driver_name || !driver_dob) {
@@ -54,6 +58,9 @@ export async function POST(req: NextRequest) {
       }
       if (!agreement_accepted) {
         return NextResponse.json({ error: 'Hire agreement must be accepted' }, { status: 400 })
+      }
+      if (!deferLicenceVerification && (!licenceNumber || !licenceExpiry)) {
+        return NextResponse.json({ error: 'Provide licence details or choose verification on the day of hire' }, { status: 400 })
       }
     } else if (!contact_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -88,15 +95,23 @@ export async function POST(req: NextRequest) {
            id, public_id, vehicle_id, hire_type, status, is_enquiry,
            start_date, end_date, total_days, daily_rate, total_cost, currency,
            contact_name, contact_email, contact_phone,
-           driver_name, driver_dob, agreement_accepted, trip_details,
+           driver_name, driver_dob, driver_licence_number, driver_licence_expiry,
+           licence_verification_deferred, agreement_accepted, trip_details,
            created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
         [
           id, publicId, vehicle.id, resolvedHireType, status, isEnquiry ? 1 : 0,
           dateRange.startDate, dateRange.endDate, dateRange.totalDays, dailyRate, totalCost, vehicle.currency,
           resolvedContactName, contact_email, contact_phone,
           resolvedHireType === 'dry-hire' ? (driver_name ?? null) : null,
           resolvedHireType === 'dry-hire' ? (driver_dob ?? null) : null,
+          resolvedHireType === 'dry-hire' && !isEnquiry && !deferLicenceVerification
+            ? licenceNumber
+            : null,
+          resolvedHireType === 'dry-hire' && !isEnquiry && !deferLicenceVerification
+            ? licenceExpiry
+            : null,
+          resolvedHireType === 'dry-hire' && !isEnquiry && deferLicenceVerification ? 1 : 0,
           resolvedHireType === 'dry-hire' && !isEnquiry ? 1 : 0,
           trip_details ?? null,
         ]
@@ -127,6 +142,13 @@ export async function POST(req: NextRequest) {
         contact_email: booking.contact_email,
         contact_phone: booking.contact_phone,
         driver_name: booking.driver_name ?? undefined,
+        driver_licence_number: resolvedHireType === 'dry-hire' && !deferLicenceVerification
+          ? licenceNumber
+          : undefined,
+        driver_licence_expiry: resolvedHireType === 'dry-hire' && !deferLicenceVerification
+          ? licenceExpiry
+          : undefined,
+        licence_verification_deferred: resolvedHireType === 'dry-hire' && deferLicenceVerification,
         is_enquiry: isEnquiry,
         created_at: booking.created_at instanceof Date
           ? booking.created_at.toISOString()
