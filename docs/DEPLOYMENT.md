@@ -1,6 +1,6 @@
 # Trakovo Deployment
 
-Last reviewed: 19 July 2026
+Last reviewed: 10 September 2026
 
 This is the canonical deployment overview. The detailed cPanel procedure is
 [`DEPLOYMENT-CPANEL.md`](../DEPLOYMENT-CPANEL.md). Release-specific SQL, configuration,
@@ -8,8 +8,9 @@ ordering, and verification are controlled by [`PENDING-DEPLOY.md`](../PENDING-DE
 
 ## Current release gate
 
-The current repository release is v1.15.3. Confirm the actual live version before changing
-production and follow the release-specific checks in `PENDING-DEPLOY.md`.
+The current repository release is v1.16.0 and v1.17.0 is the pending release. Confirm the
+actual live version before changing production and follow the release-specific checks in
+`PENDING-DEPLOY.md`.
 
 ## Sources of truth
 

@@ -58,6 +58,7 @@ model Booking {
   driver_dob            String?
   driver_licence_number String?
   driver_licence_expiry String?
+  licence_verification_deferred Boolean @default(false)
   agreement_accepted    Boolean       @default(false)
   id_document_path      String?
   licence_document_path String?

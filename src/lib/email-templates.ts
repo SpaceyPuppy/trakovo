@@ -53,8 +53,12 @@ export async function buildTemplateContext(
       contact_phone: booking.contact_phone,
       driver_name: booking.driver_name ?? '—',
       driver_dob: booking.driver_dob ?? '—',
-      driver_licence_number: booking.driver_licence_number ?? '—',
-      driver_licence_expiry: booking.driver_licence_expiry ?? '—',
+      driver_licence_number: booking.licence_verification_deferred
+        ? 'To be verified on the day of hire'
+        : (booking.driver_licence_number ?? '—'),
+      driver_licence_expiry: booking.licence_verification_deferred
+        ? 'To be verified on the day of hire'
+        : (booking.driver_licence_expiry ?? '—'),
       site_name: siteName,
       site_url: siteUrl,
       admin_url: `${siteUrl}/admin/bookings`,

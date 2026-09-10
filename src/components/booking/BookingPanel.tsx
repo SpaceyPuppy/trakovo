@@ -28,6 +28,16 @@ interface Props {
   externalHireType?: 'chauffeured' | 'dry-hire'
 }
 
+const LICENCE_CLASS_LABELS: Record<string, string> = {
+  C: 'C (Car)',
+  LR: 'LR (Light Rigid)',
+  MR: 'MR (Medium Rigid)',
+  HR: 'HR (Heavy Rigid)',
+  HC: 'HC (Heavy Combination)',
+  MC: 'MC (Multi Combination)',
+  R: 'R (Rider)',
+}
+
 function hasConflict(start: Date, end: Date, ranges: AvailabilityRange[]): boolean {
   const s = toISODate(start)
   const e = toISODate(end)
@@ -90,6 +100,9 @@ export default function BookingPanel({ vehicle, availability, vehicleBasePath = 
   const [isEnquiry, setIsEnquiry] = useState(false)
 
   const isDual = vehicle.meta.hire_modes === 'both'
+  const requiredLicenceClass = vehicle.meta.licence_category?.trim().toUpperCase() ?? ''
+  const requiresSpecialLicence = requiredLicenceClass !== '' && requiredLicenceClass !== 'C'
+  const requiredLicenceLabel = LICENCE_CLASS_LABELS[requiredLicenceClass] ?? requiredLicenceClass
   const days = form.startDate && form.endDate ? diffDays(form.startDate, form.endDate) + 1 : 0
   const hireTypeForRate = form.hireType === 'dry-hire' ? 'dry-hire' : 'chauffeured'
   const rate = days > 0 ? getDailyRate(vehicle, hireTypeForRate, days) : (form.hireType === 'dry-hire' ? vehicle.price : vehicle.chauffeur_price)
@@ -141,6 +154,8 @@ export default function BookingPanel({ vehicle, availability, vehicleBasePath = 
     const base = !!(form.driverName.trim() && form.contactEmail.trim()
       && form.contactPhone.trim() && form.driverDob && form.agreed)
     if (!base) return false
+    if (!form.licenceVerificationDeferred &&
+      !(form.driverLicenceNumber.trim() && form.driverLicenceExpiry)) return false
     if (isUnder25) return !!(form.under25Confirmed && form.altDriverName.trim() && form.altDriverDob)
     return true
   }
@@ -166,6 +181,9 @@ export default function BookingPanel({ vehicle, availability, vehicleBasePath = 
         contact_phone: form.contactPhone,
         driver_name: driverName,
         driver_dob: driverDob,
+        driver_licence_number: form.licenceVerificationDeferred ? undefined : form.driverLicenceNumber.trim(),
+        driver_licence_expiry: form.licenceVerificationDeferred ? undefined : form.driverLicenceExpiry,
+        licence_verification_deferred: form.licenceVerificationDeferred,
         agreement_accepted: true,
       } : {
         product_id: vehicle.id,
@@ -492,6 +510,44 @@ export default function BookingPanel({ vehicle, availability, vehicleBasePath = 
               <Field label="Date of Birth" required>
                 <input className={inp} type="date" value={form.driverDob} onChange={e => update({ driverDob: e.target.value })} />
               </Field>
+
+              {requiresSpecialLicence && (
+                <div className="border-2 border-amber-400 bg-amber-50 rounded-[6px] p-3">
+                  <p className="text-[12.5px] font-bold text-amber-900">Required licence class: {requiredLicenceLabel}</p>
+                  <p className="text-[12px] text-amber-800 mt-1 leading-relaxed">
+                    This vehicle requires a <strong>{requiredLicenceLabel}</strong> licence to be hired. If the driver does not hold the appropriate licence class, the booking will be cancelled.
+                  </p>
+                </div>
+              )}
+
+              <div className="border border-border bg-white rounded-[6px] p-3 space-y-3">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.licenceVerificationDeferred}
+                    onChange={e => update({
+                      licenceVerificationDeferred: e.target.checked,
+                      ...(e.target.checked ? { driverLicenceNumber: '', driverLicenceExpiry: '' } : {}),
+                    })}
+                    className="mt-0.5 accent-accent"
+                  />
+                  <span className="text-[12px] text-ink-2 leading-snug">
+                    I will provide my driver&apos;s licence for verification on the day of hire.
+                  </span>
+                </label>
+                {!form.licenceVerificationDeferred && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-border pt-3">
+                    <Field label="Driver's Licence Number" required>
+                      <input className={inp} type="text" autoComplete="off" value={form.driverLicenceNumber}
+                        onChange={e => update({ driverLicenceNumber: e.target.value })} />
+                    </Field>
+                    <Field label="Licence Expiry" required>
+                      <input className={inp} type="date" value={form.driverLicenceExpiry}
+                        onChange={e => update({ driverLicenceExpiry: e.target.value })} />
+                    </Field>
+                  </div>
+                )}
+              </div>
 
               {/* Under-25 warning */}
               {isUnder25 && (

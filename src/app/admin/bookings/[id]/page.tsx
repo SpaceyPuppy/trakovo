@@ -23,7 +23,8 @@ interface BookingDetailRow {
   daily_rate: number; total_cost: number; contact_name: string | null;
   contact_email: string; contact_phone: string; driver_name: string | null;
   driver_dob: string | null; driver_licence_number: string | null;
-  driver_licence_expiry: string | null; id_document_path: string | null;
+  driver_licence_expiry: string | null; licence_verification_deferred: number;
+  id_document_path: string | null;
   licence_document_path: string | null; driver_id: string | null;
   vendor_id: string | null;
   vendor_name: string | null; vendor_client_name: string | null;
@@ -63,6 +64,7 @@ const getBooking = cache((id: string) => queryOne<BookingDetailRow>(
      b.driver_dob,
      b.driver_licence_number,
      b.driver_licence_expiry,
+     b.licence_verification_deferred,
      b.id_document_path,
      b.licence_document_path,
      b.driver_id,
@@ -279,6 +281,9 @@ export default async function BookingDetailPage({ params }: Props) {
             {isDryHire && booking.driver_dob && <Info label="Date of Birth" value={booking.driver_dob} />}
             {isDryHire && booking.driver_licence_number && <Info label="Licence Number" value={booking.driver_licence_number} />}
             {isDryHire && booking.driver_licence_expiry && <Info label="Licence Expiry" value={booking.driver_licence_expiry} />}
+            {isDryHire && Boolean(booking.licence_verification_deferred) && (
+              <Info label="Licence Verification" value="Customer will provide licence on the day of hire" />
+            )}
           </div>
           {(idDocUrl || licDocUrl) && (
             <div className="px-5 pb-5 flex gap-4">

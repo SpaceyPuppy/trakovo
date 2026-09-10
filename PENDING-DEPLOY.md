@@ -5,9 +5,48 @@ Update it as features are built. Clear it after each successful production deplo
 
 ---
 
-## Current pending version: v1.16.0 (Docker test pre-release: v1.16.0-docker.6)
+## Current pending version: v1.17.0
 
-## v1.16.0 — (unreleased)
+## v1.17.0 — (unreleased)
+
+### Customer licence verification
+
+- Dry-hire customers must either provide licence number and expiry online or elect to present
+  their licence for verification on the day of hire.
+- Vehicles configured with a licence class beyond `C` display a prominent eligibility and
+  cancellation warning in the public booking form.
+- Admin booking details and notification emails show when verification has been deferred.
+
+### Required database change
+
+Apply before starting the v1.17.0 application build. The change is additive and safe for the
+older application build; retain the column during an application rollback.
+
+```sql
+-- Preflight: expect zero rows before applying and one row afterwards.
+SELECT COLUMN_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'Booking'
+  AND COLUMN_NAME = 'licence_verification_deferred';
+
+ALTER TABLE `Booking`
+  ADD COLUMN `licence_verification_deferred` BOOLEAN NOT NULL DEFAULT false
+  AFTER `driver_licence_expiry`;
+```
+
+### Deploy checklist
+
+- [ ] Verify recoverable database and application backups.
+- [ ] Apply the migration above (automatic checksum-tracked migration for Docker; phpMyAdmin for cPanel).
+- [ ] Deploy v1.17.0 and restart the application.
+- [ ] Submit one dry-hire booking with licence details and confirm they appear in Admin.
+- [ ] Submit one dry-hire booking using on-the-day verification and confirm the Admin status.
+- [ ] Confirm a vehicle requiring `LR` shows the required-class cancellation warning.
+
+No new environment variables, dependencies, or scheduled jobs are required.
+
+## v1.16.0 — released 7 August 2026
 
 ### Docker test pre-release `v1.16.0-docker.6`
 
@@ -15,7 +54,8 @@ Update it as features are built. Clear it after each successful production deplo
 - Admin and vendor booking lists now default to table views with clickable sorting and clearer vendor/vehicle context.
 - Vendor bookings show the actual vehicle name and distinguish vendor organisation, contact, and direct vendor use when no third-party client is supplied.
 - No new SQL, environment variables, dependencies, or scheduled jobs are required for this release.
-- This is a Docker test pre-release only; production/cPanel deployment remains pending until VPS testing is complete.
+- Stable GitHub release, cPanel/OTA assets, and Docker image were published. Confirm the actual
+  production environment version before clearing older production-specific checklist items.
 
 ## v1.15.3 (production pending items)
 

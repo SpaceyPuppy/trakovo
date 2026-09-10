@@ -48,6 +48,7 @@ async function loadBooking(bookingId: string): Promise<{ booking: BookingRespons
     contact_name: string | null; contact_email: string; contact_phone: string;
     driver_name: string | null; driver_dob: string | null;
     driver_licence_number: string | null; driver_licence_expiry: string | null;
+    licence_verification_deferred: number;
     is_enquiry: number; vehicle_name: string | null; created_at: Date;
   }>(
     `SELECT b.*, v.name as vehicle_name

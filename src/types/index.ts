@@ -88,6 +88,9 @@ export interface DryHireBookingPayload {
   contact_phone: string
   driver_name: string    // actual driver (may differ from contact if contact is under 25)
   driver_dob: string     // actual driver's DOB
+  driver_licence_number?: string
+  driver_licence_expiry?: string
+  licence_verification_deferred: boolean
   agreement_accepted: true
 }
 
@@ -112,6 +115,7 @@ export interface BookingResponse<Status extends BookingResponseStatus = BookingS
   driver_dob?: string
   driver_licence_number?: string
   driver_licence_expiry?: string
+  licence_verification_deferred?: boolean
   id_document_url?: string
   licence_document_url?: string
   is_enquiry?: boolean
@@ -172,6 +176,9 @@ export interface BookingFormState {
   // dry hire — booker details
   driverName: string
   driverDob: string
+  driverLicenceNumber: string
+  driverLicenceExpiry: string
+  licenceVerificationDeferred: boolean
   agreed: boolean
   // dry hire — under-25 alternate driver
   under25Confirmed: boolean
@@ -189,7 +196,8 @@ export function freshBookingState(): BookingFormState {
   return {
     hireType: null, startDate: null, endDate: null,
     contactName: '', contactEmail: '', contactPhone: '',
-    driverName: '', driverDob: '', agreed: false,
+    driverName: '', driverDob: '', driverLicenceNumber: '', driverLicenceExpiry: '',
+    licenceVerificationDeferred: false, agreed: false,
     under25Confirmed: false, altDriverName: '', altDriverDob: '',
     tripLegs: [{ date: '', pickup: '', dropoff: '', pickupTime: '', dropoffTime: '' }],
     returnMode: 'none', returnTime: '', passengerCount: '', tripPurpose: '',
