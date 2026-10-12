@@ -8,7 +8,7 @@ const COPY = {
     leftHeading: <>We&apos;re getting<br />things<br /><em className="not-italic text-accent">ready.</em></>,
     leftBody: 'This site is currently under development. If you have preview access, enter your password below.',
     mobileSubtitle: 'Preview Access',
-    heading: 'Coming soon',
+    heading: 'Website temporarily unavailable',
     subheading: 'Enter your preview password to access the site',
     passwordLabel: 'Preview Password',
     footerLabel: 'Preview',

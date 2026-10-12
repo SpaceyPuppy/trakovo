@@ -3,6 +3,8 @@ import { parseHireAgreement } from '@/lib/hire-agreement-defaults'
 import HireAgreementEditor from './HireAgreementEditor'
 import QRDownloadJpg from './QRDownloadJpg'
 import type { Metadata } from 'next'
+import { getTaxiBookingConfig } from '@/lib/taxi-booking'
+import TaxiBookingSettings from './TaxiBookingSettings'
 
 export const metadata: Metadata = { title: 'Booking App' }
 export const revalidate = 0
@@ -15,9 +17,17 @@ export default async function BookingAppPage() {
   const siteUrl = (siteUrlRow?.value || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
   const bookingUrl = `${siteUrl}/book`
   const clauses = parseHireAgreement(agreementRow?.value)
+  const taxiConfig = await getTaxiBookingConfig()
 
   return (
     <div className="max-w-[640px] space-y-6">
+      <div className="bg-white border border-border rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-border bg-bg">
+          <h3 className="font-display font-bold text-[14px]">Taxi Bookings</h3>
+          <p className="text-[12.5px] text-ink-3 mt-0.5">Choose how customers book your taxi service from the public website.</p>
+        </div>
+        <div className="px-6 py-5"><TaxiBookingSettings initial={taxiConfig} /></div>
+      </div>
       <div className="bg-white border border-border rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border bg-bg">
           <h3 className="font-display font-bold text-[14px]">Mobile Booking App</h3>
