@@ -10,7 +10,7 @@ become. It distinguishes source-code capability from production deployment state
 | Environment | Version | State |
 |---|---:|---|
 | Production (cPanel) | v1.15.3 | Owner confirmed 12 October 2026; owner-managed OTA upgrade pending |
-| Current source version | v1.18.1 | Taxi phone-booking update with safe cPanel packaging; verify release assets separately |
+| Current repository release | v1.18.1 | Stable GitHub release and cPanel/OTA assets published and verified; production installation pending |
 | Next release | Not selected | No release beyond v1.18.1 is currently selected |
 
 Do not describe pending-release features as live until the SQL, deployment, and smoke-test items in

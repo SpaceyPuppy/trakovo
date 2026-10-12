@@ -7,7 +7,12 @@ GitHub release does not mean production has been upgraded. The VPS migration has
 
 ## Current pending version: v1.18.1
 
-## v1.18.1 — (unreleased)
+## v1.18.1 — released 12 October 2026 (production deployment pending)
+
+[GitHub release](https://github.com/SpaceyPuppy/trakovo/releases/tag/v1.18.1) published
+all three assets after successful release CI. The downloaded OTA bundle's SHA-256,
+package version, BUILD_ID and environment-file exclusions were verified. This does
+not complete any production SQL or installation checklist item below.
 
 This supersedes the withdrawn v1.18.0 package. cPanel archives now exclude the
 Docker-only standalone tree (which can contain environment files), and packaging
