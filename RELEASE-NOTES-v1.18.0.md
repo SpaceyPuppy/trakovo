@@ -1,5 +1,9 @@
 # Trakovo v1.18.0
 
+**Withdrawn during packaging verification. Use v1.18.1 instead.** The cPanel ZIPs
+included a Docker-only standalone tree containing an environment file. The corrected
+packager excludes it and rejects unexpected environment files.
+
 ## Taxi phone bookings
 
 - Taxi links on the booking picker, homepage and services page open a call-to-book dialog.
