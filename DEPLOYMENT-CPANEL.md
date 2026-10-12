@@ -67,6 +67,8 @@ The script reads `version`/`build_label` from `package.json` and produces:
 - `next-bundle-vX.X.X.zip` — `.next` plus `package.json` for the OTA updater.
 
 Neither artifact contains production secrets or persistent uploads.
+The packaging script excludes Next.js cache and the Docker-only `.next/standalone`
+tree, and rejects archives containing environment files other than `.env.example`.
 
 ## Fresh installation
 

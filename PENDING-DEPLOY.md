@@ -5,9 +5,13 @@
 Production uses cPanel shared hosting. The owner manages installation; publishing a
 GitHub release does not mean production has been upgraded. The VPS migration has not occurred.
 
-## Current pending version: v1.18.0
+## Current pending version: v1.18.1
 
-## v1.18.0 — (unreleased)
+## v1.18.1 — (unreleased)
+
+This supersedes the withdrawn v1.18.0 package. cPanel archives now exclude the
+Docker-only standalone tree (which can contain environment files), and packaging
+fails if an unexpected environment file is included. Use v1.18.1, not v1.18.0.
 
 - Taxi is advertised as an available service, without public Coming Soon labels.
 - Choosing Taxi opens a call-to-book dialog instead of loading the online taxi flow.
@@ -20,13 +24,13 @@ GitHub release does not mean production has been upgraded. The VPS migration has
 
 ### Upgrade directly from v1.15.3 using OTA
 
-There is no need to install v1.16.0 or v1.17.0 separately. v1.18.0 includes the v1.16
+There is no need to install intermediate releases. v1.18.1 includes the v1.16
 portal refresh and v1.17 customer licence-verification changes.
 
 1. Back up the database and current application bundle, including `package.json`.
 2. Apply the **one** outstanding schema change below through phpMyAdmin, before deploying.
-3. Admin → Settings → Updates → Check for Updates → deploy v1.18.0, or upload
-   `next-bundle-v1.18.0.zip`. The updater replaces `.next`/`package.json` and restarts Passenger.
+3. Admin → Settings → Updates → Check for Updates → deploy v1.18.1, or upload
+   `next-bundle-v1.18.1.zip`. The updater replaces `.next`/`package.json` and restarts Passenger.
 4. Run the focused checks below. Record the live version and completion here only after
    the owner confirms installation and checks.
 
@@ -63,7 +67,7 @@ existing database, and do not reapply historical v1.15 billing migrations.
 ### Focused post-deploy checklist
 
 - [ ] Backups verified; licence-verification column present before OTA deployment.
-- [ ] v1.18.0 installed and Passenger restarted; admin login remains healthy.
+- [ ] v1.18.1 installed and Passenger restarted; admin login remains healthy.
 - [ ] Admin → Settings → Booking App shows 0488 838 442 and online taxi bookings off.
 - [ ] Taxi on `/book`, the homepage, and `/services` opens a working call dialog; no
       taxi map or location prompt appears.
@@ -91,5 +95,6 @@ drop the new column or undo billing data as an application rollback step.
 - v1.15.3: production version confirmed by owner on 12 October 2026; historical
   billing acceptance checks were not reverified in this release session.
 - v1.16.0 and v1.17.0: releases published, not yet installed on this production instance.
+- v1.18.0: withdrawn during packaging verification; superseded by v1.18.1.
 - The previous audited SQL and historical checklists are preserved in
   [`docs/archive/PENDING-DEPLOY-v1.17.0.md`](docs/archive/PENDING-DEPLOY-v1.17.0.md).

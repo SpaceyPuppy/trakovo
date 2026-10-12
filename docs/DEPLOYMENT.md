@@ -8,7 +8,7 @@ ordering, and verification are controlled by [`PENDING-DEPLOY.md`](../PENDING-DE
 
 ## Current release gate
 
-The current source version is v1.18.0. The owner confirmed production is still v1.15.3
+The current source version is v1.18.1. The owner confirmed production is still v1.15.3
 on cPanel shared hosting (12 October 2026), and manages the OTA installation. Follow the
 direct-upgrade SQL and checks in `PENDING-DEPLOY.md`; publishing assets is not deployment.
 

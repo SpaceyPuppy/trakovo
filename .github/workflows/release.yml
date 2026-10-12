@@ -54,7 +54,9 @@ jobs:
 
       - name: Create cPanel artifacts
         shell: pwsh
-        run: ./make-zip.ps1
+        run: |
+          ./tests/cpanel-packaging.test.ps1
+          ./make-zip.ps1
 
       - name: Create Docker deployment bundle
         shell: pwsh

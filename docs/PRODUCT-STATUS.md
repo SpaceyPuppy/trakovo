@@ -10,8 +10,8 @@ become. It distinguishes source-code capability from production deployment state
 | Environment | Version | State |
 |---|---:|---|
 | Production (cPanel) | v1.15.3 | Owner confirmed 12 October 2026; owner-managed OTA upgrade pending |
-| Current source version | v1.18.0 | Taxi phone-booking update; verify tag and release assets separately |
-| Next release | Not selected | No release beyond v1.18.0 is currently selected |
+| Current source version | v1.18.1 | Taxi phone-booking update with safe cPanel packaging; verify release assets separately |
+| Next release | Not selected | No release beyond v1.18.1 is currently selected |
 
 Do not describe pending-release features as live until the SQL, deployment, and smoke-test items in
 [`PENDING-DEPLOY.md`](../PENDING-DEPLOY.md) have been completed.
@@ -81,7 +81,7 @@ experience, followed by acceptance and dispatch coordination.
 
 ## Current priorities
 
-1. Upgrade the owner-confirmed v1.15.3 cPanel installation to v1.18.0 with its documented
+1. Upgrade the owner-confirmed v1.15.3 cPanel installation to v1.18.1 with its documented
    SQL and smoke checks; keep public taxi bookings in phone mode until online launch.
 2. Finish launch-critical taxi request quality: phone normalisation, SMS wording/delivery,
    address/landmark search, error recovery, and operator visibility.
