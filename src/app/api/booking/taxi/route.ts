@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { execute, newId, generatePublicId, queryOne } from '@/lib/db'
 import { sendSmsNotification } from '@/lib/sms-templates'
+import { getTaxiBookingConfig } from '@/lib/taxi-booking'
 
 export async function POST(req: NextRequest) {
   try {
+    const config = await getTaxiBookingConfig()
+    if (!config.onlineBookingEnabled) {
+      return NextResponse.json({ error: 'Please contact our team to book a taxi.', phone: config.phone, phone_href: config.phoneHref }, { status: 403 })
+    }
     const body = await req.json()
     const {
       contact_name, contact_phone,

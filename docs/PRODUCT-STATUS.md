@@ -1,6 +1,6 @@
 # Trakovo Product Status
 
-Last reviewed: 10 September 2026
+Last reviewed: 12 October 2026
 
 This document is the canonical summary of what Trakovo is today and what it is intended to
 become. It distinguishes source-code capability from production deployment state.
@@ -9,9 +9,9 @@ become. It distinguishes source-code capability from production deployment state
 
 | Environment | Version | State |
 |---|---:|---|
-| Production | Unverified | Confirm the running version before deployment; the previous v1.14.4 record is stale |
-| Current repository release | v1.17.0 | Stable tag, release assets, and container image published |
-| Next release | Not selected | No later source release is currently in preparation |
+| Production (cPanel) | v1.15.3 | Owner confirmed 12 October 2026; owner-managed OTA upgrade pending |
+| Current source version | v1.18.0 | Taxi phone-booking update; verify tag and release assets separately |
+| Next release | Not selected | No release beyond v1.18.0 is currently selected |
 
 Do not describe pending-release features as live until the SQL, deployment, and smoke-test items in
 [`PENDING-DEPLOY.md`](../PENDING-DEPLOY.md) have been completed.
@@ -22,8 +22,10 @@ The long-term product is a full rideshare-style booking system: passengers reque
 eligible drivers are notified, a driver accepts the work, and both sides receive reliable
 trip status and location updates.
 
-The near-term launch mode is deliberately simpler: **request and confirm**. A passenger can
-submit a taxi request, the business receives it, and staff confirm and dispatch it manually.
+The current public taxi mode is **call to book**, using 0488 838 442 by default. Admins
+can change the number and explicitly launch online bookings in Settings → Booking App.
+When enabled, online booking uses **request and confirm**: a passenger can submit a taxi
+request, the business receives it, and staff confirm and dispatch it manually.
 The next operational milestone is instant notification to drivers through a companion driver
 experience, followed by acceptance and dispatch coordination.
 
@@ -36,7 +38,8 @@ experience, followed by acceptance and dispatch coordination.
   licence uploads for relevant hire flows.
 - Dry-hire customers can provide licence details online or elect verification on the day of
   hire; vehicles can display a clear warning when a licence class beyond `C` is required.
-- A mobile-oriented `/book` service picker and taxi request flow.
+- A mobile-oriented `/book` service picker, call-to-book taxi dialog and admin-controlled
+  online taxi request flow. Public direct URLs and submissions respect phone-only mode.
 - Mapbox map display, address search/geocoding, pickup and destination selection, and route
   presentation when configuration and browser permissions are available.
 - Server-side taxi request creation with a pending/requested state.
@@ -68,18 +71,18 @@ experience, followed by acceptance and dispatch coordination.
 | Taxi dispatch | Requests are stored and staff can act on them; there is no automatic driver matching, offer queue, acceptance race, or dispatch state machine. |
 | Driver notification | General messaging/push pieces exist, but taxi requests are not delivered as reliable per-driver offers with acknowledgement and fallback. |
 | Live tracking | No production passenger/driver live-location channel, trip telemetry, ETA refresh loop, or location-retention policy. |
-| Rideshare service | The passenger choice is a coming-soon placeholder, not an operational service. |
+| Rideshare service | Not operational; hidden from public service choices and its old URL redirects to `/book`. |
 | Ratings | Feature-toggle and rating infrastructure exists, but it is not connected to a verified end-to-end completed-trip lifecycle. |
 | PWA | Manifest/icons and some web-push infrastructure exist; offline behaviour, install reliability, update handling, and passenger/driver push lifecycle are incomplete. |
 | Native mobile | No Android or iPhone application is present. The web UI is mobile-oriented but is not a substitute for background location, dependable push, and native-store release work. |
 | SMS | Integration and templates exist, but launch-blocking formatting, address/POI content, delivery visibility, retry, and failure-handling work remains. |
 | Mapping | Core Mapbox flow exists; local landmark/POI search quality and address presentation require refinement. |
-| Testing | TypeScript, lint, and builds can be checked, but there is no committed automated regression suite for booking, dispatch, billing, or integrations. |
+| Testing | Focused taxi phone-mode/configuration/API regression tests exist; broader booking, dispatch, billing and integration coverage remains incomplete. |
 
 ## Current priorities
 
-1. Confirm the live production version, reconcile outstanding deployment items, and deploy the
-   intended release with its documented SQL and smoke checks.
+1. Upgrade the owner-confirmed v1.15.3 cPanel installation to v1.18.0 with its documented
+   SQL and smoke checks; keep public taxi bookings in phone mode until online launch.
 2. Finish launch-critical taxi request quality: phone normalisation, SMS wording/delivery,
    address/landmark search, error recovery, and operator visibility.
 3. Operate the request-and-confirm model with explicit status rules and measurable manual

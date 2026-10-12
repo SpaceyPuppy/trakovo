@@ -5,11 +5,13 @@ import VehicleCard from '@/components/ui/VehicleCard'
 import ServicesPanel from './ServicesPanel'
 import { getVehicles } from '@/lib/api'
 import { queryOne } from '@/lib/db'
+import { getTaxiBookingConfig } from '@/lib/taxi-booking'
 import type { Vehicle } from '@/types'
 
-export const revalidate = 60
+export const revalidate = 0
 
 export default async function HomePage() {
+  const taxiConfig = await getTaxiBookingConfig()
   let vehicles: Vehicle[] = []
   try { vehicles = await getVehicles() } catch { /* show page without vehicles if DB unavailable */ }
 
@@ -34,7 +36,7 @@ export default async function HomePage() {
 
           {/* Right — services + CTA (25%) */}
           <div className="w-full md:w-1/4 bg-gradient-to-br from-[#1e2535] to-[#151b28] flex items-center justify-center px-6 py-10 md:py-16">
-            <ServicesPanel compact />
+            <ServicesPanel compact taxiConfig={taxiConfig} />
           </div>
         </section>
       ) : (
@@ -74,7 +76,7 @@ export default async function HomePage() {
 
           {/* Right panel — Service highlights */}
           <div className="relative bg-gradient-to-br from-[#1e2535] to-[#151b28] flex items-center justify-center px-6 py-10 md:px-10 md:py-16">
-            <ServicesPanel />
+            <ServicesPanel taxiConfig={taxiConfig} />
           </div>
         </section>
       )}

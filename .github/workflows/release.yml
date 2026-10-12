@@ -26,6 +26,7 @@ jobs:
 
       - name: Verify and build release
         run: |
+          node --test tests/taxi-booking.test.cjs
           npm run lint
           npx tsc --noEmit
           npm run build

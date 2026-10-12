@@ -3,10 +3,14 @@ import Footer from '@/components/ui/Footer'
 import CorporateEnquiryForm from './CorporateEnquiryForm'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import TaxiBookingLink from '@/components/book/TaxiBookingLink'
+import { getTaxiBookingConfig } from '@/lib/taxi-booking'
+
+export const revalidate = 0
 
 export const metadata: Metadata = {
   title: 'Our Services',
-  description: 'From chauffeured hire and self-drive to professional business transport — explore the full range of services we offer.',
+  description: 'Taxi services for local and regional trips, chauffeured hire, self-drive and professional business transport. Contact us to arrange your journey.',
 }
 
 const SERVICE_TYPES = [
@@ -15,7 +19,6 @@ const SERVICE_TYPES = [
     title: 'Chauffeured Hire',
     desc: 'Professional drivers for executive travel, airport transfers, and special occasions. Sit back and travel in comfort while we handle the journey.',
     href: '/vehicles?hire=chauffeur',
-    comingSoon: false,
     cta: 'Browse vehicles →',
   },
   {
@@ -23,31 +26,20 @@ const SERVICE_TYPES = [
     title: 'Self-Drive (Dry Hire)',
     desc: 'Take the wheel yourself. Choose from our fleet for day hire, weekend getaways, or extended rental — fully flexible on your schedule.',
     href: '/vehicles?hire=selfdrive',
-    comingSoon: false,
     cta: 'Browse vehicles →',
   },
   {
     icon: '🚕',
     title: 'Taxi',
-    desc: 'On-demand taxi bookings for local and regional trips. Available soon through our updated booking platform.',
-    href: null,
-    comingSoon: true,
-    cta: null,
-  },
-  {
-    icon: '🚗',
-    title: 'Rideshare',
-    desc: 'Shared ride options for cost-effective everyday travel. Coming soon as part of our expanded transport network.',
-    href: null,
-    comingSoon: true,
-    cta: null,
+    desc: 'Taxi services are available for local and regional trips. Contact our team to arrange your pickup.',
+    href: '/book/taxi',
+    cta: 'Book a taxi →',
   },
   {
     icon: '🏢',
     title: 'Professional Services',
     desc: 'Tailored corporate transport for businesses, conferences, delegations, and events. Account-based billing with priority availability.',
     href: '#professional-services',
-    comingSoon: false,
     cta: 'Learn more →',
   },
 ]
@@ -94,7 +86,8 @@ const REASONS = [
   'Consolidated invoicing for easy expense management',
 ]
 
-export default function ServicesPage() {
+export default async function ServicesPage() {
+  const taxiConfig = await getTaxiBookingConfig()
   return (
     <>
       <NavWrapper />
@@ -124,17 +117,18 @@ export default function ServicesPage() {
           <h2 className="font-display font-bold text-[clamp(22px,3vw,32px)] tracking-tight mb-10">Transport for every need</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {SERVICE_TYPES.map(({ icon, title, desc, href, comingSoon, cta }) => (
-              <div key={title} className={`bg-white border border-border rounded-xl p-6 flex flex-col ${comingSoon ? 'opacity-60' : ''}`}>
+            {SERVICE_TYPES.map(({ icon, title, desc, href, cta }) => (
+              <div key={title} className="bg-white border border-border rounded-xl p-6 flex flex-col">
                 <span className="text-[28px] block mb-4">{icon}</span>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <h3 className="font-display font-bold text-[15px]">{title}</h3>
-                  {comingSoon && (
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.08em] bg-ink-5/60 text-ink-3 px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5">Coming Soon</span>
-                  )}
                 </div>
                 <p className="text-[13.5px] text-ink-3 leading-[1.7] flex-1 mb-4">{desc}</p>
-                {!comingSoon && href && cta && (
+                {href === '/book/taxi' ? (
+                  <TaxiBookingLink config={taxiConfig} className="text-[13px] font-semibold text-accent hover:text-accent-dark transition-colors">
+                    {taxiConfig.onlineBookingEnabled ? cta : `Call ${taxiConfig.phone} to book →`}
+                  </TaxiBookingLink>
+                ) : (
                   <Link
                     href={href}
                     className="text-[13px] font-semibold text-accent hover:text-accent-dark transition-colors"

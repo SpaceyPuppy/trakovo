@@ -6,6 +6,10 @@ A quick reference for wrapping up a dev session, versioning, and pushing to GitH
 
 ## Every Session — Commit & Push
 
+Work on a feature branch and open a pull request against `main`. Review the scoped diff
+and necessary checks before merging. Preserve unrelated local changes; stage explicit
+paths when the checkout contains user-owned files.
+
 At the end of any session where you've made changes:
 
 ```bash
@@ -62,6 +66,13 @@ Open `package.json` and edit the version field:
 
 ## Tagging a Release on GitHub
 
+Tag the merged `main` commit, not an unmerged feature branch. Stable tags trigger
+`.github/workflows/release.yml` to build and publish the full cPanel ZIP, OTA bundle and
+Docker deployment ZIP from the committed source and `RELEASE-NOTES-vX.X.X.md`.
+The container-image workflow publishes the tagged image separately. Confirm the release
+workflow succeeded and the OTA asset exists before handing an update to the installer;
+do not create a competing manual release while that workflow is running.
+
 A tag marks a specific commit as a named release point, visible in GitHub
 under **Releases / Tags**.
 
@@ -91,8 +102,10 @@ After pushing, the tag will appear on GitHub at:
 - [ ] Update version in `package.json`
 - [ ] Read `PENDING-DEPLOY.md` and verify its SQL/configuration steps against the release
 - [ ] Commit all changes with a descriptive message
+- [ ] Push the feature branch, open/review its pull request, and merge to `main`
 - [ ] Tag the release (`git tag vX.X.X`)
 - [ ] Push commits and tags (`git push && git push --tags`)
+- [ ] Verify successful release publication, version and OTA bundle contents
 - [ ] If deploying: follow `docs/DEPLOYMENT.md` and `DEPLOYMENT-CPANEL.md`
 
 ---
