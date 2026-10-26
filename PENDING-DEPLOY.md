@@ -2,7 +2,27 @@
 
 ## Current pending version: v1.20.1
 
-## v1.20.1 — (unreleased)
+## v1.20.1 — released 27 October 2026 (owner installation pending)
+
+[GitHub release](https://github.com/SpaceyPuppy/trakovo/releases/tag/v1.20.1) published
+after PR #19 passed both required jobs and merged. Release and container workflows passed.
+Downloaded published assets were independently checked:
+
+- OTA: next-bundle-v1.20.1.zip, 4,114,006 bytes, 1,035 entries.
+  SHA-256: `f6781f75f1c88e19e5883b748e6d358d91014c423e741fb9da0950ad5efba354`.
+- Full: trakovo-v1.20.1.zip, 4,692,428 bytes.
+  SHA-256: `e478245f8fb4cc93c1fa58ebe8806a79906a65a33201096ff2cc0b5f05c76c2c`.
+- Both contain the same compiled build (BUILD_ID RH1hcUHQAUogjHyFCv9SX). The existing
+  updater accepted the OTA; ZIP paths/content checks and the six-value private
+  credential scan passed. The published Linux package was compared with v1.19.0:
+  dependencies/locks (apart from root version labels), engines, scripts, startup/root
+  configuration and public assets are unchanged. The compatible OTA is verified.
+- The category repair SQL is a separate asset on both v1.20.0 and v1.20.1. Its SHA-256
+  is `7c29c2bd2eaab1805a438e55a81d6722a7b1c9c25d5d6a5880c6af08ad457ddf`.
+  Original v1.20.0 ZIPs, tag and checksums are unchanged.
+
+Publication has not changed the production application. Packaged deployment notes
+predate this publication record; the installation/configuration instructions still apply.
 
 Validation: 35 focused tests, TypeScript, Windows/Linux production builds and packaging
 checks passed. Dependency audit found zero known vulnerabilities. Lint reports no errors
@@ -10,6 +30,9 @@ and 15 existing warnings. CI's real MariaDB check reproduced #1071 with a MyISAM
 then verified the repair, preserved data/assignments, repeat execution, both cascading
 foreign keys and the fresh schema's explicit engines. Local browser verification uses
 disposable in-memory fixtures; real production delivery remains an owner check.
+Browser checks confirmed desktop/mobile button order, the green badge and no Chauffeur
+filter, an Admin category change after saving, and the resulting vehicle selections on
+both website and /book. Temporary preview tabs/server were closed after verification.
 
 The four main service buttons across desktop/mobile website layouts and the booking
 app now read Self-Drive Buses, Chauffeured Hire, Special Occasions, Taxi, in that order.
@@ -30,6 +53,24 @@ confirmed all three repair statements succeeded: convert FleetCategory to InnoDB
 create VehicleFleetCategory as InnoDB/DYNAMIC with both cascading foreign keys, and
 add Bus only if absent. **That repair is complete; do not repeat it on this server.**
 Fleet visibility and real enquiry delivery still need explicit post-deployment checks.
+
+The latest repair screenshots did not independently confirm Vehicle.enquiry_only.
+Before OTA, run these read-only checks in phpMyAdmin. Expect that column to exist and
+all three tables to use InnoDB; the column should be non-nullable tinyint(1), default 0.
+If the column is absent, apply only 0003 before updating. This is an existing v1.20
+prerequisite, not a new v1.20.1 schema change.
+
+```sql
+SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'ckbservi_trakovo'
+  AND TABLE_NAME = 'Vehicle' AND COLUMN_NAME = 'enquiry_only';
+
+SELECT TABLE_NAME, ENGINE
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = 'ckbservi_trakovo'
+  AND TABLE_NAME IN ('Vehicle', 'FleetCategory', 'VehicleFleetCategory');
+```
 
 - No new schema, environment variables, dependencies or cron jobs are required for
   v1.20.1 on this repaired v1.20.0 installation. Button assignments use existing Setting.

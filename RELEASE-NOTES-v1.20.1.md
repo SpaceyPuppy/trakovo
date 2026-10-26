@@ -18,6 +18,9 @@ available if GitHub checking/downloading still reports Fetch failed. Back up the
 database, .next and package.json first. No dependency install, environment change or
 server build is needed from the fully installed v1.19.0+ platform with the v1.20 SQL.
 
+Published OTA SHA-256:
+`f6781f75f1c88e19e5883b748e6d358d91014c423e741fb9da0950ad5efba354`.
+
 **For the owner's repaired v1.20.0 server, no further SQL is required.** The owner
 confirmed the FleetCategory InnoDB conversion, missing assignment table creation and
 Bus seed succeeded. Other installations must inspect their schema first: apply 0003
