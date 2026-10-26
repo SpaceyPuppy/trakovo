@@ -19,14 +19,29 @@ Escape close the dropdown; the separate desktop disclosure button supports keybo
 
 ## Installation
 
-Full cPanel package: trakovo-v1.20.0.zip. Do not upload this ZIP to Admin OTA Updates.
-Apply only missing database changes from 0003-v1.20.0-enquiry-only-vehicles.sql and
-0004-v1.20.0-fleet-categories.sql after the preflight in PENDING-DEPLOY.md. No new runtime
+**OTA update available from a fully installed v1.19.0 baseline. Apply SQL first.**
+Download `next-bundle-v1.20.0.zip` and use Admin -> Settings -> Updates -> Manual Deploy,
+or Pull & Deploy if the server can reach GitHub. SHA-256:
+`3132c3367630a9ebf04dc1727deb3a52dcf5d82403686cf0ee39fdc70f8ef73d`.
+
+Before deployment, apply only missing database changes from
+`0003-v1.20.0-enquiry-only-vehicles.sql` and `0004-v1.20.0-fleet-categories.sql` after
+the preflight in PENDING-DEPLOY.md. Both SQL files are separate release assets.
+The OTA installer does not apply SQL: missing category tables can make both vehicle
+lists appear empty. Do not repeat successful SQL or import the fresh schema.
+
+No new runtime
 dependencies, environment variables or cron jobs. Keep patched Node 24.22.1+ (24.x).
 No server build is needed. Assign existing buses to Bus after deployment; no vehicles
 are classified automatically. Never import the fresh schema over production.
 
-Back up before installation. For rollback, restore the matching v1.19.0 app/manifests/
-dependency environment while retaining additive SQL and host security patches.
+The full `trakovo-v1.20.0.zip` remains available for fresh/manual cPanel installations;
+do not upload that full ZIP to Admin OTA Updates. Original full/Docker assets and tag
+are unchanged. The OTA uses the original full package's compiled Linux build.
+
+Back up the current build, package manifests and database before installation. For OTA
+rollback, restore the previous build and matching package.json (the existing one-click
+rollback restores the build only). Retain additive SQL and host security patches.
+For full-install rollback, restore the matching complete application/dependency backup.
 Production deployment, real enquiry/email delivery and host security follow-up remain
 owner-managed; publishing the release does not perform them.

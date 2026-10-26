@@ -65,6 +65,22 @@ try {
     if (-not (Test-Path -LiteralPath (Join-Path $fullFixture 'trakovo-v0.0.0.zip'))) { throw 'Full release was not created.' }
     if (Test-Path -LiteralPath (Join-Path $fullFixture 'next-bundle-v0.0.0.zip')) { throw 'Full-install release produced an unsafe OTA asset.' }
     Write-Host 'PASS: full-install releases produce the full cPanel package and omit the OTA bundle.'
+
+    [IO.File]::WriteAllText((Join-Path $fullFixture 'package.json'), '{"version":"0.0.0","deployment":{"requires_full_install":false,"minimum_ota_version":"0.0.0"}}')
+    Push-Location $fullFixture
+    try { & $scriptPath } finally { Pop-Location }
+    $otaArchivePath = Join-Path $fullFixture 'next-bundle-v0.0.0.zip'
+    if (-not (Test-Path -LiteralPath $otaArchivePath)) { throw 'Compatible release did not produce an OTA bundle.' }
+    Assert-CpanelArchive $otaArchivePath
+    $otaArchive = [IO.Compression.ZipFile]::OpenRead($otaArchivePath)
+    try {
+        foreach ($entry in $otaArchive.Entries) {
+            if ($entry.FullName.Contains('\')) { throw 'ZIP entry uses Windows path separators.' }
+            if ($entry.FullName -ne 'package.json' -and -not $entry.FullName.StartsWith('.next/')) { throw 'Unexpected file in OTA archive.' }
+        }
+        if (-not $otaArchive.GetEntry('.next/BUILD_ID')) { throw 'OTA build metadata is not portable.' }
+    } finally { $otaArchive.Dispose() }
+    Write-Host 'PASS: compatible releases produce a portable OTA archive alongside the full package.'
 } finally {
     Remove-PackagingPath $testRoot
 }

@@ -1,6 +1,6 @@
 # Pending Production Deployment
 
-## Last confirmed production version: v1.19.0
+## Last confirmed working production version: v1.19.0
 
 Owner confirmed on 26 October 2026: full package checksum matched, backups completed,
 Node app stopped for replacement, SQL preflight and showcase columns passed, NPM install
@@ -8,6 +8,11 @@ succeeded, Node 24.22.1 and runtime packages matched the release. After starting
 new navigation, Special Occasions and admin login all passed. Installation is owner-managed.
 The earlier installation checklist is archived in docs/archive/PENDING-DEPLOY-v1.19.0.md;
 its completed SQL and framework installation steps must not be repeated.
+
+Owner subsequently reported a manual v1.20.0 update with both vehicle lists empty.
+Whether the new SQL has been applied is not yet confirmed. Check the database count,
+new column and category tables before assuming a filesystem permission issue. Production
+v1.20.0 is not recorded as fully verified until those checks and fleet visibility pass.
 
 ## Current pending version: v1.20.0
 
@@ -19,7 +24,18 @@ The downloaded full cPanel asset was verified: 4,668,675 bytes, 1,366 ZIP entrie
 required build/schema/docs present, zero unsafe entries or preview hooks, and no
 occurrences of the six checked private credential values. SHA-256:
 `fbf5cf4023225234924fca91126e4e8f67b249a4c891c216c43e74a0a56081f3`.
-No OTA asset was published. The Docker bundle is a separate deployment option.
+An OTA asset was subsequently added on 26 October at the owner's request. The original
+full package, Docker bundle and tag are unchanged. OTA is now the default for future
+compatible releases; see DEPLOYMENT-CPANEL.md for the full-install-only exceptions.
+
+OTA asset: `next-bundle-v1.20.0.zip` (4,089,390 bytes; 1,030 entries).
+SHA-256: `3132c3367630a9ebf04dc1727deb3a52dcf5d82403686cf0ee39fdc70f8ef73d`.
+The downloaded published OTA checksum matches. It uses byte-identical compiled files
+and BUILD_ID from the published Linux full package, is accepted by the existing OTA
+validator, and passed the six-value private credential scan. Comparison with v1.19.0
+confirmed unchanged dependency locks (apart from root version labels), engines, scripts,
+startup/configuration and public assets. The only manifest changes are compatible OTA
+deployment metadata. SQL files 0003 and 0004 are also separate release downloads.
 
 Validation: 28 focused tests, TypeScript, Windows/Linux production builds, dependency
 audit (zero known vulnerabilities), and packaging checks passed. Lint has no errors
@@ -32,8 +48,9 @@ post-deployment check. Publication has not changed the production installation.
 The packaged guide predates this publication record; its installation steps still apply.
 
 Enquiry-only public vehicles, editable fleet categories, homepage category tiles and
-hover/touch occasion navigation. Use the full trakovo-v1.20.0.zip package through cPanel,
-not Admin OTA upload. No dependency, Node, environment-variable or cron changes are added
+hover/touch occasion navigation. Use the OTA bundle from the fully installed v1.19.0
+baseline after applying the required SQL; the full ZIP is an alternative cPanel install.
+No dependency, Node, environment-variable or cron changes are added
 by this release. Existing patched Node 24.22.1+ (24.x) and dependencies are retained.
 
 ### Required database changes — before the new build starts
@@ -63,7 +80,26 @@ WHERE TABLE_SCHEMA = 'ckbservi_trakovo'
       exists, inspect both definitions and existing data; do not rerun CREATE or seed SQL.
       Do not import prisma/init.sql or reapply the v1.17/v1.19 migrations.
 
-### Install — owner-managed cPanel
+### Install — OTA from v1.19.0 (preferred)
+
+1. Confirm the installed Node/dependencies are the verified v1.19.0 baseline. This OTA
+   is not suitable for a server still on v1.18.x or earlier; complete the full v1.19.0
+   platform upgrade first. Minimum-version/SQL manifest fields are informational to
+   older installed updaters and do not substitute for these manual checks.
+2. Back up the database, current .next and package.json. Apply only absent SQL as above
+   while the old build is running, before swapping the build. Do not import init.sql.
+3. Download next-bundle-v1.20.0.zip from the release and verify its checksum above.
+   In Admin -> Settings -> Updates, use Manual Deploy if GitHub checking/downloading
+   still says Fetch failed. Upload only the next-bundle ZIP, then Deploy. The existing
+   updater backs up .next, sets build file/directory permissions and restarts Passenger.
+4. Alternatively use Pull & Deploy once server-to-GitHub connectivity works. Publishing
+   the asset does not diagnose or fix the earlier Fetch failed connection error.
+5. Verify version, fleet listings and the feature checks below after restart. The OTA
+   does not create SQL tables, update dependencies, copy public files or alter host config.
+   If v1.20.0 was already manually installed, resolve missing SQL/permissions before
+   deciding whether another build deployment is needed.
+
+### Install — full-package cPanel alternative
 
 1. Back up the database, complete app, private configuration and external uploads.
 2. Verify the published full package checksum. Stop the Node app in cPanel.
@@ -139,3 +175,6 @@ configuration and dependency environment from backup. Keep patched Node/PHP and 
 additive column/tables in place; no data deletion is required for application rollback.
 Restart and check login and normal booking. Leave uploads and unrelated booking/billing
 records intact. Record the actual version/date and completed checks after owner confirmation.
+For an OTA-only rollback on the verified dependency baseline, restore the previous .next
+and its matching package.json. Existing one-click rollback restores .next only. Leave the
+additive schema in place and do not remove category assignments to roll back application code.

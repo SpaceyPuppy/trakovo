@@ -7,7 +7,12 @@
     "node": ">=24.22.1 <25"
   },
   "deployment": {
-    "requires_full_install": true
+    "requires_full_install": false,
+    "minimum_ota_version": "1.19.0",
+    "required_sql": [
+      "database/migrations/0003-v1.20.0-enquiry-only-vehicles.sql",
+      "database/migrations/0004-v1.20.0-fleet-categories.sql"
+    ]
   },
   "scripts": {
     "dev": "next dev",
