@@ -4,6 +4,13 @@
 
 ## v1.20.1 — (unreleased)
 
+Validation: 35 focused tests, TypeScript, Windows/Linux production builds and packaging
+checks passed. Dependency audit found zero known vulnerabilities. Lint reports no errors
+and 15 existing warnings. CI's real MariaDB check reproduced #1071 with a MyISAM default,
+then verified the repair, preserved data/assignments, repeat execution, both cascading
+foreign keys and the fresh schema's explicit engines. Local browser verification uses
+disposable in-memory fixtures; real production delivery remains an owner check.
+
 The four main service buttons across desktop/mobile website layouts and the booking
 app now read Self-Drive Buses, Chauffeured Hire, Special Occasions, Taxi, in that order.
 The first two display only vehicles in their assigned categories. Configure each under
