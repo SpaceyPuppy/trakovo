@@ -1,6 +1,6 @@
 # Trakovo Deployment
 
-Last reviewed: 12 October 2026
+Last reviewed: 26 October 2026
 
 This is the canonical deployment overview. The detailed cPanel procedure is
 [`DEPLOYMENT-CPANEL.md`](../DEPLOYMENT-CPANEL.md). Release-specific SQL, configuration,
@@ -8,9 +8,11 @@ ordering, and verification are controlled by [`PENDING-DEPLOY.md`](../PENDING-DE
 
 ## Current release gate
 
-The current source version is v1.18.1. The owner confirmed production is still v1.15.3
-on cPanel shared hosting (12 October 2026), and manages the OTA installation. Follow the
-direct-upgrade SQL and checks in `PENDING-DEPLOY.md`; publishing assets is not deployment.
+The current source version is v1.19.0. Production was last owner-confirmed as v1.15.3
+on cPanel shared hosting on 12 October 2026; its current live version must be checked.
+The owner manages installation. This release uses the full cPanel package, patched
+Node.js 24.22.1+ (24.x), dependency installation and manual SQL. Follow `PENDING-DEPLOY.md`;
+publishing assets is not deployment. No OTA asset is produced for v1.19.0.
 
 ## Sources of truth
 
@@ -28,9 +30,9 @@ If these disagree, stop the deployment and resolve the mismatch before changing 
 ## Release sequence
 
 1. Confirm the intended version and read `PENDING-DEPLOY.md` end to end.
-2. Validate locally with `npx tsc --noEmit`, `npm run lint`, and `npm run build`.
-3. Build the full release and OTA bundles with `make-zip.ps1`; verify their version and
-   contents.
+2. Validate locally with `npm run typecheck`, `npm run lint`, and `npm run build`.
+3. Build the full release with `make-zip.ps1`; verify its version and contents. OTA
+   bundles are produced only for releases that do not require full installation.
 4. Announce the maintenance window and pause writes when the release SQL requires it.
 5. Take and verify recoverable backups of the database, uploads, environment configuration,
    and current application bundle.

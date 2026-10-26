@@ -1,6 +1,6 @@
 # Trakovo Product Status
 
-Last reviewed: 12 October 2026
+Last reviewed: 26 October 2026
 
 This document is the canonical summary of what Trakovo is today and what it is intended to
 become. It distinguishes source-code capability from production deployment state.
@@ -9,9 +9,9 @@ become. It distinguishes source-code capability from production deployment state
 
 | Environment | Version | State |
 |---|---:|---|
-| Production (cPanel) | v1.15.3 | Owner confirmed 12 October 2026; owner-managed OTA upgrade pending |
-| Current repository release | v1.18.1 | Stable GitHub release and cPanel/OTA assets published and verified; production installation pending |
-| Next release | Not selected | No release beyond v1.18.1 is currently selected |
+| Production (cPanel) | v1.15.3 last confirmed | Owner confirmed 12 October 2026; actual current live version must be checked before installation |
+| Last published release | v1.18.1 | cPanel/OTA release published; installation remained pending at the last owner confirmation |
+| Current working release | v1.19.0 | Special Occasions, vehicle showcases and security update; full-package installation required; validation/publication in progress |
 
 Do not describe pending-release features as live until the SQL, deployment, and smoke-test items in
 [`PENDING-DEPLOY.md`](../PENDING-DEPLOY.md) have been completed.

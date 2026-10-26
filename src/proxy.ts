@@ -8,7 +8,7 @@ const MAINTENANCE_BYPASS_COOKIE = 'maintenance_bypass'
 // Paths that are always accessible regardless of lock mode
 const LOCK_EXCLUDED = ['/maintenance', '/api/maintenance-auth']
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // ── Site lock (development or maintenance mode) ───────────────────────────

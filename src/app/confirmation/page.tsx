@@ -11,7 +11,7 @@ const ConfirmationUploadCard = dynamic(() => import('@/components/booking/Confir
 export const revalidate = 0
 export const metadata: Metadata = { title: 'Booking Confirmed' }
 
-interface Props { searchParams: Record<string, string> }
+interface Props { searchParams: Promise<Record<string, string>> }
 interface Booking {
   id: string
   public_id: string
@@ -27,7 +27,8 @@ interface Booking {
   licence_verification_deferred: number
 }
 
-export default async function ConfirmationPage({ searchParams: sp }: Props) {
+export default async function ConfirmationPage(props: Props) {
+  const sp = await props.searchParams;
   const publicId = sp.ref ?? ''
   const isEnquiry = sp.enquiry === 'true'
 

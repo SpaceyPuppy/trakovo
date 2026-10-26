@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import type { ReactElement } from 'react'
 import { NextRequest } from 'next/server'
 import { queryOne } from '@/lib/db'
 import { getSiteName } from '@/lib/site'
@@ -38,21 +39,19 @@ async function getImageDataUrl(dbKey: string): Promise<string | null> {
   }
 }
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { size: string } }
-) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ size: string }> }) {
+  const params = await props.params;
   const size = parseInt(params.size, 10)
   if (!ALLOWED_SIZES.has(size)) {
     return new Response('Not found', { status: 404 })
   }
 
   // Priority: PWA icon → site logo → first letter fallback
-  const imageUrl = await getImageDataUrl('pwa_icon_path') ?? await getImageDataUrl('logo_path')
+  const imageUrl = (await getImageDataUrl('pwa_icon_path')) ?? (await getImageDataUrl('logo_path'))
 
   const imgSize = Math.round(size * 0.6)
 
-  let content: JSX.Element
+  let content: ReactElement
 
   if (imageUrl) {
     content = (

@@ -22,12 +22,12 @@ export async function verifyToken(token: string): Promise<AdminSession | null> {
 
 export async function getAdminSession(): Promise<AdminSession | null> {
   // Cookie path — web portal
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const cookieToken = cookieStore.get(COOKIE)?.value
   if (cookieToken) return verifyToken(cookieToken)
 
   // Bearer token path — Android companion app
-  const authHeader = headers().get('Authorization')
+  const authHeader = (await headers()).get('Authorization')
   if (authHeader?.startsWith('Bearer ')) {
     return verifyToken(authHeader.slice(7))
   }
@@ -35,8 +35,8 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   return null
 }
 
-export function setSessionCookie(token: string): void {
-  cookies().set(COOKIE, token, {
+export async function setSessionCookie(token: string): Promise<void> {
+  (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.COOKIE_SECURE !== 'false',
     sameSite: 'lax',
@@ -45,8 +45,8 @@ export function setSessionCookie(token: string): void {
   })
 }
 
-export function clearSessionCookie(): void {
-  cookies().set(COOKIE, '', { maxAge: 0, path: '/' })
+export async function clearSessionCookie(): Promise<void> {
+  (await cookies()).set(COOKIE, '', { maxAge: 0, path: '/' })
 }
 
 export const COOKIE_NAME = COOKIE

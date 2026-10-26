@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { query, execute, newId } from '@/lib/db'
 
-interface Context { params: { id: string } }
+interface Context { params: Promise<{ id: string }> }
 
-export async function POST(req: NextRequest, { params }: Context) {
+export async function POST(req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
@@ -24,7 +25,8 @@ export async function POST(req: NextRequest, { params }: Context) {
   }
 }
 
-export async function GET(_req: NextRequest, { params }: Context) {
+export async function GET(_req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

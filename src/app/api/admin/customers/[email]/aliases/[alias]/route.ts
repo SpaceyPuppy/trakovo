@@ -4,8 +4,9 @@ import { execute } from '@/lib/db'
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { email: string; alias: string } }
+  props: { params: Promise<{ email: string; alias: string }> }
 ) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

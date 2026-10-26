@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { query, execute } from '@/lib/db'
 
-interface Context { params: { id: string } }
+interface Context { params: Promise<{ id: string }> }
 
-export async function GET(_req: NextRequest, { params }: Context) {
+export async function GET(_req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {
@@ -26,7 +27,8 @@ export async function GET(_req: NextRequest, { params }: Context) {
   }
 }
 
-export async function POST(req: NextRequest, { params }: Context) {
+export async function POST(req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {
@@ -44,7 +46,8 @@ export async function POST(req: NextRequest, { params }: Context) {
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: Context) {
+export async function DELETE(req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {

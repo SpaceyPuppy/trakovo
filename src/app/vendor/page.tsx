@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 const PAGE_SIZE = 50
 
 interface Props {
-  searchParams?: { page?: string; status?: string; sort?: string; direction?: string }
+  searchParams?: Promise<{ page?: string; status?: string; sort?: string; direction?: string }>
 }
 
 const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const
@@ -19,7 +19,8 @@ type StatusFilter = typeof STATUS_FILTERS[number]
 const SORT_FIELDS = ['start_date', 'public_id', 'created_at', 'contact_name', 'vehicle'] as const
 type SortField = typeof SORT_FIELDS[number]
 
-export default async function VendorDashboard({ searchParams }: Props) {
+export default async function VendorDashboard(props: Props) {
+  const searchParams = await props.searchParams;
   const session = await getVendorSession()
   if (!session) redirect('/vendor/login')
 

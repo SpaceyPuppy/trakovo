@@ -8,9 +8,10 @@ import type { Metadata } from 'next'
 
 export const revalidate = 0
 
-interface Props { params: { email: string } }
+interface Props { params: Promise<{ email: string }> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   return { title: decodeURIComponent(params.email) }
 }
 
@@ -21,7 +22,8 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-50 text-red-600 border-red-200',
 }
 
-export default async function CustomerDetailPage({ params }: Props) {
+export default async function CustomerDetailPage(props: Props) {
+  const params = await props.params;
   const email = decodeURIComponent(params.email)
 
   const [bookings, notes, aliases, archivedRow] = await Promise.all([

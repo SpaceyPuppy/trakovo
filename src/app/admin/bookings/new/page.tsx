@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { getDailyRate } from '@/lib/utils'
 import PortalIcon, { type PortalIconName } from '@/components/ui/PortalIcon'
 
@@ -146,7 +147,7 @@ export default function AdminNewBookingPage() {
 
   return (
     <div className="px-10 py-10 max-w-[820px]">
-      <a href="/admin/bookings" className="inline-flex items-center gap-1.5 text-[13.5px] text-ink-3 font-medium hover:text-ink transition-colors mb-6">← Back to Bookings</a>
+      <Link href="/admin/bookings" className="inline-flex items-center gap-1.5 text-[13.5px] text-ink-3 font-medium hover:text-ink transition-colors mb-6">← Back to Bookings</Link>
       <h1 className="font-display font-bold text-[26px] tracking-tight mb-1">Quick Add Booking</h1>
       <p className="text-[14px] text-ink-3 mb-8">Create a booking directly — use for phone or walk-in requests.</p>
 
@@ -285,9 +286,9 @@ export default function AdminNewBookingPage() {
               className="bg-accent text-white font-display font-bold text-[14px] px-7 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors disabled:opacity-50">
               {saving ? 'Creating…' : 'Create Booking'}
             </button>
-            <a href="/admin/bookings" className="border border-border text-ink-3 font-medium text-[14px] px-5 py-2.5 rounded-[6px] hover:border-ink-3 hover:text-ink transition-all">
+            <Link href="/admin/bookings" className="border border-border text-ink-3 font-medium text-[14px] px-5 py-2.5 rounded-[6px] hover:border-ink-3 hover:text-ink transition-all">
               Cancel
-            </a>
+            </Link>
           </div>
         </form>
       )}

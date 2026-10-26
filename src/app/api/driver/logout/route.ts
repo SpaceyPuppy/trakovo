@@ -2,6 +2,6 @@ import { NextResponse } from 'next/server'
 import { clearDriverSessionCookie } from '@/lib/driver-auth'
 
 export async function POST() {
-  clearDriverSessionCookie()
+  await clearDriverSessionCookie()
   return NextResponse.json({ ok: true })
 }

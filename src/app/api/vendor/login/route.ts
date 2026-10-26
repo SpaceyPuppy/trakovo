@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const durationMs = rememberMe ? 1000 * 60 * 60 * 24 * 30 : undefined
   const maxAge = rememberMe ? 60 * 60 * 24 * 30 : undefined
   const token = await createVendorToken(vendor.id, vendor.name, durationMs)
-  setVendorSessionCookie(token, maxAge)
+  await setVendorSessionCookie(token, maxAge)
 
   return NextResponse.json({ ok: true, vendorName: vendor.name })
 }

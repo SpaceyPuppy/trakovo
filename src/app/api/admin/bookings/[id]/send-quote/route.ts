@@ -3,9 +3,10 @@ import { getAdminSession } from '@/lib/auth'
 import { queryOne } from '@/lib/db'
 import { sendCustomerQuote } from '@/lib/email'
 
-interface Context { params: { id: string } }
+interface Context { params: Promise<{ id: string }> }
 
-export async function POST(req: NextRequest, { params }: Context) {
+export async function POST(req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

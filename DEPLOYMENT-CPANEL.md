@@ -8,6 +8,11 @@ schema and historical reference files.
 This guide covers fresh installations, full release ZIP deployments, and the smaller
 OTA bundle available under **Admin → Settings → Updates**.
 
+**v1.19.0 uses full-package installation only.** Follow `PENDING-DEPLOY.md` for its
+Node.js/dependency upgrade, manual SQL, host CVE actions and rollback sequence. Do
+not upload `trakovo-v1.19.0.zip` to the Admin OTA upload form. No next-bundle asset
+is produced for this release.
+
 ## Deployment rules at a glance
 
 | Change | Full release ZIP | OTA bundle | Other required action |
@@ -25,7 +30,7 @@ copy public assets, apply SQL, change cPanel environment variables, or back up u
 ## Prerequisites
 
 - cPanel with **Setup Node.js App**, MySQL, and phpMyAdmin.
-- A cPanel Node.js version satisfying `package.json` (`>=18.17.0`). Use the same major
+- A cPanel Node.js version satisfying `package.json` (`>=24.22.1 <25`). Use the same major
   Node.js version locally and on the server when practical.
 - A local development machine with Node.js, npm, Git, and PowerShell for
   `make-zip.ps1`.
@@ -47,7 +52,7 @@ For a clean checkout whose lockfile is already correct:
 ```bash
 npm ci
 npm run lint
-npx tsc --noEmit
+npm run typecheck
 npm run build
 ```
 
@@ -66,8 +71,12 @@ The script reads `version`/`build_label` from `package.json` and produces:
   `prisma`, runtime configuration, and package manifests.
 - `next-bundle-vX.X.X.zip` — `.next` plus `package.json` for the OTA updater.
 
+When `package.json` sets `deployment.requires_full_install`, only the full cPanel
+archive is produced. The release workflow omits the OTA asset, and the new updater
+rejects a full-install package if it is uploaded to the OTA form.
+
 Neither artifact contains production secrets or persistent uploads.
-The packaging script excludes Next.js cache and the Docker-only `.next/standalone`
+The packaging script excludes Next.js cache, `.next/dev` and the Docker-only `.next/standalone`
 tree, and rejects archives containing environment files other than `.env.example`.
 
 ## Fresh installation
@@ -107,7 +116,7 @@ In **cPanel → Setup Node.js App**, create an application with values similar t
 
 | Field | Value |
 |---|---|
-| Node.js version | A supported version `>=18.17.0` |
+| Node.js version | A patched version `>=24.22.1 <25` |
 | Application mode | `production` |
 | Application root | `trakovo` or the chosen directory under the account home |
 | Application URL | The production domain/subdomain |

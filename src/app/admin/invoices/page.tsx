@@ -15,7 +15,8 @@ const BILLING_SETTING_KEYS = [
   'billing_address', 'billing_invoice_footer', 'billing_tax_mode', 'billing_tax_rate_bps',
 ] as const
 
-export default async function InvoicesPage({ searchParams }: { searchParams?: { page?: string; status?: string } }) {
+export default async function InvoicesPage(props: { searchParams?: Promise<{ page?: string; status?: string }> }) {
+  const searchParams = await props.searchParams;
   const requestedPage = Number(searchParams?.page ?? 1)
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
   const status = searchParams?.status && INVOICE_STATUSES.has(searchParams.status)

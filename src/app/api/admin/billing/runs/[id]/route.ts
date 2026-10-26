@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { billingErrorResponse, getBillingRun } from '@/lib/billing'
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {

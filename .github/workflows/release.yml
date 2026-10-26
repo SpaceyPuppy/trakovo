@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '24.22.1'
           cache: npm
 
       - name: Install dependencies
@@ -27,8 +27,10 @@ jobs:
       - name: Verify and build release
         run: |
           node --test tests/taxi-booking.test.cjs
+          node --test tests/special-occasions.test.cjs tests/update-safety.test.cjs
+          npm audit --omit=dev --audit-level=moderate
           npm run lint
-          npx tsc --noEmit
+          npm run typecheck
           npm run build
 
       - name: Verify release metadata
@@ -110,6 +112,8 @@ jobs:
           $version = $env:RELEASE_TAG.TrimStart('v')
           $package = Get-Content package.json -Raw | ConvertFrom-Json
           "cpanel_version=$($package.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $otaAsset = if ($package.deployment.requires_full_install) { '' } else { "next-bundle-v$($package.version).zip" }
+          "ota_asset=$otaAsset" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "docker_asset=trakovo-docker-v$version.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Publish GitHub release assets
@@ -121,5 +125,5 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             trakovo-v${{ steps.assets.outputs.cpanel_version }}.zip
-            next-bundle-v${{ steps.assets.outputs.cpanel_version }}.zip
+            ${{ steps.assets.outputs.ota_asset }}
             ${{ steps.assets.outputs.docker_asset }}

@@ -3,7 +3,8 @@ import { getAdminSession } from '@/lib/auth'
 import { queryOne } from '@/lib/db'
 import { createVendorToken, setVendorSessionCookie } from '@/lib/vendor-auth'
 
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
@@ -15,7 +16,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   if (!vendor.is_active) return NextResponse.json({ error: 'Vendor is inactive' }, { status: 400 })
 
   const token = await createVendorToken(vendor.id, vendor.name)
-  setVendorSessionCookie(token)
+  await setVendorSessionCookie(token)
 
   return NextResponse.json({ ok: true })
 }

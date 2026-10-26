@@ -7,14 +7,16 @@ import PortalIcon from '@/components/ui/PortalIcon'
 
 export const revalidate = 0
 
-interface Props { params: { id: string } }
+interface Props { params: Promise<{ id: string }> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   const v = await queryOne<{ name: string }>('SELECT name FROM Vehicle WHERE id = ? LIMIT 1', [params.id]).catch(() => null)
   return { title: v?.name ?? 'Vehicle' }
 }
 
-export default async function VendorVehicleDetailPage({ params }: Props) {
+export default async function VendorVehicleDetailPage(props: Props) {
+  const params = await props.params;
   const session = await getVendorSession()
   if (!session) redirect('/vendor/login')
 

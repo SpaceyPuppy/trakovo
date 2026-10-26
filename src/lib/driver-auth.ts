@@ -29,14 +29,14 @@ export async function verifyDriverToken(token: string): Promise<DriverSession | 
 }
 
 export async function getDriverSession(): Promise<DriverSession | null> {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE)?.value
   if (!token) return null
   return verifyDriverToken(token)
 }
 
-export function setDriverSessionCookie(token: string, maxAge = 60 * 60 * 8): void {
-  cookies().set(COOKIE, token, {
+export async function setDriverSessionCookie(token: string, maxAge = 60 * 60 * 8): Promise<void> {
+  (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.COOKIE_SECURE !== 'false',
     sameSite: 'lax',
@@ -45,8 +45,8 @@ export function setDriverSessionCookie(token: string, maxAge = 60 * 60 * 8): voi
   })
 }
 
-export function clearDriverSessionCookie(): void {
-  cookies().set(COOKIE, '', { maxAge: 0, path: '/' })
+export async function clearDriverSessionCookie(): Promise<void> {
+  (await cookies()).set(COOKIE, '', { maxAge: 0, path: '/' })
 }
 
 export const DRIVER_COOKIE_NAME = COOKIE

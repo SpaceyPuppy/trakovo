@@ -12,6 +12,35 @@ export interface UpdateResult {
   buildId: string
 }
 
+/** Reject unsafe/oversized archives and full installations before extracting anything. */
+export function validateUpdateArchive(archive: AdmZip): void {
+  const entries = archive.getEntries()
+  if (entries.length > 50000) throw new Error('Update archive contains too many entries')
+  const names = new Set<string>()
+  let totalSize = 0
+  for (const entry of entries) {
+    const name = entry.entryName.replace(/\\/g, '/')
+    const segments = name.replace(/\/$/, '').split('/')
+    if (names.has(name) || segments.some(segment => !segment || segment === '.' || segment === '..') ||
+        /[\x00:]/.test(name) || (name !== 'package.json' && name !== '.next/' && !name.startsWith('.next/')) ||
+        /(^|\/)\.env($|\.)/.test(name) || /^\.next\/(standalone|cache|dev)(\/|$)/.test(name) ||
+        ((entry.attr >>> 16) & 0o170000) === 0o120000) {
+      throw new Error('Invalid OTA archive: use a next-bundle package; full packages must be installed through cPanel')
+    }
+    names.add(name)
+    const size = entry.header.size
+    if (!Number.isSafeInteger(size) || size < 0 || size > 128 * 1024 * 1024) throw new Error('Update archive entry is too large')
+    totalSize += size
+    if (totalSize > 1024 * 1024 * 1024) throw new Error('Update archive is too large')
+  }
+  const manifest = archive.getEntry('package.json')
+  if (manifest) {
+    if (manifest.header.size > 128 * 1024) throw new Error('Invalid update manifest')
+    const metadata = JSON.parse(manifest.getData().toString('utf8'))
+    if (metadata.deployment?.requires_full_install) throw new Error('This release requires full-package installation through cPanel. Follow PENDING-DEPLOY.md.')
+  }
+}
+
 /**
  * Apply a .next bundle zip to the server.
  * - Extracts to a temp dir first and validates BUILD_ID
@@ -20,14 +49,13 @@ export interface UpdateResult {
  * - Fixes permissions and touches tmp/restart.txt to restart Passenger
  */
 export async function applyUpdate(zipPath: string): Promise<UpdateResult> {
-  const timestamp = Date.now()
-  const extractDir = path.join(os.tmpdir(), `trakovo-extract-${timestamp}`)
-
-  fs.mkdirSync(extractDir, { recursive: true })
+  const archive = new AdmZip(zipPath)
+  validateUpdateArchive(archive)
+  const extractDir = fs.mkdtempSync(path.join(os.tmpdir(), 'trakovo-extract-'))
 
   try {
     // Extract zip using adm-zip (pure JS — no system binaries required)
-    new AdmZip(zipPath).extractAllTo(extractDir, true)
+    archive.extractAllTo(extractDir, true)
 
     // Zip must contain a .next folder with BUILD_ID
     const candidateNext = path.join(extractDir, '.next')

@@ -9,7 +9,7 @@ import InvoiceActions from './InvoiceActions'
 
 export const revalidate = 0
 
-interface Props { params: { id: string } }
+interface Props { params: Promise<{ id: string }> }
 
 interface InvoiceDetail {
   id: string
@@ -86,7 +86,8 @@ interface InvoiceEvent {
 
 const loadInvoice = cache(getInvoice)
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   try {
     const result = await loadInvoice(params.id)
     const invoice = result.invoice as unknown as InvoiceDetail
@@ -111,7 +112,8 @@ const STATUS_STYLES: Record<string, string> = {
   void: 'bg-red-50 text-red-600 border-red-200',
 }
 
-export default async function InvoiceDetailPage({ params }: Props) {
+export default async function InvoiceDetailPage(props: Props) {
+  const params = await props.params;
   let result: Awaited<ReturnType<typeof getInvoice>>
   let invoiceFooterTemplate: string | undefined
   try {

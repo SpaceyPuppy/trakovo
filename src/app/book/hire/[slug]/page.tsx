@@ -8,9 +8,10 @@ import { parseHireAgreement } from '@/lib/hire-agreement-defaults'
 import { formatCurrency, getVehicleImage } from '@/lib/utils'
 import type { Metadata } from 'next'
 
-interface Props { params: { slug: string } }
+interface Props { params: Promise<{ slug: string }> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   try {
     const v = await getVehicle(params.slug)
     return { title: v.name }
@@ -19,7 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export const revalidate = 0
 
-export default async function HireVehiclePage({ params }: Props) {
+export default async function HireVehiclePage(props: Props) {
+  const params = await props.params;
   let vehicle, availability
   let logoUrl: string | undefined
 
