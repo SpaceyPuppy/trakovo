@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import type { FleetCategory } from '@/types'
+import type { ServiceCategoryAssignments } from '@/lib/service-buttons'
+import ServiceButtonSettings from './ServiceButtonSettings'
 
 const inputClass = 'w-full rounded-md border border-border bg-white px-3 py-2 text-[14px]'
 const groups = [
@@ -28,7 +30,7 @@ function CategoryEditor({ category, busy, onSave, onDelete }: {
   </form>
 }
 
-export default function CategoryManager({ initialCategories }: { initialCategories: FleetCategory[] }) {
+export default function CategoryManager({ initialCategories, serviceAssignments }: { initialCategories: FleetCategory[]; serviceAssignments: ServiceCategoryAssignments }) {
   const [categories, setCategories] = useState(initialCategories)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -53,6 +55,7 @@ export default function CategoryManager({ initialCategories }: { initialCategori
   }
 
   return <div className="space-y-4">
+    <ServiceButtonSettings categories={categories} initial={serviceAssignments} />
     {error && <p role="alert" className="text-red-700 text-[14px]">{error}</p>}
     {notice && <p role="status" className="text-success text-[14px]">{notice}</p>}
     {categories.map(category => <CategoryEditor key={category.id} category={category} busy={busy} onSave={(name, group) => change('PUT', category, name, group)} onDelete={() => {

@@ -1,7 +1,7 @@
 {
   "name": "trakovo",
-  "version": "1.20.0",
-  "build_label": "1.20.0",
+  "version": "1.20.1",
+  "build_label": "1.20.1",
   "private": true,
   "engines": {
     "node": ">=24.22.1 <25"
@@ -11,7 +11,7 @@
     "minimum_ota_version": "1.19.0",
     "required_sql": [
       "database/migrations/0003-v1.20.0-enquiry-only-vehicles.sql",
-      "database/migrations/0004-v1.20.0-fleet-categories.sql"
+      "database/migrations/0005-v1.20.0-category-engine-repair.sql"
     ]
   },
   "scripts": {

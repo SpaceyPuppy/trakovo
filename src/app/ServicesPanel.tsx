@@ -2,33 +2,7 @@
 import Link from 'next/link'
 import TaxiBookingLink from '@/components/book/TaxiBookingLink'
 import type { TaxiBookingConfig } from '@/lib/taxi-booking-config'
-
-const SERVICES = [
-  {
-    icon: '🤵',
-    title: 'Chauffeured Hire',
-    desc: 'Professional drivers for executive travel, airports, and special events.',
-    href: '/vehicles?hire=chauffeur',
-  },
-  {
-    icon: '🔑',
-    title: 'Self-Drive (Dry Hire)',
-    desc: 'Take the wheel on your own schedule with full day-to-day flexibility.',
-    href: '/vehicles?hire=selfdrive',
-  },
-  {
-    icon: '🚕',
-    title: 'Taxi',
-    desc: 'On-demand taxi bookings for local and regional trips.',
-    href: '/book/taxi',
-  },
-  {
-    icon: '🏢',
-    title: 'Professional Services',
-    desc: 'Tailored solutions for businesses, conferences, and group bookings.',
-    href: '/services',
-  },
-]
+import { SERVICE_BUTTONS } from '@/lib/service-buttons'
 
 interface Props {
   compact?: boolean
@@ -40,7 +14,7 @@ export default function ServicesPanel({ compact = false, taxiConfig }: Props) {
     <div className={`w-full space-y-2.5 ${compact ? '' : 'max-w-[340px]'}`}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30 mb-4">Our Services</p>
 
-      {SERVICES.map(({ icon, title, desc, href }) => {
+      {SERVICE_BUTTONS.map(({ icon, title, description, href }) => {
         const inner = (
           <>
             <span className={`flex-shrink-0 mt-0.5 ${compact ? 'text-[20px]' : 'text-[22px]'}`}>{icon}</span>
@@ -49,7 +23,7 @@ export default function ServicesPanel({ compact = false, taxiConfig }: Props) {
                 <p className={`font-display font-bold ${compact ? 'text-[13px]' : 'text-[14px]'} group-hover:text-white`}>{title}</p>
                 <span className="text-white/30 group-hover:text-white/70 transition-all text-[12px] flex-shrink-0">→</span>
               </div>
-              <p className={`${compact ? 'text-[11.5px]' : 'text-[12px]'} text-white/45 leading-[1.5]`}>{desc}</p>
+              <p className={`${compact ? 'text-[11.5px]' : 'text-[12px]'} text-white/45 leading-[1.5]`}>{description}</p>
             </div>
           </>
         )

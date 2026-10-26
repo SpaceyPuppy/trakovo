@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import TaxiCallDialog from '@/components/book/TaxiCallDialog'
 import type { TaxiBookingConfig } from '@/lib/taxi-booking-config'
+import { SERVICE_BUTTONS } from '@/lib/service-buttons'
 
 // SVG icons for each service card
 function TaxiIcon() {
@@ -229,32 +230,16 @@ export default function BookPicker({ taxiConfig }: { taxiConfig: TaxiBookingConf
     )
   }
 
-  const cards: ServiceCard[] = [
-    {
-      key: 'taxi',
-      label: 'Taxi',
-      subtitle: taxiConfig.onlineBookingEnabled ? 'On-demand pickup' : 'Call to book',
-      icon: <TaxiIcon />,
-      href: '/book/taxi',
-      variant: 'dark',
-    },
-    {
-      key: 'selfdrive',
-      label: 'Self-Drive Hire',
-      subtitle: 'Drive yourself',
-      icon: <SelfDriveIcon />,
-      href: '/book/hire?mode=selfdrive',
-      variant: 'light-green',
-    },
-    {
-      key: 'chauffeured',
-      label: 'Chauffeured',
-      subtitle: 'With a driver',
-      icon: <ChauffeurIcon />,
-      href: '/book/hire?mode=chauffeured',
-      variant: 'light-purple',
-    },
-  ]
+  const cards: ServiceCard[] = SERVICE_BUTTONS.map(service => ({
+    key: service.id,
+    label: service.title,
+    subtitle: service.id === 'taxi' ? taxiConfig.onlineBookingEnabled ? 'On-demand pickup' : 'Call to book'
+      : service.id === 'selfdrive' ? 'Drive yourself' : service.id === 'chauffeured' ? 'With a driver' : 'Weddings, formals & events',
+    icon: service.id === 'taxi' ? <TaxiIcon /> : service.id === 'selfdrive' ? <SelfDriveIcon />
+      : service.id === 'chauffeured' ? <ChauffeurIcon /> : <span aria-hidden="true" className="text-[22px]">🥂</span>,
+    href: service.id === 'selfdrive' || service.id === 'chauffeured' ? `/book/hire?service=${service.id}` : service.href,
+    variant: service.id === 'taxi' ? 'dark' : service.id === 'selfdrive' ? 'light-green' : 'light-purple',
+  }))
 
   return (
     <div className="book-screen flex flex-col" style={{ minHeight: '100dvh', background: '#f7f6f3' }}>

@@ -28,7 +28,7 @@ CREATE TABLE `Vehicle` (
     UNIQUE INDEX `Vehicle_public_id_key`(`public_id`),
     UNIQUE INDEX `Vehicle_slug_key`(`slug`),
     PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE `FleetCategory` (
   `id` VARCHAR(191) NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE `FleetCategory` (
   `homepage_group` VARCHAR(32) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `FleetCategory_name_key` (`name`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE `VehicleFleetCategory` (
   `vehicle_id` VARCHAR(191) NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE `VehicleFleetCategory` (
   PRIMARY KEY (`vehicle_id`, `category_id`),
   CONSTRAINT `VehicleFleetCategory_vehicle_fkey` FOREIGN KEY (`vehicle_id`) REFERENCES `Vehicle` (`id`) ON DELETE CASCADE,
   CONSTRAINT `VehicleFleetCategory_category_fkey` FOREIGN KEY (`category_id`) REFERENCES `FleetCategory` (`id`) ON DELETE CASCADE
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 INSERT INTO `FleetCategory` (`id`, `name`, `homepage_group`) VALUES ('bus', 'Bus', 'buses');
 
