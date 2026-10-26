@@ -11,7 +11,25 @@ its completed SQL and framework installation steps must not be repeated.
 
 ## Current pending version: v1.20.0
 
-## v1.20.0 — (unreleased)
+## v1.20.0 — released 26 October 2026 (production deployment pending)
+
+[GitHub release](https://github.com/SpaceyPuppy/trakovo/releases/tag/v1.20.0) published
+after PR #16 passed Linux checks and merged. Release and container workflows passed.
+The downloaded full cPanel asset was verified: 4,668,675 bytes, 1,366 ZIP entries,
+required build/schema/docs present, zero unsafe entries or preview hooks, and no
+occurrences of the six checked private credential values. SHA-256:
+`fbf5cf4023225234924fca91126e4e8f67b249a4c891c216c43e74a0a56081f3`.
+No OTA asset was published. The Docker bundle is a separate deployment option.
+
+Validation: 28 focused tests, TypeScript, Windows/Linux production builds, dependency
+audit (zero known vulnerabilities), and packaging checks passed. Lint has no errors
+and 15 existing/style warnings. Isolated browser checks covered desktop/mobile forms,
+preselection/local submission, normal booking calendars, category creation/assignment,
+fleet filtering/priority, hover/Escape and mobile first/second interaction navigation.
+Changing Enquiry Only with the keyboard, saving, and restoring standard booking was
+also checked in the in-memory preview. Real SQL/mail/push delivery remains an owner
+post-deployment check. Publication has not changed the production installation.
+The packaged guide predates this publication record; its installation steps still apply.
 
 Enquiry-only public vehicles, editable fleet categories, homepage category tiles and
 hover/touch occasion navigation. Use the full trakovo-v1.20.0.zip package through cPanel,
@@ -73,6 +91,9 @@ WHERE TABLE_SCHEMA = 'ckbservi_trakovo'
       Each opens the FULL public fleet with matching vehicles first. Other vehicles keep
       their relative order. Fleet category chips filter by assignment. Unknown query
       values fall back to the ordinary list. Bus membership uses explicit categories.
+      Chauffeured defaults to ordinary non-bus/non-event vehicles with a chauffeured hire
+      mode, or categories explicitly mapped to that group. Special Occasion matches
+      Show on Special Occasions, Enquiry Only or categories mapped to its group.
 - [ ] Prefer for homepage category photo reuses the former Feature on homepage switch:
       choose an eligible matching vehicle image; otherwise a matching photo or category
       illustration is used. Inactive/public-hidden vehicles never supply photos.
