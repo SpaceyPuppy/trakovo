@@ -13,6 +13,7 @@ $version = $pkg.version
 $label = if ($pkg.build_label) { $pkg.build_label } else { $version }
 $releaseZip = "trakovo-v$label.zip"
 $bundleZip = "next-bundle-v$label.zip"
+$requiresFullInstall = $pkg.deployment.requires_full_install -eq $true
 $timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 
 try {
@@ -36,7 +37,7 @@ function Copy-CpanelBuild([string]$destination) {
     # Passenger uses the server's node_modules. The Docker-only standalone tree
     # is unnecessary here and can contain environment files copied by Next.js.
     Get-ChildItem -LiteralPath $nextDir -Force |
-        Where-Object { $_.Name -notin @('cache', 'standalone') } |
+        Where-Object { $_.Name -notin @('cache', 'standalone', 'dev') } |
         ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $destination -Recurse }
 }
 
@@ -49,7 +50,7 @@ function Assert-CpanelArchive([string]$archivePath) {
         }
         $forbidden = @($names | Where-Object {
             ($_ -match '(^|/)\.env($|\.)' -and $_ -notmatch '(^|/)\.env\.example$') -or
-            $_ -match '^\.next/(standalone|cache)/'
+            $_ -match '^\.next/(standalone|cache|dev)/'
         })
         if ($forbidden.Count -gt 0) {
             throw "Unsafe cPanel archive entries: $($forbidden -join ', ')"
@@ -68,11 +69,12 @@ function Remove-PackagingPath([string]$targetPath) {
     if (Test-Path -LiteralPath $absolutePath) { Remove-Item -LiteralPath $absolutePath -Recurse -Force }
 }
 
-$releaseFiles = @("src","public","prisma","app.js","next.config.js","package.json",
+$releaseFiles = @("src","public","prisma","database","app.js","next.config.js","package.json",
                   "package-lock.json",".env.example","DEPLOYMENT-CPANEL.md",
                   "BILLING-MVP.md","PENDING-DEPLOY.md","DOCUMENTATION-DEBT.md","README.md",
                   "RELEASE-NOTES-v$label.md",
-                  ".cpanel.yml","tailwind.config.js","tsconfig.json","postcss.config.js")
+                  "SECURITY-REVIEW-2026-10-26.md",
+                  ".cpanel.yml","eslint.config.mjs","tailwind.config.js","tsconfig.json","postcss.config.js")
 $missingReleaseFiles = @($releaseFiles | Where-Object { -not (Test-Path -LiteralPath $_) })
 if ($missingReleaseFiles.Count -gt 0) {
     Write-Error "Required release files are missing: $($missingReleaseFiles -join ', ')"
@@ -100,6 +102,12 @@ $releaseZipPath = Join-Path (Get-Location) $releaseZip
 Assert-CpanelArchive $releaseZipPath
 Remove-PackagingPath $tmpRelease
 Write-Host "  Created $releaseZip  ($([Math]::Round((Get-Item $releaseZip).Length / 1MB, 1)) MB)"
+
+if ($requiresFullInstall) {
+    Remove-PackagingPath $bundleZip
+    Write-Host 'Full installation required: no OTA bundle will be produced. Follow PENDING-DEPLOY.md.'
+    exit 0
+}
 
 # --- Update bundle zip (cPanel build + package.json) ---
 # package.json keeps on-disk version in sync after a bundle swap

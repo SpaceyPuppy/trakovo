@@ -7,12 +7,14 @@ import type { Metadata } from 'next'
 
 export const revalidate = 0
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const v = await queryOne<{ name: string }>('SELECT name FROM Vendor WHERE id = ? LIMIT 1', [params.id])
   return { title: v?.name ?? 'Vendor' }
 }
 
-export default async function AdminVendorDetailPage({ params }: { params: { id: string } }) {
+export default async function AdminVendorDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const [rawVendor, allVehicles] = await Promise.all([
     queryOne<{ id: string; name: string; public_id: string; username: string; contact_email: string; contact_phone: string; is_active: number; taxi_enabled: number; vehicle_hire_enabled: number; billing_name: string; billing_email: string; billing_address: string | null; billing_abn: string; billing_currency: string; billing_terms_days: number; billing_enabled: number }>(
       'SELECT id, name, public_id, username, contact_email, contact_phone, is_active, taxi_enabled, vehicle_hire_enabled, billing_name, billing_email, billing_address, billing_abn, billing_currency, billing_terms_days, billing_enabled FROM Vendor WHERE id = ? LIMIT 1',

@@ -11,9 +11,10 @@ import {
   voidInvoice,
 } from '@/lib/billing'
 
-interface Context { params: { id: string } }
+interface Context { params: Promise<{ id: string }> }
 
-export async function GET(_req: Request, { params }: Context) {
+export async function GET(_req: Request, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
   try {
@@ -23,7 +24,8 @@ export async function GET(_req: Request, { params }: Context) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: Context) {
+export async function DELETE(_req: Request, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
@@ -35,7 +37,8 @@ export async function DELETE(_req: Request, { params }: Context) {
   }
 }
 
-export async function PATCH(req: Request, { params }: Context) {
+export async function PATCH(req: Request, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

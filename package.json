@@ -1,49 +1,57 @@
 {
   "name": "trakovo",
-  "version": "1.18.1",
-  "build_label": "1.18.1",
+  "version": "1.19.0",
+  "build_label": "1.19.0",
   "private": true,
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=24.22.1 <25"
+  },
+  "deployment": {
+    "requires_full_install": true
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start -p 3000",
-    "lint": "next lint",
+    "lint": "eslint src",
+    "typecheck": "next typegen && tsc --noEmit",
     "postinstall": ""
   },
   "dependencies": {
-    "@types/nodemailer": "^7.0.11",
     "@types/qrcode": "^1.5.6",
     "@types/web-push": "^3.6.4",
-    "adm-zip": "^0.5.16",
-    "axios": "^1.7.2",
+    "adm-zip": "^0.6.1",
+    "axios": "^1.20.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
-    "js-cookie": "^3.0.5",
+    "js-cookie": "^3.0.8",
     "mapbox-gl": "^3.20.0",
-    "mysql2": "^3.11.5",
-    "next": "^14.2.35",
-    "nodemailer": "^8.0.1",
+    "mysql2": "^3.24.6",
+    "next": "^16.4.3",
+    "nodemailer": "^10.2.1",
     "qrcode": "^1.5.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-map-gl": "^8.1.0",
+    "sharp": "^0.35.5",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",
     "@types/js-cookie": "^3.0.6",
     "@types/mapbox-gl": "^3.4.1",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/node": "^24.19.2",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.29",
+    "eslint": "9.39.5",
+    "eslint-config-next": "^16.4.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss-selector-parser": "^7.1.6"
   }
 }

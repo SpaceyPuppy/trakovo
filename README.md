@@ -2,14 +2,17 @@
 
 Fleet management platform for bookings, vehicles, drivers, vendors, dispatch, and native billing.
 
-Built with Next.js 14 (App Router), MySQL via `mysql2`, and Tailwind CSS.
+Built with Next.js 16 (App Router), React 19, MySQL via `mysql2`, and Tailwind CSS.
 
-The current checkout is v1.18.1. See [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md)
+The current checkout is v1.19.0. This release requires full-package installation and
+patched Node.js 24.22.1+ (24.x); follow [`PENDING-DEPLOY.md`](PENDING-DEPLOY.md).
+See [`docs/PRODUCT-STATUS.md`](docs/PRODUCT-STATUS.md)
 for the capability and release-state distinction.
 
 ## Stack
 
-- **Framework:** Next.js 14 (App Router)
+- **Framework:** Next.js 16 / React 19 (App Router)
+- **Runtime:** patched Node.js 24.22.1+ in the 24.x line
 - **Database:** MySQL — raw `mysql2`, no ORM
 - **Auth:** Custom JWT (Web Crypto API) — separate cookies for admin, vendor, driver portals
 - **Email:** Microsoft 365 Graph API with SMTP/Nodemailer fallback
@@ -41,7 +44,7 @@ npm run dev
 ```bash
 npm run build
 powershell -ExecutionPolicy Bypass -File "make-zip.ps1"
-# Upload trakovo-vX.X.X.zip to cPanel, or use OTA update via Admin → Settings → Updates
+# v1.19.0: install trakovo-v1.19.0.zip through cPanel using PENDING-DEPLOY.md
 ```
 
 Before deploying a build that changes the database, follow the version-specific SQL and

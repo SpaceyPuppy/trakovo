@@ -41,7 +41,7 @@ export default function ContactEnquiriesClient({ enquiries: initial }: { enquiri
             <Link href="/admin/enquiries" className="text-[13px] text-ink-3 hover:text-ink">← Booking Enquiries</Link>
           </div>
           <h1 className="font-display font-bold text-[26px] tracking-tight">Contact Enquiries</h1>
-          <p className="text-[14px] text-ink-3 mt-0.5">General enquiries submitted via the public contact form.</p>
+          <p className="text-[14px] text-ink-3 mt-0.5">Contact and Special Occasions enquiries submitted through the website.</p>
         </div>
         {newCount > 0 && (
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[12px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">

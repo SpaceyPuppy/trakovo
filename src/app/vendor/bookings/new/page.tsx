@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import PortalIcon, { type PortalIconName } from '@/components/ui/PortalIcon'
 
 type ServiceType = 'taxi' | 'cpv' | 'vehicle'
@@ -212,7 +213,7 @@ function StepDetails({
           </div>
           {form.client_type === 'existing' ? (
             clients.length === 0 ? (
-              <p className="text-[13px] text-ink-3">No clients on file. <a href="/vendor/clients/new" className="text-accent hover:underline">Add one first →</a></p>
+              <p className="text-[13px] text-ink-3">No clients on file. <Link href="/vendor/clients/new" className="text-accent hover:underline">Add one first →</Link></p>
             ) : (
               <div>
                 <label className={lbl}>Select client *</label>

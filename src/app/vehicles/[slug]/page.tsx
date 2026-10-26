@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import NavWrapper from '@/components/ui/NavWrapper'
 import Footer from '@/components/ui/Footer'
 import VehiclePageContent from './VehiclePageContent'
@@ -7,9 +8,10 @@ import { queryOne } from '@/lib/db'
 import { parseHireAgreement } from '@/lib/hire-agreement-defaults'
 import type { Metadata } from 'next'
 
-interface Props { params: { slug: string } }
+interface Props { params: Promise<{ slug: string }> }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   try {
     const v = await getVehicle(params.slug)
     return { title: v.name }
@@ -18,7 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export const revalidate = 0
 
-export default async function VehicleDetailPage({ params }: Props) {
+export default async function VehicleDetailPage(props: Props) {
+  const params = await props.params;
   let vehicle, availability
   try {
     vehicle = await getVehicle(params.slug)
@@ -32,7 +35,7 @@ export default async function VehicleDetailPage({ params }: Props) {
     <>
       <NavWrapper />
       <main className="max-w-[1160px] mx-auto px-4 sm:px-6 md:px-10 py-8 md:py-12 pb-16 md:pb-20 animate-fade-up">
-        <a href="/vehicles" className="inline-flex items-center gap-1.5 text-[13.5px] text-ink-3 font-medium hover:text-ink transition-colors mb-7">← Back to Fleet</a>
+        <Link href="/vehicles" className="inline-flex items-center gap-1.5 text-[13.5px] text-ink-3 font-medium hover:text-ink transition-colors mb-7">← Back to Fleet</Link>
         <VehiclePageContent
           vehicle={vehicle}
           availability={availability}

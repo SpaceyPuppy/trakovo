@@ -12,7 +12,8 @@ import { sendEmail } from '@/lib/email'
 import { buildTemplateContext, getTemplate, renderTemplate } from '@/lib/email-templates'
 import type { BookingResponse } from '@/types'
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

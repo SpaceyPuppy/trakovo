@@ -2,6 +2,7 @@
 .github
 .next
 node_modules
+.verification
 uploads
 data
 .env

@@ -17,10 +17,11 @@ const STATUS_COLORS: Record<string, string> = {
 const PAGE_SIZE = 50
 
 interface Props {
-  searchParams?: { page?: string }
+  searchParams?: Promise<{ page?: string }>
 }
 
-export default async function DriverBookingsPage({ searchParams }: Props) {
+export default async function DriverBookingsPage(props: Props) {
+  const searchParams = await props.searchParams;
   const session = await getDriverSession()
   if (!session) redirect('/driver/login')
 

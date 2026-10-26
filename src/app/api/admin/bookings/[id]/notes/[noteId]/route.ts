@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { execute } from '@/lib/db'
 
-interface Context { params: { id: string; noteId: string } }
+interface Context { params: Promise<{ id: string; noteId: string }> }
 
-export async function DELETE(_req: NextRequest, { params }: Context) {
+export async function DELETE(_req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

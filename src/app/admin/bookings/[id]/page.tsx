@@ -15,7 +15,7 @@ import type { Metadata } from 'next'
 
 export const revalidate = 0
 
-interface Props { params: { id: string } }
+interface Props { params: Promise<{ id: string }> }
 
 interface BookingDetailRow {
   id: string; public_id: string; status: string; hire_type: string; service_type: string | null;
@@ -143,12 +143,14 @@ async function getBookingAuxiliaryData(id: string) {
   }
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const params = await props.params;
   const booking = await getBooking(params.id)
   return { title: booking ? `Booking ${booking.public_id}` : 'Booking' }
 }
 
-export default async function BookingDetailPage({ params }: Props) {
+export default async function BookingDetailPage(props: Props) {
+  const params = await props.params;
   const booking = await getBooking(params.id)
   if (!booking) notFound()
 

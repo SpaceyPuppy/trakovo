@@ -25,6 +25,6 @@ export async function POST(req: Request) {
   const durationMs = rememberMe ? 1000 * 60 * 60 * 24 * 30 : undefined
   const maxAge = rememberMe ? 60 * 60 * 24 * 30 : undefined
   const token = await createDriverToken(driver.id, driver.name, durationMs)
-  setDriverSessionCookie(token, maxAge)
+  await setDriverSessionCookie(token, maxAge)
   return NextResponse.json({ ok: true, driverName: driver.name })
 }

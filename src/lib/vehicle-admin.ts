@@ -10,6 +10,8 @@ interface VehicleInput {
   isAvailable: boolean
   publicBookingsEnabled: boolean
   vendorBookingsEnabled: boolean
+  featureOnHomepage: boolean
+  showOnSpecialOccasions: boolean
   images: string[]
   dayRates: Array<Record<string, unknown>>
   chauffeurPrice: number
@@ -96,6 +98,8 @@ export function parseVehicleInput(body: Record<string, unknown>, allowPublicId: 
     isAvailable: bool(body.is_available, true),
     publicBookingsEnabled: bool(body.public_bookings_enabled, true),
     vendorBookingsEnabled: bool(body.vendor_bookings_enabled, true),
+    featureOnHomepage: bool(body.feature_on_homepage, false),
+    showOnSpecialOccasions: bool(body.show_on_special_occasions, false),
     images,
     dayRates: validateDayRates(meta.day_rates),
     chauffeurPrice: cents(meta.chauffeur_price ?? 0, 'chauffeur_price'),
@@ -151,8 +155,9 @@ export async function createVehicle(input: VehicleInput) {
          id, public_id, slug, name, description, price, chauffeur_price,
          price_poa, chauffeur_price_poa, day_rates, currency, hire_modes,
          passengers, transmission, fuel, licence_category, is_available,
-         public_bookings_enabled, vendor_bookings_enabled, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AUD', ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         public_bookings_enabled, vendor_bookings_enabled, feature_on_homepage,
+         show_on_special_occasions, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AUD', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         id, publicId, slug, input.name, input.description, input.price, input.chauffeurPrice,
         input.pricePoa ? 1 : 0, input.chauffeurPricePoa ? 1 : 0,
@@ -160,6 +165,7 @@ export async function createVehicle(input: VehicleInput) {
         input.hireModes, input.passengers, input.transmission, input.fuel,
         input.licenceCategory, input.isAvailable ? 1 : 0,
         input.publicBookingsEnabled ? 1 : 0, input.vendorBookingsEnabled ? 1 : 0,
+        input.featureOnHomepage ? 1 : 0, input.showOnSpecialOccasions ? 1 : 0,
       ]
     )
     await insertMedia(transaction, id, input.images)
@@ -177,7 +183,8 @@ export async function updateVehicle(id: string, input: VehicleInput) {
          name = ?, description = ?, price = ?, chauffeur_price = ?, price_poa = ?,
          chauffeur_price_poa = ?, day_rates = ?, hire_modes = ?, passengers = ?,
          transmission = ?, fuel = ?, licence_category = ?, is_available = ?,
-         public_bookings_enabled = ?, vendor_bookings_enabled = ?, updated_at = NOW()
+         public_bookings_enabled = ?, vendor_bookings_enabled = ?, feature_on_homepage = ?,
+         show_on_special_occasions = ?, updated_at = NOW()
        WHERE id = ?`,
       [
         input.name, input.description, input.price, input.chauffeurPrice,
@@ -185,7 +192,8 @@ export async function updateVehicle(id: string, input: VehicleInput) {
         input.dayRates.length ? JSON.stringify(input.dayRates) : null,
         input.hireModes, input.passengers, input.transmission, input.fuel,
         input.licenceCategory, input.isAvailable ? 1 : 0,
-        input.publicBookingsEnabled ? 1 : 0, input.vendorBookingsEnabled ? 1 : 0, id,
+        input.publicBookingsEnabled ? 1 : 0, input.vendorBookingsEnabled ? 1 : 0,
+        input.featureOnHomepage ? 1 : 0, input.showOnSpecialOccasions ? 1 : 0, id,
       ]
     )
     await transaction.execute('DELETE FROM VehicleMedia WHERE vehicle_id = ?', [id])

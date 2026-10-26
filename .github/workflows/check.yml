@@ -1,0 +1,30 @@
+name: Check Trakovo changes
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/taxi-booking.test.cjs tests/special-occasions.test.cjs tests/update-safety.test.cjs
+      - run: npm audit --audit-level=moderate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          DB_HOST: '127.0.0.1'
+          DB_PORT: '9'
+      - name: Check cPanel packaging
+        shell: pwsh
+        run: ./tests/cpanel-packaging.test.ps1

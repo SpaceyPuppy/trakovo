@@ -6,7 +6,8 @@ import type { Metadata } from 'next'
 
 export const revalidate = 0
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const params = await props.params;
   return { title: `Booking ${params.id.slice(0, 8)}` }
 }
 
@@ -24,7 +25,8 @@ const STATUS_MESSAGES: Record<string, string> = {
   cancelled: 'This booking has been cancelled.',
 }
 
-export default async function VendorBookingDetailPage({ params }: { params: { id: string } }) {
+export default async function VendorBookingDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getVendorSession()
   if (!session) redirect('/vendor/login')
 

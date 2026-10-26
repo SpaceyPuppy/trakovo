@@ -7,7 +7,7 @@ native-app architecture.
 
 ## System shape
 
-Trakovo is a single Next.js 14 application using the App Router. It serves public booking
+Trakovo is a single Next.js 16 / React 19 application using the App Router. It serves public booking
 screens, the admin/vendor/driver portals, and JSON API routes from the same deployment. MySQL
 is accessed directly through `mysql2`; Prisma is retained only as historical schema reference
 material and must not be introduced at runtime.

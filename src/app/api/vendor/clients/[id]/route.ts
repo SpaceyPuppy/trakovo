@@ -6,7 +6,8 @@ async function getOwnedClient(clientId: string, vendorId: string) {
   return queryOne('SELECT * FROM VendorClient WHERE id = ? AND vendor_id = ? AND is_active = 1 LIMIT 1', [clientId, vendorId])
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getVendorSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
@@ -21,7 +22,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ client: { ...client, is_active: Boolean((client as { is_active: number }).is_active), bookings } })
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getVendorSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
@@ -43,7 +45,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   return NextResponse.json({ client: { ...client, is_active: Boolean((client as { is_active: number }).is_active) } })
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getVendorSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

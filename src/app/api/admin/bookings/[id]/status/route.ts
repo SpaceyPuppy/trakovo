@@ -7,9 +7,10 @@ import {
   updateAdminBookingStatus,
 } from '@/lib/admin-booking-mutations'
 
-interface Context { params: { id: string } }
+interface Context { params: Promise<{ id: string }> }
 
-export async function PATCH(req: NextRequest, { params }: Context) {
+export async function PATCH(req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

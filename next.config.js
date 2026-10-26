@@ -4,13 +4,14 @@ const nextConfig = {
   // small while retaining the Node modules traced by Next.js.
   output: 'standalone',
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '**' },
-      { protocol: 'http', hostname: '**' },
-    ],
+    // Vehicle imagery uses ordinary <img> elements. Do not expose an arbitrary
+    // remote-image proxy through Next's image optimisation endpoint.
+    remotePatterns: [],
+    dangerouslyAllowSVG: false,
+    dangerouslyAllowLocalIP: false,
   },
   experimental: {
-    serverActions: { bodySizeLimit: '10mb' },
+    serverActions: { bodySizeLimit: '1mb' },
   },
 }
 

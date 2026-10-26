@@ -1,105 +1,190 @@
 # Pending Production Deployment
 
-## Current production version: v1.15.3 (owner confirmed 12 October 2026)
+## Last confirmed production version: v1.15.3 (owner confirmed 12 October 2026)
 
-Production uses cPanel shared hosting. The owner manages installation; publishing a
-GitHub release does not mean production has been upgraded. The VPS migration has not occurred.
+This is a historical confirmation, not a live check on 26 October. Verify the installed
+version before starting. The owner manages this cPanel installation; release publication
+does not install it or confirm host patching. The VPS migration has not occurred.
 
-## Current pending version: v1.18.1
+## Current pending version: v1.19.0
 
-## v1.18.1 — released 12 October 2026 (production deployment pending)
+## v1.19.0 — (unreleased)
 
-[GitHub release](https://github.com/SpaceyPuppy/trakovo/releases/tag/v1.18.1) published
-all three assets after successful release CI. The downloaded OTA bundle's SHA-256,
-package version, BUILD_ID and environment-file exclusions were verified. This does
-not complete any production SQL or installation checklist item below.
+Combined Special Occasions, vehicle showcase and security release.
+**Install the full `trakovo-v1.19.0.zip` through cPanel File Manager. Do not upload it
+to Admin → Settings → Updates. There is no OTA bundle for this release.**
 
-This supersedes the withdrawn v1.18.0 package. cPanel archives now exclude the
-Docker-only standalone tree (which can contain environment files), and packaging
-fails if an unexpected environment file is included. Use v1.18.1, not v1.18.0.
+The framework changes from Next.js 14 / React 18 to Next.js 16.4.3 / React 19.3.1.
+Replacing only .next would leave incompatible and vulnerable server dependencies.
+This release requires a short maintenance window with a matching build, configuration,
+package-lock.json, installed dependencies and patched Node.js runtime.
 
-- Taxi is advertised as an available service, without public Coming Soon labels.
-- Choosing Taxi opens a call-to-book dialog instead of loading the online taxi flow.
-- Default booking number: **0488 838 442** (`tel:0488838442`).
-- Admin → Settings → Booking App → Taxi Bookings can change the number and enable the
-  online app later. Online booking is off unless explicitly enabled.
-- Direct taxi URLs are also guarded; public taxi submissions are rejected in phone mode.
-  Vendor taxi bookings are unaffected.
-- Unlaunched rideshare cards are hidden; old `/book/rideshare` URLs redirect to `/book`.
+### 1. Host preparation — provider/owner
 
-### Upgrade directly from v1.15.3 using OTA
+- [ ] **Credential exposure review and rotation:** the public Git history contains
+      `.env.local` with populated credential fields (and a legacy `.env`). They are
+      removed from current version control while local copies are preserved, but the
+      historical values remain public. Treat them as exposed: rotate every value that
+      is/was used on production or another live system, including DB password, master
+      admin password, admin/vendor JWT secrets, Microsoft OAuth client secret and
+      maintenance password. Review SMTP credentials and other keys too. Update the
+      private cPanel configuration and relevant provider services together. Rotating
+      JWT secrets signs out existing sessions. Check the domain restrictions on the
+      public Mapbox token. Do not paste historical values into tickets or commits.
+- [ ] Ensure **all three** JWT secret variables are set to strong private values.
+      Production now rejects missing or known development fallback signing secrets;
+      correct this configuration before restarting the new build.
+- [ ] Ask the provider to complete and evidence the actions in
+      [SECURITY-REVIEW-2026-10-26.md](SECURITY-REVIEW-2026-10-26.md): PHP CVE-2026-109618
+      / 109619 across cPanel internal PHP and all installed PHP variants, the
+      CVE-2026-115560 precaution, current CloudLinux/cPanel security updates and restarts.
+- [ ] Confirm cPanel offers **Node.js 24.22.1 or a later patched 24.x** for this specific
+      Passenger application. An older unpatched Node 24 build is insufficient.
+      If unavailable, stop and have the provider supply it before installation.
+- [ ] Record existing app root, startup file (`app.js`), Node selection and environment
+      configuration. Retain all existing secrets and `UPLOAD_DIR`; no new env vars or
+      cron jobs are required. Do not publish secrets in a support ticket.
+- [ ] Confirm the existing ADMIN_JWT_SECRET, VENDOR_JWT_SECRET and DRIVER_JWT_SECRET
+      are distinct, strong private values, and COOKIE_SECURE is true for production HTTPS.
+      Do not use the development fallback secret values. Preserve valid existing values
+      to avoid unnecessary session invalidation.
+- [ ] Back up the database, external uploads, current complete application (including
+      hidden .next), package.json, package-lock.json, configuration and the matching
+      dependency environment. Confirm the backup can be restored. Keep it outside the
+      directory being replaced. Record the old runtime/dependency configuration.
 
-There is no need to install intermediate releases. v1.18.1 includes the v1.16
-portal refresh and v1.17 customer licence-verification changes.
+PHP/cPanel remediation can be performed independently now. A Trakovo ZIP does not patch
+those components. Production security status stays unverified until the provider confirms.
 
-1. Back up the database and current application bundle, including `package.json`.
-2. Apply the **one** outstanding schema change below through phpMyAdmin, before deploying.
-3. Admin → Settings → Updates → Check for Updates → deploy v1.18.1, or upload
-   `next-bundle-v1.18.1.zip`. The updater replaces `.next`/`package.json` and restarts Passenger.
-4. Run the focused checks below. Record the live version and completion here only after
-   the owner confirms installation and checks.
+### 2. Database preflight — before installing the build
 
-The taxi change uses the existing `Setting` table. No new tables, dependencies, public
-assets, environment variables, or cron jobs are required. Runtime dependencies, `app.js`
-and public assets are unchanged since v1.15.3; this upgrade is OTA-compatible and does
-not require NPM Install or replacing root configuration.
-
-### Required SQL carried forward from v1.17.0
-
-Select the production database in phpMyAdmin and run this read-only preflight:
+Select the existing production database in phpMyAdmin and run:
 
 ```sql
-SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
+SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
-  AND TABLE_NAME = 'Booking'
-  AND COLUMN_NAME = 'licence_verification_deferred';
+  AND ((TABLE_NAME = 'Vehicle'
+        AND COLUMN_NAME IN ('feature_on_homepage', 'show_on_special_occasions'))
+       OR (TABLE_NAME = 'Booking' AND COLUMN_NAME = 'licence_verification_deferred'));
+
+SHOW TABLES LIKE 'ContactEnquiry';
 ```
 
-If it returns **zero rows**, run this statement once:
+ContactEnquiry must already exist for the contact/event inbox. If missing, stop and
+check the actual database version/schema rather than importing a fresh database.
+
+Apply **only absent columns**, once:
 
 ```sql
+-- v1.17 carry-forward: only if the Booking column is absent.
 ALTER TABLE `Booking`
   ADD COLUMN `licence_verification_deferred` BOOLEAN NOT NULL DEFAULT false
   AFTER `driver_licence_expiry`;
+
+-- v1.19: run each statement only if that Vehicle column is absent.
+ALTER TABLE `Vehicle`
+  ADD COLUMN `feature_on_homepage` BOOLEAN NOT NULL DEFAULT false
+  AFTER `vendor_bookings_enabled`;
+
+ALTER TABLE `Vehicle`
+  ADD COLUMN `show_on_special_occasions` BOOLEAN NOT NULL DEFAULT false
+  AFTER `feature_on_homepage`;
 ```
 
-Repeat the preflight: expect one non-nullable boolean/TINYINT(1) column with default 0.
-If the column already exists with this definition, do not rerun the ALTER. Stop and
-inspect any differing definition or SQL error. Do not import `prisma/init.sql` over the
-existing database, and do not reapply historical v1.15 billing migrations.
+When both new Vehicle columns are absent, the equivalent combined ALTER is supplied
+in `database/migrations/0002-v1.19.0-vehicle-showcases.sql`. Choose either that migration
+or the individual statements above, not both. Repeat the preflight: expect three
+non-nullable boolean/TINYINT(1) columns with default 0. If an existing definition
+differs, stop and inspect it. Do not rerun successful ALTERs or historical migrations.
+**Never import `prisma/init.sql` over the existing production database.**
 
-### Focused post-deploy checklist
+### 3. Install the full package — cPanel
 
-- [ ] Backups verified; licence-verification column present before OTA deployment.
-- [ ] v1.18.1 installed and Passenger restarted; admin login remains healthy.
-- [ ] Admin → Settings → Booking App shows 0488 838 442 and online taxi bookings off.
-- [ ] Taxi on `/book`, the homepage, and `/services` opens a working call dialog; no
-      taxi map or location prompt appears.
-- [ ] Direct `/book/taxi` and `/book/taxi/confirm` links show phone booking, not the app.
-- [ ] Save a phone-number change, refresh the public page, and confirm the displayed
-      number/call link changes. Restore the operational number after the check.
-- [ ] Confirm public pages no longer label services Coming Soon. Google search results
-      may retain old text until recrawled; request reindexing in Search Console if available.
-- [ ] Submit one dry-hire booking using on-the-day licence verification; confirm the
-      admin record shows it. Check an LR vehicle's required-class cancellation warning.
-- [ ] Check an ordinary hire booking still accepts licence number/expiry as before.
+1. Download `trakovo-v1.19.0.zip` from the reviewed GitHub release and verify its checksum
+   against the published release asset digest. Upload it through cPanel File Manager.
+2. Schedule the maintenance window and **stop the Node.js application** in cPanel
+   (or have the provider stop Passenger). A stopped app cannot serve its own maintenance
+   page; use a provider-level holding page if required. Keep a File Manager/terminal
+   session available; the Admin portal is not used for this installation.
+3. Enable File Manager's **Show Hidden Files**. Move/rename the old `.next` into the
+   verified backup location. Extract the full ZIP into the exact application root,
+   so `.next/BUILD_ID`, `app.js`, `next.config.js`, `package.json`, `package-lock.json`,
+   `public/`, `src/`, `prisma/` and `database/` sit directly under that root.
+   Avoid an extra nested `trakovo/` folder and avoid merging new chunks into an old
+   `.next`. Keep private environment files and external uploads untouched.
+4. In **Setup Node.js App**, select patched **Node 24.22.1+ (24.x)**, production mode
+   and startup file `app.js`. Preserve the recorded environment variables. Keep the
+   app stopped while build/configuration and dependencies are being replaced; if the
+   panel automatically restarts during a runtime change, stop it again before continuing.
+5. Click **Run NPM Install** using the newly extracted package.json **and lockfile**.
+   Wait for successful completion. cPanel manages its node_modules link/environment:
+   do not replace that link with a local Windows node_modules folder. If the provider
+   runs the install for you, use its supported Node environment and the supplied
+   lockfile. No server-side build is needed; the ZIP contains the compiled build.
+6. If terminal access is available, activate the exact environment displayed by cPanel
+   and verify `node --version` and `npm ls --omit=dev next react react-dom sharp mysql2
+   nodemailer adm-zip axios js-cookie`. Expected release versions: Node 24.22.1+, Next
+   16.4.3, React/React DOM 19.3.1, sharp 0.35.5, mysql2 3.24.6, Nodemailer 10.2.1,
+   adm-zip 0.6.1, Axios 1.20.0 and js-cookie 3.0.8 (or a reviewed later lockfile).
+7. **Start/restart Passenger** only after SQL, files and NPM installation succeed.
+   Confirm the running application uses the selected Node environment and watch its
+   startup/error log. PHP worker/panel restarts are separate provider tasks.
 
-Keep **Enable online taxi bookings** off in production until launch. It can be tested
-on a non-production instance; do not briefly expose the app publicly just to test the switch.
+If an install or startup step fails, keep the app stopped and use the rollback below.
+Do not try to repair the transition with an OTA upload of this full ZIP.
+
+### 4. Focused post-deployment checks — owner
+
+- [ ] Admin login, vendor login and driver login/logout work; unauthorised portal/API
+      requests remain blocked. Admin → Settings → Updates reports v1.19.0.
+- [ ] Desktop and mobile navigation show Special Occasions, Corporate Events, Services,
+      Our Fleet and Contact; desktop also has View Fleet. Occasion dropdown links open
+      the matching sections. Corporate Events opens Professional Services.
+- [ ] Special Occasions reads correctly with no selected vehicles. Submit a real test
+      enquiry and confirm its event details in Admin → Enquiries → Contact Enquiries,
+      plus notification at the configured admin address. Mail failure must not lose
+      the saved enquiry. Clean up the test enquiry through the normal admin process.
+- [ ] In Admin → Vehicles, choose appropriate vehicles with **Feature on homepage**
+      and **Show on Special Occasions**. Both default off, so the homepage showcase
+      starts empty until selections are made; the ordinary fleet remains available.
+- [ ] Leave the wheelchair accessible vehicle unfeatured. If it is unavailable for hire,
+      turn **Vehicle is active** off. Verify it disappears from homepage, event showcase,
+      public fleet and direct public detail pages. Do not deactivate an operational
+      vehicle merely to stop homepage promotion; use its feature switch for that.
+- [ ] Select an active public event vehicle, verify its image/name and enquiry preference.
+      Turn active/public visibility off and confirm it disappears even if showcase switches
+      remain selected. Restore the operational configuration after checking.
+- [ ] Check one standard hire submission, pricing/availability and confirmation. Carry
+      forward the v1.17 on-the-day licence-verification check if not already deployed.
+- [ ] Taxi still uses the configured phone booking dialog (default 0488 838 442).
+      Leave online taxi bookings off unless separately launched. Vendor taxi unchanged.
+- [ ] Confirm uploaded media and existing customer documents remain accessible only
+      through their intended routes/permissions; check existing email sending and updater UI.
+- [ ] Confirm NEXT_PUBLIC_SITE_URL is correct; the sitemap includes the new page. Request
+      search reindexing if appropriate. Confirm provider CVE evidence and service restarts.
+
+Record the actual deployed version/date and clear only completed items after the owner
+confirms installation and checks. Production has not been accessed by this release work.
 
 ### Rollback
 
-The SQL is additive and compatible with v1.15.3. Keep the column if rolling back code.
-Use the OTA rollback bundle for a code failure and restore the backed-up `package.json`
-if necessary: the updater's rollback restores `.next`, not package metadata. Do not
-drop the new column or undo billing data as an application rollback step.
+Stop the application. Restore the **matching old .next, root configuration, app.js,
+package.json, package-lock.json and dependency environment** from backup; if dependencies
+must be installed again, use the old lockfile in the recorded compatible environment.
+Restore the old Node selection only if it is a patched supported runtime; involve the
+provider if the old setup relied on an unsupported runtime. Keep host PHP/cPanel security
+patches in place. Restart and check login/bookings. Do not use the Admin .next-only
+rollback across this framework/dependency transition.
 
-### Deployment history
+The new SQL is additive: leave the three boolean columns in place when rolling back
+application code. Do not drop columns, reset the database or undo unrelated billing data.
 
-- v1.15.3: production version confirmed by owner on 12 October 2026; historical
-  billing acceptance checks were not reverified in this release session.
-- v1.16.0 and v1.17.0: releases published, not yet installed on this production instance.
-- v1.18.0: withdrawn during packaging verification; superseded by v1.18.1.
-- The previous audited SQL and historical checklists are preserved in
-  [`docs/archive/PENDING-DEPLOY-v1.17.0.md`](docs/archive/PENDING-DEPLOY-v1.17.0.md).
+### Changelog and history
+
+- New `/special-occasions`, occasion navigation, event enquiries and opt-in vehicle showcases.
+- Updated Next.js/React/runtime dependencies, request APIs, enquiry validation and ZIP guards.
+- Manual host security review: `SECURITY-REVIEW-2026-10-26.md`.
+- Previous deployment state retained in `docs/archive/PENDING-DEPLOY-v1.18.1.md`.
+- v1.15.3 was last owner-confirmed on 12 October; v1.16/v1.17/v1.18.1 were published
+  with installation still pending at that confirmation. v1.18.0 was withdrawn.

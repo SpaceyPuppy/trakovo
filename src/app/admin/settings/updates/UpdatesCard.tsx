@@ -256,7 +256,7 @@ export default function UpdatesCard({ version, buildLabel, currentBuildId, hasBa
                   </div>
                 ) : (
                   <p className="text-[12.5px] text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-[6px] px-3 py-2 mt-1">
-                    No next-bundle zip found in this release. Use manual upload below.
+                    This release has no OTA bundle. Follow its release notes for full-package installation through cPanel.
                   </p>
                 )}
               </>
@@ -285,8 +285,8 @@ export default function UpdatesCard({ version, buildLabel, currentBuildId, hasBa
           <p className="text-[12px] font-semibold text-ink-3 uppercase tracking-wider">How to create the bundle locally</p>
           <ol className="text-[12.5px] text-ink-3 space-y-1 list-decimal list-inside">
             <li><code className="font-mono text-[11.5px] bg-black/5 px-1 py-0.5 rounded">npm run build</code></li>
-            <li><code className="font-mono text-[11.5px] bg-black/5 px-1 py-0.5 rounded">.\make-zip.ps1</code> — creates both the full release zip and <code className="font-mono text-[11.5px] bg-black/5 px-1 py-0.5 rounded">next-bundle-vX.X.X.zip</code></li>
-            <li>Upload the <code className="font-mono text-[11.5px] bg-black/5 px-1 py-0.5 rounded">next-bundle-vX.X.X.zip</code> here</li>
+            <li><code className="font-mono text-[11.5px] bg-black/5 px-1 py-0.5 rounded">.\make-zip.ps1</code> — creates the full release and an OTA bundle when the release supports OTA.</li>
+            <li>For an OTA-compatible release, upload its <code className="font-mono text-[11.5px] bg-black/5 px-1 py-0.5 rounded">next-bundle-vX.X.X.zip</code> here. Full release packages must be installed through cPanel.</li>
           </ol>
         </div>
 

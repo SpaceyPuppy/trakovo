@@ -4,7 +4,7 @@ import { resolveUploadPath } from '@/lib/uploads'
 import fs from 'fs/promises'
 import path from 'path'
 
-interface Context { params: { path: string[] } }
+interface Context { params: Promise<{ path: string[] }> }
 
 const MIME_TYPES: Record<string, string> = {
   '.pdf': 'application/pdf',
@@ -15,7 +15,8 @@ const MIME_TYPES: Record<string, string> = {
   '.gif': 'image/gif',
 }
 
-export async function GET(_req: NextRequest, { params }: Context) {
+export async function GET(_req: NextRequest, props: Context) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

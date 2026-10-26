@@ -13,7 +13,8 @@ const FILTER_LABELS: Record<string, string> = {
   selfdrive: 'Self-Drive (Dry Hire)',
 }
 
-export default async function VehiclesPage({ searchParams }: { searchParams: { hire?: string } }) {
+export default async function VehiclesPage(props: { searchParams: Promise<{ hire?: string }> }) {
+  const searchParams = await props.searchParams;
   let vehicles: Vehicle[] = []
   try { vehicles = await getVehicles() } catch { /* handled in UI */ }
 

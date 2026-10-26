@@ -17,7 +17,7 @@ export const revalidate = 0
 const PAGE_SIZE = 50
 
 interface Props {
-  searchParams?: { page?: string; status?: string; sort?: string; direction?: string }
+  searchParams?: Promise<{ page?: string; status?: string; sort?: string; direction?: string }>
 }
 
 const STATUS_FILTERS: AdminBookingStatusFilter[] = [
@@ -25,7 +25,8 @@ const STATUS_FILTERS: AdminBookingStatusFilter[] = [
 ]
 const SORT_FIELDS: AdminBookingSort[] = ['start_date', 'public_id', 'created_at', 'contact_name', 'vehicle']
 
-export default async function AdminBookingsPage({ searchParams }: Props) {
+export default async function AdminBookingsPage(props: Props) {
+  const searchParams = await props.searchParams;
   const status = STATUS_FILTERS.includes(searchParams?.status as AdminBookingStatusFilter)
     ? searchParams?.status as AdminBookingStatusFilter
     : 'all'

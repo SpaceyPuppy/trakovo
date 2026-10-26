@@ -4,7 +4,8 @@ import { execute } from '@/lib/db'
 
 // PUT /api/admin/vendors/[id]/vehicles
 // Body: { assignments: { vehicle_id: string, is_enabled: boolean }[] }
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

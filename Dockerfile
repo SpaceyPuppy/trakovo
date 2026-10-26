@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine AS dependencies
+FROM node:24.22.1-alpine AS dependencies
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:20-alpine AS builder
+FROM node:24.22.1-alpine AS builder
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -17,7 +17,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:24.22.1-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
@@ -39,7 +39,6 @@ COPY --from=builder --chown=trakovo:trakovo /app/tools ./tools
 # utility runs as a standalone Node process and needs the driver explicitly.
 COPY --from=dependencies /app/node_modules/mysql2 ./node_modules/mysql2
 COPY --from=dependencies /app/node_modules/aws-ssl-profiles ./node_modules/aws-ssl-profiles
-COPY --from=dependencies /app/node_modules/denque ./node_modules/denque
 COPY --from=dependencies /app/node_modules/generate-function ./node_modules/generate-function
 COPY --from=dependencies /app/node_modules/iconv-lite ./node_modules/iconv-lite
 COPY --from=dependencies /app/node_modules/is-property ./node_modules/is-property

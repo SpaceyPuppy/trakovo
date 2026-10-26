@@ -36,6 +36,13 @@ const SERVICE_TYPES = [
     cta: 'Book a taxi →',
   },
   {
+    icon: '🥂',
+    title: 'Special Occasions',
+    desc: 'Classic and luxury vehicles on enquiry for weddings, deb balls, formals, graduations and celebrations.',
+    href: '/special-occasions',
+    cta: 'Explore special occasions →',
+  },
+  {
     icon: '🏢',
     title: 'Professional Services',
     desc: 'Tailored corporate transport for businesses, conferences, delegations, and events. Account-based billing with priority availability.',
@@ -142,7 +149,7 @@ export default async function ServicesPage() {
         </section>
 
         {/* Professional Services */}
-        <section id="professional-services" className="bg-bg border-y border-border">
+        <section id="professional-services" className="bg-bg border-y border-border scroll-mt-20">
           <div className="max-w-[1160px] mx-auto px-4 sm:px-6 md:px-10 py-14 md:py-20">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-3 flex items-center gap-2">
               <span className="w-4 h-[2px] bg-accent inline-block" />Professional Services

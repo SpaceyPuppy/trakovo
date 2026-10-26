@@ -4,6 +4,7 @@ import Footer from '@/components/ui/Footer'
 import VehicleCard from '@/components/ui/VehicleCard'
 import ServicesPanel from './ServicesPanel'
 import { getVehicles } from '@/lib/api'
+import { showcaseVehicles } from '@/lib/vehicle-showcase'
 import { queryOne } from '@/lib/db'
 import { getTaxiBookingConfig } from '@/lib/taxi-booking'
 import type { Vehicle } from '@/types'
@@ -18,7 +19,7 @@ export default async function HomePage() {
   const heroRow = await queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'hero_image_path' LIMIT 1").catch(() => null)
   const hasHero = !!heroRow?.value
 
-  const preview = vehicles.slice(0, 3)
+  const preview = showcaseVehicles(vehicles, 'feature_on_homepage', 3)
 
   return (
     <>
@@ -65,7 +66,7 @@ export default async function HomePage() {
               </Link>
             </div>
             <div className="flex gap-6 md:gap-8 mt-8 md:mt-14 pt-6 md:pt-8 border-t border-white/10">
-              {[['8','Vehicles available'],['24h','Response time'],['CBD','Based & serviced']].map(([num,lbl]) => (
+              {[[String(vehicles.length),'Vehicles available'],['24h','Response time'],['CBD','Based & serviced']].map(([num,lbl]) => (
                 <div key={lbl}>
                   <p className="font-display font-bold text-[26px] text-white">{num}</p>
                   <p className="text-[12px] text-white/45 mt-0.5">{lbl}</p>

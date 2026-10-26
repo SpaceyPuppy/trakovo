@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import { query } from '@/lib/db'
 
-export async function GET(_req: NextRequest, { params }: { params: { email: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ email: string }> }) {
+  const params = await props.params;
   const session = await getAdminSession()
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 

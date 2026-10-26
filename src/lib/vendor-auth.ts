@@ -5,7 +5,7 @@ import { createSignedToken, verifySignedToken } from './signed-token'
 // the Node.js runtime (API routes) and the Edge Runtime (middleware).
 // Password helpers (hashPassword / verifyPassword) live in src/lib/password.ts
 
-const SECRET = process.env.VENDOR_JWT_SECRET ?? 'vendor-dev-secret'
+const SECRET = process.env.VENDOR_JWT_SECRET ?? (process.env.NODE_ENV === 'production' ? '' : 'vendor-dev-secret')
 const COOKIE = 'apex_vendor_session'
 
 export interface VendorSession {
@@ -29,14 +29,14 @@ export async function verifyVendorToken(token: string): Promise<VendorSession | 
 }
 
 export async function getVendorSession(): Promise<VendorSession | null> {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE)?.value
   if (!token) return null
   return verifyVendorToken(token)
 }
 
-export function setVendorSessionCookie(token: string, maxAge = 60 * 60 * 8): void {
-  cookies().set(COOKIE, token, {
+export async function setVendorSessionCookie(token: string, maxAge = 60 * 60 * 8): Promise<void> {
+  (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     secure: process.env.COOKIE_SECURE !== 'false',
     sameSite: 'lax',
@@ -45,8 +45,8 @@ export function setVendorSessionCookie(token: string, maxAge = 60 * 60 * 8): voi
   })
 }
 
-export function clearVendorSessionCookie(): void {
-  cookies().set(COOKIE, '', { maxAge: 0, path: '/' })
+export async function clearVendorSessionCookie(): Promise<void> {
+  (await cookies()).set(COOKIE, '', { maxAge: 0, path: '/' })
 }
 
 export const VENDOR_COOKIE_NAME = COOKIE
