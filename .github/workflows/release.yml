@@ -115,6 +115,13 @@ jobs:
           $otaAsset = if ($package.deployment.requires_full_install) { '' } else { "next-bundle-v$($package.version).zip" }
           "ota_asset=$otaAsset" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "docker_asset=trakovo-docker-v$version.zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          # Publish only current manual prerequisites; historical SQL remains in packages.
+          "sql_assets<<TRAKOVO_SQL_ASSETS" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          foreach ($sql in @($package.deployment.required_sql | Where-Object { $_ })) {
+            if (-not (Test-Path -LiteralPath $sql -PathType Leaf)) { throw "Missing SQL prerequisite: $sql" }
+            $sql | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+          "TRAKOVO_SQL_ASSETS" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
@@ -127,4 +134,4 @@ jobs:
             trakovo-v${{ steps.assets.outputs.cpanel_version }}.zip
             ${{ steps.assets.outputs.ota_asset }}
             ${{ steps.assets.outputs.docker_asset }}
-            database/migrations/*.sql
+            ${{ steps.assets.outputs.sql_assets }}
