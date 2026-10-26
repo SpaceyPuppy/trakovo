@@ -10,8 +10,8 @@ become. It distinguishes source-code capability from production deployment state
 | Environment | Version | State |
 |---|---:|---|
 | Production (cPanel) | v1.15.3 last confirmed | Owner confirmed 12 October 2026; actual current live version must be checked before installation |
-| Last published release | v1.18.1 | cPanel/OTA release published; installation remained pending at the last owner confirmation |
-| Current working release | v1.19.0 | Special Occasions, vehicle showcases and security update; full-package installation required; validation/publication in progress |
+| Current repository release | v1.19.0 | Published 26 October 2026; full cPanel package downloaded and verified; production installation and host credential/security actions pending |
+| Next release | Not selected | No release beyond v1.19.0 is currently selected |
 
 Do not describe pending-release features as live until the SQL, deployment, and smoke-test items in
 [`PENDING-DEPLOY.md`](../PENDING-DEPLOY.md) have been completed.
