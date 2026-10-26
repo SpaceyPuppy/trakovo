@@ -40,10 +40,16 @@ public assets require replacement that an OTA swap cannot perform. Explain the h
 steps for that exception. A database change alone does not require full-package delivery:
 apply its SQL manually first, then install the compatible OTA bundle.
 
-v1.20.0 has an OTA asset for the fully upgraded v1.19.0 baseline. The two SQL files
-0003 and 0004 are separate downloads on that release. Apply only absent schema changes
+v1.20.0 has an OTA asset for the fully upgraded v1.19.0 baseline. Use 0003 only if its
+column is absent and 0005 for absent/partially created category tables on cPanel;
+0004 is retained unchanged for historical checksums. Apply only required schema changes
 before OTA. Existing full/Docker assets and the v1.20.0 tag are unchanged. The OTA reuses
 the exact Linux build from the full package, with compatible deployment metadata.
+
+v1.20.1 requires no further SQL on the owner's repaired v1.20.0 server. Configure the
+first two service buttons in Admin -> Vehicles -> Fleet Categories -> Service buttons.
+New fresh-install Vehicle/category tables explicitly use InnoDB; never import init.sql
+over existing production data. The OTA still does not apply SQL automatically.
 
 For an existing release that needs an OTA asset added, use
 `node tools/create-ota-from-release.cjs baseline.zip release.zip output.zip`.

@@ -20,6 +20,7 @@ const api = loadSource('src/lib/api-route.ts', { './auth': { getAdminSession: as
 const occasions = loadSource('src/lib/special-occasions.ts')
 const showcase = loadSource('src/lib/vehicle-showcase.ts')
 const collections = loadSource('src/lib/fleet-collections.ts')
+const serviceButtons = loadSource('src/lib/service-buttons.ts')
 const utils = loadSource('src/lib/utils.ts')
 const vehicle = (id, options = {}) => ({ id, name: id, slug: id, is_available: true, public_bookings_enabled: true, feature_on_homepage: true, show_on_special_occasions: true, enquiry_only: false, fleet_categories: [], media: [], meta: {}, ...options })
 const link = ({ children, ...props }) => React.createElement('a', props, children)
@@ -168,7 +169,7 @@ test('admin route wrapper authenticates and resolves asynchronous route paramete
 
 test('public cards say Enquire for enquiry-only vehicles while retaining their vehicle detail links', () => {
   const selected = vehicle('Classic', { enquiry_only: true, price: 100, chauffeur_price: 200 })
-  const common = { 'next/link': { default: link }, '@/lib/utils': utils, 'next/navigation': { useSearchParams: () => new URLSearchParams() } }
+  const common = { 'next/link': { default: link }, '@/lib/utils': utils, '@/lib/service-buttons': serviceButtons }
   for (const file of ['src/components/ui/VehicleCard.tsx', 'src/app/book/MobileVehicleList.tsx', 'src/app/book/hire/MobileVehicleList.tsx']) {
     const component = loadSource(file, common).default
     const html = renderToStaticMarkup(React.createElement(component, { vehicle: selected, vehicles: [selected] }))
@@ -291,7 +292,8 @@ test('fleet categories validate protected filters, save names/groups, reject dup
     newId: () => 'new', withTransaction: callback => callback(transaction), query: async () => [],
     execute: async (sql, params) => { writes.push({ sql, params }); return { affectedRows: 1 } },
   } })
-  for (const name of ['Chauffeur Only', 'Self-Drive Available', 'All Vehicles', ' ']) assert.throws(() => categories.parseFleetCategory({ name }), api.ApiError)
+  for (const name of ['Self-Drive Available', 'All Vehicles', ' ']) assert.throws(() => categories.parseFleetCategory({ name }), api.ApiError)
+  assert.equal(categories.parseFleetCategory({ name: 'Chauffeur Only' }).name, 'Chauffeur Only')
   assert.throws(() => categories.parseFleetCategory({ name: 'Bus', homepage_group: 'invalid' }), /homepage group/)
   const input = categories.parseFleetCategory({ name: ' Bus ', homepage_group: 'buses' })
   assert.deepEqual(await categories.saveFleetCategory(input), { id: 'new', name: 'Bus', homepage_group: 'buses' })
@@ -302,6 +304,133 @@ test('fleet categories validate protected filters, save names/groups, reject dup
   assert.equal(writes.at(-1).sql, 'DELETE FROM FleetCategory WHERE id = ?')
   assert.deepEqual(writes.at(-1).params, ['bus'])
   assert.ok(writes.every(write => !/DELETE FROM Vehicle\b/.test(write.sql)))
+})
+
+test('service buttons have the agreed order and destinations in both homepage layouts and the booking app', () => {
+  const expected = ['Self-Drive Buses', 'Chauffeured Hire', 'Special Occasions', 'Taxi']
+  assert.deepEqual(serviceButtons.SERVICE_BUTTONS.map(button => button.title), expected)
+  const panel = loadSource('src/app/ServicesPanel.tsx', {
+    'next/link': { default: link }, '@/lib/service-buttons': serviceButtons,
+    '@/components/book/TaxiBookingLink': { default: ({ children }) => React.createElement('button', null, children) },
+  }).default
+  for (const compact of [false, true]) {
+    const html = renderToStaticMarkup(React.createElement(panel, { compact, taxiConfig: {} }))
+    assert.deepEqual([...html.matchAll(/<p class="font-display font-bold [^"]*">([^<]+)<\/p>/g)].map(match => match[1]), expected)
+    for (const href of ['/vehicles?service=selfdrive', '/vehicles?service=chauffeured', '/special-occasions']) assert.ok(html.includes(`href="${href}"`))
+    assert.doesNotMatch(html, /Professional Services|Dry Hire/)
+  }
+  const picker = loadSource('src/app/book/BookPicker.tsx', {
+    react: { ...React, useEffect() {}, useState: initial => [initial === 'splash' ? 'picker' : initial, () => {}] },
+    'next/navigation': { useRouter: () => ({ push() {} }) }, '@/lib/service-buttons': serviceButtons,
+    '@/components/book/TaxiCallDialog': { default: () => null },
+  }).default
+  const html = renderToStaticMarkup(React.createElement(picker, { taxiConfig: { onlineBookingEnabled: false } }))
+  const positions = expected.map(label => html.indexOf(label))
+  assert.ok(positions.every((position, index) => position >= 0 && (index === 0 || position > positions[index - 1])))
+  assert.match(html, /Call to book/)
+})
+
+test('button categories default to explicit categories and honour custom, empty and deleted assignments without hire-mode guesses', () => {
+  const categories = [
+    { id: 'bus', name: 'Bus', homepage_group: 'buses' },
+    { id: 'executive', name: 'Chauffeured Vehicles', homepage_group: 'chauffeured' },
+    { id: 'classic', name: 'Classics', homepage_group: 'special-occasions' },
+  ]
+  assert.deepEqual(serviceButtons.resolveServiceCategories({}, categories), { selfdrive: 'bus', chauffeured: 'executive' })
+  assert.deepEqual(serviceButtons.resolveServiceCategories({}, []), { selfdrive: '', chauffeured: '' })
+  const settings = { service_selfdrive_category_id: 'classic', service_chauffeured_category_id: '' }
+  assert.deepEqual(serviceButtons.resolveServiceCategories(settings, categories), { selfdrive: 'classic', chauffeured: '' })
+  assert.equal(serviceButtons.resolveServiceCategories({ service_selfdrive_category_id: 'deleted' }, categories).selfdrive, 'deleted')
+  const vehicles = [vehicle('Assigned', { fleet_categories: [categories[2]], meta: { hire_modes: 'chauffeured_only' } }), vehicle('Unassigned', { meta: { hire_modes: 'both' } })]
+  assert.deepEqual(serviceButtons.filterFleetVehicles(vehicles, 'category:classic').map(item => item.id), ['Assigned'])
+  assert.deepEqual(serviceButtons.filterFleetVehicles(vehicles, 'category:deleted'), [])
+  assert.deepEqual(serviceButtons.filterFleetVehicles(vehicles, 'category:'), [])
+  assert.deepEqual(serviceButtons.filterFleetVehicles(vehicles, 'selfdrive').map(item => item.id), ['Unassigned'])
+})
+
+test('website and booking-app fleet links use the same Admin category assignments, including legacy links and empty results', async () => {
+  const categories = [{ id: 'chosen', name: 'Private Hire', homepage_group: '' }]
+  let assignments = { selfdrive: 'chosen', chauffeured: 'chosen' }
+  const vehicles = [vehicle('Included', { fleet_categories: categories }), vehicle('Excluded', { meta: { hire_modes: 'both' } })]
+  const common = {
+    'next/link': { default: link }, '@/lib/service-buttons': serviceButtons, '@/lib/utils': utils,
+    '@/lib/api': { getVehicles: async () => vehicles }, '@/lib/fleet-categories': { getFleetCategories: async () => categories },
+    '@/lib/service-category-settings': { getServiceCategoryAssignments: async () => assignments },
+    '@/components/ui/NavWrapper': { default: () => null }, '@/components/ui/Footer': { default: () => null },
+    '@/lib/site': { getSiteName: async () => 'Test', getLogoUrl: async () => '' },
+    '@/lib/fleet-collections': collections,
+  }
+  const card = { default: ({ vehicle }) => React.createElement('p', null, vehicle.name) }
+  const grid = loadSource('src/app/vehicles/FleetGrid.tsx', { ...common, '@/components/ui/VehicleCard': card })
+  const list = loadSource('src/app/book/hire/MobileVehicleList.tsx', common)
+  for (const [file, extra] of [
+    ['src/app/vehicles/page.tsx', { './FleetGrid': grid }],
+    ['src/app/book/hire/page.tsx', { './MobileVehicleList': list }],
+  ]) {
+    const page = loadSource(file, { ...common, ...extra }).default
+    for (const params of [{ service: 'selfdrive' }, { service: 'chauffeured' }, file.includes('/book/') ? { mode: 'chauffeured' } : { hire: 'chauffeur' }]) {
+      assignments = { selfdrive: 'chosen', chauffeured: 'chosen' }
+      const html = renderToStaticMarkup(await page({ searchParams: Promise.resolve(params) }))
+      assert.match(html, /Included/)
+      assert.doesNotMatch(html, /Excluded|Chauffeur Only/)
+      assignments = { selfdrive: '', chauffeured: 'deleted' }
+      const empty = renderToStaticMarkup(await page({ searchParams: Promise.resolve(params) }))
+      assert.match(empty, /No vehicles found/)
+      assert.doesNotMatch(empty, /Included|Excluded/)
+    }
+  }
+})
+
+test('service category saves validate both selections and persist them atomically in existing Settings', async () => {
+  const writes = []
+  const transaction = {
+    query: async (sql, [ids]) => { assert.match(sql, /FOR UPDATE/); return ids.filter(id => id === 'bus').map(id => ({ id })) },
+    execute: async (sql, params) => writes.push({ sql, params }),
+  }
+  const settings = loadSource('src/lib/service-category-settings.ts', {
+    './api-route': api, './service-buttons': serviceButtons,
+    './db': { withTransaction: callback => callback(transaction) }, './settings': { getSettings: async () => ({}) },
+  })
+  for (const body of [{}, { selfdrive: 1, chauffeured: '' }, { selfdrive: 'bus', chauffeured: 'missing' }]) {
+    await assert.rejects(settings.saveServiceCategoryAssignments(body), api.ApiError)
+  }
+  assert.deepEqual(writes, [])
+  assert.deepEqual(await settings.saveServiceCategoryAssignments({ selfdrive: 'bus', chauffeured: 'bus' }), { selfdrive: 'bus', chauffeured: 'bus' })
+  assert.match(writes[0].sql, /INSERT INTO Setting/)
+  assert.deepEqual(writes[0].params, ['service_selfdrive_category_id', 'bus', 'service_chauffeured_category_id', 'bus'])
+  await settings.saveServiceCategoryAssignments({ selfdrive: '', chauffeured: '' })
+  assert.equal(writes.length, 2)
+  const failed = loadSource('src/lib/service-category-settings.ts', {
+    './api-route': api, './service-buttons': serviceButtons, './db': {},
+    './settings': { getSettings: async () => { throw new Error('Unavailable') } },
+  })
+  assert.deepEqual(await failed.getServiceCategoryAssignments([{ id: 'bus', name: 'Bus', homepage_group: 'buses' }]), { selfdrive: '', chauffeured: '' })
+})
+
+test('service category endpoint requires Admin authentication and bounds its JSON input', async () => {
+  let saved = false
+  const denied = loadSource('src/lib/api-route.ts', { './auth': { getAdminSession: async () => null } })
+  const mocks = { '@/lib/api-route': denied, '@/lib/service-category-settings': { saveServiceCategoryAssignments: async () => { saved = true } } }
+  let route = loadSource('src/app/api/admin/service-categories/route.ts', mocks)
+  const context = { params: Promise.resolve({}) }
+  assert.equal((await route.PUT(new Request('http://localhost/api/admin/service-categories', { method: 'PUT' }), context)).status, 401)
+  assert.equal(saved, false)
+  route = loadSource('src/app/api/admin/service-categories/route.ts', { ...mocks, '@/lib/api-route': api })
+  assert.equal((await route.PUT(new Request('http://localhost/api/admin/service-categories', { method: 'PUT', body: 'x'.repeat(4001) }), context)).status, 413)
+  assert.equal(saved, false)
+})
+
+test('public vehicle lists retain only the green Self-Drive badge and omit Chauffeur filters and badges', () => {
+  const common = { 'next/link': { default: link }, '@/lib/utils': utils, '@/lib/service-buttons': serviceButtons }
+  for (const file of ['src/components/ui/VehicleCard.tsx', 'src/app/book/MobileVehicleList.tsx', 'src/app/book/hire/MobileVehicleList.tsx']) {
+    const component = loadSource(file, common).default
+    for (const mode of ['both', 'chauffeured_only', undefined]) {
+      const selected = vehicle('Car', { price: 100, chauffeur_price: 200, meta: { hire_modes: mode } })
+      const html = renderToStaticMarkup(React.createElement(component, { vehicle: selected, vehicles: [selected] }))
+      assert.doesNotMatch(html, /Chauffeur/)
+      assert.equal(html.includes('bg-emerald-700 text-white'), mode === 'both')
+    }
+  }
 })
 
 test('category administration endpoints reject unauthenticated mutations', async () => {

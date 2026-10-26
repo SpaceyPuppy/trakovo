@@ -44,13 +44,17 @@ npm run dev
 ```bash
 npm run build
 powershell -ExecutionPolicy Bypass -File "make-zip.ps1"
-# v1.20.0 from v1.19.0: apply pending SQL, then upload next-bundle-v1.20.0.zip in Admin
+# v1.20.1 from repaired v1.20.0: upload next-bundle-v1.20.1.zip in Admin
 # Full cPanel package remains available for fresh/manual installations.
 ```
 
 Before deploying a build that changes the database, follow the version-specific SQL and
 ordering in `PENDING-DEPLOY.md`. The application deliberately does not run migrations
 automatically.
+
+Configure the first two public service buttons under Admin -> Vehicles -> Fleet
+Categories -> Service buttons. Each selects a custom category for both the website
+and booking app. See PENDING-DEPLOY.md for initial assignments and upgrade checks.
 
 For a VPS deployment using tagged container images, see
 [`docs/DEPLOYMENT-DOCKER.md`](docs/DEPLOYMENT-DOCKER.md). The installer supports shared

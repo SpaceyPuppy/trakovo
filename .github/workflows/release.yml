@@ -127,3 +127,4 @@ jobs:
             trakovo-v${{ steps.assets.outputs.cpanel_version }}.zip
             ${{ steps.assets.outputs.ota_asset }}
             ${{ steps.assets.outputs.docker_asset }}
+            database/migrations/*.sql

@@ -4,12 +4,14 @@ import MobileVehicleList from './MobileVehicleList'
 import Link from 'next/link'
 import type { Vehicle } from '@/types'
 import type { Metadata } from 'next'
-import { Suspense } from 'react'
+import { getFleetCategories } from '@/lib/fleet-categories'
+import { getServiceCategoryAssignments } from '@/lib/service-category-settings'
+import { fleetService, SERVICE_BUTTONS } from '@/lib/service-buttons'
 
 export const metadata: Metadata = { title: 'Browse Fleet' }
 export const revalidate = 0
 
-export default async function HirePage() {
+export default async function HirePage({ searchParams }: { searchParams: Promise<{ service?: string; mode?: string; category?: string }> }) {
   let vehicles: Vehicle[] = []
 
   try {
@@ -17,6 +19,13 @@ export default async function HirePage() {
   } catch { /* show empty state */ }
 
   const [siteName, logoUrl] = await Promise.all([getSiteName(), getLogoUrl()])
+  const params = await searchParams
+  const categories = await getFleetCategories().catch(() => [])
+  const service = fleetService(params.service) ?? fleetService(params.mode)
+  const assignments = service ? await getServiceCategoryAssignments(categories) : undefined
+  const categoryId = service ? assignments![service] : categories.find(category => category.id === params.category)?.id
+  const initialFilter = service || categoryId ? `category:${categoryId}` : 'all'
+  const heading = service ? SERVICE_BUTTONS.find(button => button.id === service)!.title : 'Our Fleet'
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -46,7 +55,7 @@ export default async function HirePage() {
       {/* Content */}
       <main className="flex-1 px-4 pt-6 pb-8">
         <div className="mb-6">
-          <h1 className="font-display font-extrabold text-[24px] tracking-tight mb-1">Our Fleet</h1>
+          <h1 className="font-display font-extrabold text-[24px] tracking-tight mb-1">{heading}</h1>
           <p className="text-[13.5px] text-ink-3">Select a vehicle to book or enquire about your occasion.</p>
         </div>
 
@@ -57,9 +66,7 @@ export default async function HirePage() {
             <p className="text-ink-4 text-[13px] mt-1">Please check back soon.</p>
           </div>
         ) : (
-          <Suspense fallback={null}>
-            <MobileVehicleList vehicles={vehicles} />
-          </Suspense>
+          <MobileVehicleList key={initialFilter} vehicles={vehicles} initialFilter={initialFilter} categories={categories} />
         )}
       </main>
 

@@ -9,7 +9,7 @@ export function getFleetCategories(): Promise<FleetCategory[]> {
 export function parseFleetCategory(body: Record<string, unknown>): Omit<FleetCategory, 'id'> {
   const name = requireString(body.name, 'Category name', { maxLength: 80 })
   const normalised = name.toLowerCase().replace(/[-\s]+/g, ' ')
-  if (['all', 'all vehicles', 'chauffeur only', 'self drive available'].includes(normalised)) {
+  if (['all', 'all vehicles', 'self drive available'].includes(normalised)) {
     throw new ApiError('That name is reserved for a built-in fleet filter')
   }
   const homepageGroup = body.homepage_group ?? ''

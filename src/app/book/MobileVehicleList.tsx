@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils'
 
 const filters = [
   { key: 'all', label: 'All' },
-  { key: 'chauffeur', label: 'Chauffeur' },
   { key: 'selfdrive', label: 'Self-Drive' },
 ]
 
@@ -16,7 +15,6 @@ export default function MobileVehicleList({ vehicles }: { vehicles: Vehicle[] })
   const [active, setActive] = useState('all')
 
   const filtered = vehicles.filter(v => {
-    if (active === 'chauffeur') return v.meta.hire_modes === 'chauffeured_only'
     if (active === 'selfdrive') return v.meta.hire_modes === 'both'
     return true
   })
@@ -77,12 +75,7 @@ function MobileVehicleCard({ vehicle }: { vehicle: Vehicle }) {
       <div className="flex-1 px-4 py-3.5 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="font-display font-bold text-[15px] tracking-tight leading-tight">{vehicle.name}</h3>
-          <span className={cn(
-            'text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5',
-            isChauffeured ? 'bg-accent text-white' : 'bg-bg text-ink-3 border border-border'
-          )}>
-            {isChauffeured ? 'Chauffeur' : 'Self-Drive'}
-          </span>
+          {vehicle.meta.hire_modes === 'both' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 bg-emerald-700 text-white">Self-Drive</span>}
         </div>
 
         {/* Specs */}

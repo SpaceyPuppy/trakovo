@@ -7,6 +7,29 @@ permissions:
   contents: read
 
 jobs:
+  category-schema:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: disposable-schema-test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/fleet-category-schema.test.cjs
+        env:
+          TRAKOVO_SCHEMA_TEST: '1'
+          TRAKOVO_SCHEMA_TEST_PASSWORD: disposable-schema-test
   check:
     runs-on: ubuntu-latest
     steps:

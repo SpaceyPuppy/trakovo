@@ -175,7 +175,7 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode,
         <Field label="Hire Modes">
           <div className="grid grid-cols-2 gap-2">
             {[
-              { key: 'chauffeured_only', label: 'Chauffeur Only', sub: 'Driver included, no self-drive' },
+              { key: 'chauffeured_only', label: 'With a driver', sub: 'Driver included, no self-drive' },
               { key: 'both', label: 'Chauffeur & Self-Drive', sub: 'Customer can choose' },
             ].map(({ key, label, sub }) => (
               <button type="button" key={key} onClick={() => up({ hire_modes: key as 'chauffeured_only' | 'both' })}

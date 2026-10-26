@@ -1,180 +1,97 @@
 # Pending Production Deployment
 
-## Last confirmed working production version: v1.19.0
+## Current pending version: v1.20.1
 
-Owner confirmed on 26 October 2026: full package checksum matched, backups completed,
-Node app stopped for replacement, SQL preflight and showcase columns passed, NPM install
-succeeded, Node 24.22.1 and runtime packages matched the release. After starting, homepage,
-new navigation, Special Occasions and admin login all passed. Installation is owner-managed.
-The earlier installation checklist is archived in docs/archive/PENDING-DEPLOY-v1.19.0.md;
-its completed SQL and framework installation steps must not be repeated.
+## v1.20.1 — (unreleased)
 
-Owner subsequently reported a manual v1.20.0 update with both vehicle lists empty.
-Whether the new SQL has been applied is not yet confirmed. Check the database count,
-new column and category tables before assuming a filesystem permission issue. Production
-v1.20.0 is not recorded as fully verified until those checks and fleet visibility pass.
+Validation: 35 focused tests, TypeScript, Windows/Linux production builds and packaging
+checks passed. Dependency audit found zero known vulnerabilities. Lint reports no errors
+and 15 existing warnings. CI's real MariaDB check reproduced #1071 with a MyISAM default,
+then verified the repair, preserved data/assignments, repeat execution, both cascading
+foreign keys and the fresh schema's explicit engines. Local browser verification uses
+disposable in-memory fixtures; real production delivery remains an owner check.
 
-## Current pending version: v1.20.0
+The four main service buttons across desktop/mobile website layouts and the booking
+app now read Self-Drive Buses, Chauffeured Hire, Special Occasions, Taxi, in that order.
+The first two display only vehicles in their assigned categories. Configure each under
+Admin -> Vehicles -> Fleet Categories -> Service buttons. The other buttons open their
+dedicated pages, retaining the existing taxi online/phone booking setting.
 
-## v1.20.0 — released 26 October 2026 (production deployment pending)
+The built-in Chauffeur Only filter/badge is removed. Self-Drive Available remains a
+filter and vehicles with self-drive enabled retain a green Self-Drive badge. Existing
+hire modes and prices still control available booking options.
 
-[GitHub release](https://github.com/SpaceyPuppy/trakovo/releases/tag/v1.20.0) published
-after PR #16 passed Linux checks and merged. Release and container workflows passed.
-The downloaded full cPanel asset was verified: 4,668,675 bytes, 1,366 ZIP entries,
-required build/schema/docs present, zero unsafe entries or preview hooks, and no
-occurrences of the six checked private credential values. SHA-256:
-`fbf5cf4023225234924fca91126e4e8f67b249a4c891c216c43e74a0a56081f3`.
-An OTA asset was subsequently added on 26 October at the owner's request. The original
-full package, Docker bundle and tag are unchanged. OTA is now the default for future
-compatible releases; see DEPLOYMENT-CPANEL.md for the full-install-only exceptions.
+### Production state and database prerequisites
 
-OTA asset: `next-bundle-v1.20.0.zip` (4,089,390 bytes; 1,030 entries).
-SHA-256: `3132c3367630a9ebf04dc1727deb3a52dcf5d82403686cf0ee39fdc70f8ef73d`.
-The downloaded published OTA checksum matches. It uses byte-identical compiled files
-and BUILD_ID from the published Linux full package, is accepted by the existing OTA
-validator, and passed the six-value private credential scan. Comparison with v1.19.0
-confirmed unchanged dependency locks (apart from root version labels), engines, scripts,
-startup/configuration and public assets. The only manifest changes are compatible OTA
-deployment metadata. SQL files 0003 and 0004 are also separate release downloads.
+The owner manually installed v1.20.0 and reported both vehicle lists empty. Screenshots
+confirmed Vehicle was InnoDB, FleetCategory was MyISAM, and VehicleFleetCategory was
+absent after #1071 (composite index exceeded MyISAM's 1,000-byte limit). The owner then
+confirmed all three repair statements succeeded: convert FleetCategory to InnoDB,
+create VehicleFleetCategory as InnoDB/DYNAMIC with both cascading foreign keys, and
+add Bus only if absent. **That repair is complete; do not repeat it on this server.**
+Fleet visibility and real enquiry delivery still need explicit post-deployment checks.
 
-Validation: 28 focused tests, TypeScript, Windows/Linux production builds, dependency
-audit (zero known vulnerabilities), and packaging checks passed. Lint has no errors
-and 15 existing/style warnings. Isolated browser checks covered desktop/mobile forms,
-preselection/local submission, normal booking calendars, category creation/assignment,
-fleet filtering/priority, hover/Escape and mobile first/second interaction navigation.
-Changing Enquiry Only with the keyboard, saving, and restoring standard booking was
-also checked in the in-memory preview. Real SQL/mail/push delivery remains an owner
-post-deployment check. Publication has not changed the production installation.
-The packaged guide predates this publication record; its installation steps still apply.
+- No new schema, environment variables, dependencies or cron jobs are required for
+  v1.20.1 on this repaired v1.20.0 installation. Button assignments use existing Setting.
+- For another cPanel installation missing the v1.20 schema, inspect the actual database
+  first. Apply 0003 only if Vehicle.enquiry_only is absent. Use
+  database/migrations/0005-v1.20.0-category-engine-repair.sql for absent/partially created
+  category tables after confirming Vehicle is InnoDB and id uses utf8mb4_unicode_ci.
+  Do not rerun 0004 on cPanel; it is preserved unchanged because container deployments
+  track applied migration checksums. Never import init.sql over existing production.
+- The repair script explicitly selects InnoDB for new category tables, preserves
+  existing categories/assignments, and does not replace a pre-existing Bus category.
+  Fresh-install Vehicle/category definitions now explicitly use InnoDB too.
+- The script does not retrofit missing foreign keys onto an existing nonstandard
+  VehicleFleetCategory table. Inspect such a table separately before proceeding.
+- Previous publication evidence and installation context are archived in
+  docs/archive/PENDING-DEPLOY-v1.20.0.md. Its repair-waiting notes are historical.
 
-Enquiry-only public vehicles, editable fleet categories, homepage category tiles and
-hover/touch occasion navigation. Use the OTA bundle from the fully installed v1.19.0
-baseline after applying the required SQL; the full ZIP is an alternative cPanel install.
-No dependency, Node, environment-variable or cron changes are added
-by this release. Existing patched Node 24.22.1+ (24.x) and dependencies are retained.
+### OTA installation — owner performed
 
-### Required database changes — before the new build starts
+1. Back up the database, current .next and package.json. Confirm the existing v1.19.0+
+   Node 24.22.1+ (24.x) runtime/dependencies and the completed v1.20 category repair.
+2. Download next-bundle-v1.20.1.zip from the GitHub release and verify its published
+   SHA-256. Use Admin -> Settings -> Updates -> Manual Deploy if Fetch failed persists;
+   otherwise use Pull & Deploy. Upload only the next-bundle ZIP to the OTA page.
+3. The updater swaps the compiled build and package.json, fixes build permissions and
+   restarts Passenger. No NPM installation or server build is needed for this update.
+4. Confirm the application reports v1.20.1 and perform the checks below. Publication
+   does not install anything on production. The earlier GitHub Fetch failed connection
+   issue remains unverified; publishing an asset does not establish connectivity.
 
-Back up the current production database and application first. In phpMyAdmin, use the
-actual production database name explicitly (currently ckbservi_trakovo). Read-only checks:
+### Configure and verify
 
-```sql
-SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
-FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = 'ckbservi_trakovo'
-  AND TABLE_NAME = 'Vehicle' AND COLUMN_NAME = 'enquiry_only';
+- [ ] Admin/public fleet lists show the existing vehicles and uploaded images.
+- [ ] Under Admin -> Vehicles -> Fleet Categories, assign the Self-Drive Buses button
+      to Bus (or any custom category) and Chauffeured Hire to the desired category.
+      If absent, add Chauffeured Vehicles and assign its vehicles first. Before the
+      first save, existing Bus/Chauffeured Vehicles categories or their homepage groups
+      supply defaults; no category means no vehicles. Save both button choices.
+- [ ] Refresh desktop and mobile homepages: order is Self-Drive Buses, Chauffeured Hire,
+      Special Occasions, Taxi. Verify both image-hero and ordinary layouts if used.
+- [ ] Check /book has the same four services/order. Its first two lists and website
+      fleet links show the chosen categories. A cleared/deleted assignment produces
+      an empty result, with the remaining fleet accessible through All Vehicles.
+- [ ] Reassign a button to another category, save, reopen Admin and refresh both public
+      destinations to confirm persistence. Both buttons may use the same category.
+- [ ] Chauffeur Only is absent from built-in filters and vehicle badges. Only vehicles
+      configured for self-drive show the green Self-Drive badge. Hire prices/options
+      remain appropriate; Enquiry Only still opens the event form without a calendar.
+- [ ] Special Occasions opens the event page; Taxi retains the phone dialog or online
+      flow according to its existing setting. Check one real event enquiry reaches
+      Admin -> Enquiries -> Contact Enquiries and notification email.
 
-SELECT TABLE_NAME FROM information_schema.TABLES
-WHERE TABLE_SCHEMA = 'ckbservi_trakovo'
-  AND TABLE_NAME IN ('FleetCategory', 'VehicleFleetCategory');
-```
+### Rollback and remaining host work
 
-- [ ] If enquiry_only is absent, select the production database explicitly with
-      USE `ckbservi_trakovo`; then run database/migrations/0003-v1.20.0-enquiry-only-vehicles.sql
-      once. Expected column: non-nullable tinyint(1), default 0.
-- [ ] If BOTH category tables are absent, run USE `ckbservi_trakovo`; followed by
-      database/migrations/0004-v1.20.0-fleet-categories.sql once. This creates the category
-      and vehicle-assignment tables, foreign keys and a default Bus category linked to
-      the Buses homepage tile. No existing vehicles are automatically classified.
-- [ ] Repeat the preflight and inspect table definitions/seed. If either table already
-      exists, inspect both definitions and existing data; do not rerun CREATE or seed SQL.
-      Do not import prisma/init.sql or reapply the v1.17/v1.19 migrations.
+Restore the previous .next and matching package.json; the existing one-click rollback
+restores only the build. Retain the additive SQL/category engine repair. Keep saved
+button settings for a later retry. A full-package backup is needed for older platform
+rollbacks involving dependencies or startup files.
 
-### Install — OTA from v1.19.0 (preferred)
-
-1. Confirm the installed Node/dependencies are the verified v1.19.0 baseline. This OTA
-   is not suitable for a server still on v1.18.x or earlier; complete the full v1.19.0
-   platform upgrade first. Minimum-version/SQL manifest fields are informational to
-   older installed updaters and do not substitute for these manual checks.
-2. Back up the database, current .next and package.json. Apply only absent SQL as above
-   while the old build is running, before swapping the build. Do not import init.sql.
-3. Download next-bundle-v1.20.0.zip from the release and verify its checksum above.
-   In Admin -> Settings -> Updates, use Manual Deploy if GitHub checking/downloading
-   still says Fetch failed. Upload only the next-bundle ZIP, then Deploy. The existing
-   updater backs up .next, sets build file/directory permissions and restarts Passenger.
-4. Alternatively use Pull & Deploy once server-to-GitHub connectivity works. Publishing
-   the asset does not diagnose or fix the earlier Fetch failed connection error.
-5. Verify version, fleet listings and the feature checks below after restart. The OTA
-   does not create SQL tables, update dependencies, copy public files or alter host config.
-   If v1.20.0 was already manually installed, resolve missing SQL/permissions before
-   deciding whether another build deployment is needed.
-
-### Install — full-package cPanel alternative
-
-1. Back up the database, complete app, private configuration and external uploads.
-2. Verify the published full package checksum. Stop the Node app in cPanel.
-3. Apply only the absent schema changes above before starting the new application.
-4. Show hidden files in File Manager. Move the old .next to a backup outside the app
-   root, then extract the full ZIP directly into /home/ckbservi/trakovo. Avoid nesting
-   or merging old .next chunks. Preserve private config, uploads and the node_modules link.
-5. Keep Node 24.22.1+ (24.x), Production mode and startup file app.js. Run NPM Install
-   against the supplied package.json and package-lock.json. No server build is required.
-   Terminal alternative: activate the exact cPanel environment, cd to the app root,
-   verify node --version, then npm install --omit=dev. Do not run npm ci against the
-   cPanel-managed node_modules link.
-6. Start the app after SQL, files and installation succeed. Inspect startup logs.
-
-### Configure and verify after installation
-
-- [ ] Admin reports v1.20.0. Confirm login, normal booking/calendar flow and uploaded media.
-- [ ] Admin -> Vehicles -> Fleet Categories: Bus exists (not Bus / Coach). Rename/add/remove
-      categories and choose their homepage group. Chauffeur Only and Self-Drive Available
-      remain built-in, independent filters. Removing a category removes its assignments,
-      never the vehicles; an unassigned/deleted category no longer affects ordering.
-- [ ] Assign Bus and any other categories in each vehicle editor. Categories are optional
-      and multiple selections are allowed. Existing assignments start empty.
-- [ ] Homepage always shows Buses, Chauffeured Vehicles and Special Occasion Vehicles.
-      Each opens the FULL public fleet with matching vehicles first. Other vehicles keep
-      their relative order. Fleet category chips filter by assignment. Unknown query
-      values fall back to the ordinary list. Bus membership uses explicit categories.
-      Chauffeured defaults to ordinary non-bus/non-event vehicles with a chauffeured hire
-      mode, or categories explicitly mapped to that group. Special Occasion matches
-      Show on Special Occasions, Enquiry Only or categories mapped to its group.
-- [ ] Prefer for homepage category photo reuses the former Feature on homepage switch:
-      choose an eligible matching vehicle image; otherwise a matching photo or category
-      illustration is used. Inactive/public-hidden vehicles never supply photos.
-- [ ] Enable Enquiry Only on a public active vehicle, save and reopen to verify persistence.
-      Homepage/fleet/mobile vehicle actions say Enquire. /vehicles/[slug], /book/hire/[slug]
-      and the old /book/[slug] redirect retain vehicle details and show the shared event
-      form with the vehicle preselected, with no booking availability calendar.
-- [ ] Event-page ?vehicle= links also preselect active public enquiry-only vehicles even
-      without Show on Special Occasions. That showcase switch remains independent.
-- [ ] Submit one real event enquiry and confirm preferred vehicle/event details in
-      Admin -> Enquiries -> Contact Enquiries and the notification email. Remove the test
-      enquiry through Admin. Local tests do not verify production mail or database delivery.
-- [ ] A stale standard booking submission for an enquiry-only vehicle is rejected, including
-      the standard form's enquiry fallback. Staff/vendor booking permissions are unchanged.
-      Toggle Enquiry Only off and verify the normal flow returns.
-- [ ] Desktop: hover opens occasion links, leaving closes, title click goes to page top.
-      Touch: first tap opens, second tap follows the title link. Test both wide touch layouts
-      and the mobile hamburger menu. Check submenu links, outside tap, Escape and keyboard.
-- [ ] Check vendor/driver login and a normal hire enquiry/booking, retained from the v1.19
-      full post-deploy checklist. Verify push notifications after the owner's VAPID rotation;
-      old browser subscriptions may need renewal. No production mail/push test was performed
-      during development.
-
-### Remaining host/security follow-up — separate from v1.20 feature installation
-
-- Owner confirmed: production DB_PASSWORD and ADMIN_JWT_SECRET differed from historical
-  files; Microsoft client secret differed; vendor JWT, admin password, maintenance password
-  and VAPID keys were changed. All portal secrets were reported configured in cPanel.
-  No secret values are recorded here. The absence of a matching value is not a host audit.
-- [ ] Mapbox token rotation/restriction remains owner-planned; check any SMTP/other reused keys.
-- [ ] Historical .env/.env.local remain in Git history. Owner requested cleanup guidance;
-      history has not been rewritten. Confirm repository visibility and plan any coordinated
-      history purge separately from this installation. Existing private clones remain sensitive.
-- [ ] Owner checked PHP 8.2.35. Provider confirmation is still needed for other installed PHP
-      variants/internal cPanel PHP, CVE-2026-115560 precaution and current CloudLinux/cPanel/
-      Passenger patches/restarts in SECURITY-REVIEW-2026-10-26.md. Do not mark host security
-      fully verified from the selected PHP version or the Trakovo ZIP alone.
-
-### Rollback
-
-Stop the app and restore the matching v1.19.0 application, package manifests, private
-configuration and dependency environment from backup. Keep patched Node/PHP and the new
-additive column/tables in place; no data deletion is required for application rollback.
-Restart and check login and normal booking. Leave uploads and unrelated booking/billing
-records intact. Record the actual version/date and completed checks after owner confirmation.
-For an OTA-only rollback on the verified dependency baseline, restore the previous .next
-and its matching package.json. Existing one-click rollback restores .next only. Leave the
-additive schema in place and do not remove category assignments to roll back application code.
+Existing host/security follow-up remains separate: Mapbox rotation/restriction and
+any other reused credentials, coordinated historical secret cleanup, and provider
+confirmation of applicable PHP/cPanel/CloudLinux/Passenger patches and restarts in
+SECURITY-REVIEW-2026-10-26.md. Owner reported production DB_PASSWORD and ADMIN_JWT_SECRET
+were different from historical files; Microsoft secret differed, and vendor JWT,
+admin/maintenance passwords and VAPID keys were changed. No secrets are recorded here.

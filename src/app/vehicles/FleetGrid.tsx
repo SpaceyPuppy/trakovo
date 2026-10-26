@@ -3,22 +3,17 @@ import { useState } from 'react'
 import VehicleCard from '@/components/ui/VehicleCard'
 import type { Vehicle, FleetCategory } from '@/types'
 import { cn } from '@/lib/utils'
+import { filterFleetVehicles } from '@/lib/service-buttons'
 
 const filters = [
   { key: 'all', label: 'All Vehicles' },
-  { key: 'chauffeur', label: 'Chauffeur Only' },
   { key: 'selfdrive', label: 'Self-Drive Available' },
 ]
 
 export default function FleetGrid({ vehicles, initialFilter = 'all', categories = [] }: { vehicles: Vehicle[]; initialFilter?: string; categories?: FleetCategory[] }) {
   const [active, setActive] = useState(initialFilter)
 
-  const filtered = vehicles.filter(v => {
-    if (active === 'chauffeur') return v.meta.hire_modes === 'chauffeured_only'
-    if (active === 'selfdrive') return v.meta.hire_modes === 'both'
-    if (active.startsWith('category:')) return v.fleet_categories.some(category => `category:${category.id}` === active)
-    return true
-  })
+  const filtered = filterFleetVehicles(vehicles, active)
 
   return (
     <>
