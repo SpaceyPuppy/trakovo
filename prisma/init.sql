@@ -19,6 +19,8 @@ CREATE TABLE `Vehicle` (
     `is_available` BOOLEAN NOT NULL DEFAULT true,
     `public_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1,
     `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1,
+    `feature_on_homepage` BOOLEAN NOT NULL DEFAULT false,
+    `show_on_special_occasions` BOOLEAN NOT NULL DEFAULT false,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 

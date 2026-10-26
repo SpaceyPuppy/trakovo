@@ -46,6 +46,8 @@ export interface Vehicle {
   is_available: boolean
   public_bookings_enabled: boolean
   vendor_bookings_enabled: boolean
+  feature_on_homepage: boolean
+  show_on_special_occasions: boolean
   created_at: string
   updated_at: string
 }
@@ -155,6 +157,8 @@ export interface VehicleFormData {
   is_available: boolean
   public_bookings_enabled: boolean
   vendor_bookings_enabled: boolean
+  feature_on_homepage: boolean
+  show_on_special_occasions: boolean
   images: string[]
 }
 

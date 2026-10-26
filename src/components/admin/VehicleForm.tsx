@@ -16,6 +16,7 @@ const empty: VehicleFormData = {
   chauffeur_price: 0, chauffeur_price_poa: false, day_rates: [],
   hire_modes: 'chauffeured_only', passengers: '', transmission: 'Automatic', fuel: 'Petrol', licence_category: '',
   is_available: true, public_bookings_enabled: true, vendor_bookings_enabled: true, images: [],
+  feature_on_homepage: false, show_on_special_occasions: false,
 }
 
 export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode }: Props) {
@@ -65,6 +66,8 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
       is_available: form.is_available,
       public_bookings_enabled: form.public_bookings_enabled,
       vendor_bookings_enabled: form.vendor_bookings_enabled,
+      feature_on_homepage: form.feature_on_homepage,
+      show_on_special_occasions: form.show_on_special_occasions,
       images: form.images,
       // only send custom public_id if user explicitly edited it
       ...(mode === 'create' && publicIdDirty ? { public_id: publicId } : {}),
@@ -354,6 +357,18 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
               onToggle={() => up({ vendor_bookings_enabled: !form.vendor_bookings_enabled })}
               label="Available to vendors"
               sub="Allow assigned vendors to see and book this vehicle via their portal."
+            />
+            <Toggle
+              on={form.feature_on_homepage}
+              onToggle={() => up({ feature_on_homepage: !form.feature_on_homepage })}
+              label="Feature on homepage"
+              sub="Include in the homepage preview (up to three vehicles, newest first). Requires public visibility."
+            />
+            <Toggle
+              on={form.show_on_special_occasions}
+              onToggle={() => up({ show_on_special_occasions: !form.show_on_special_occasions })}
+              label="Show on Special Occasions"
+              sub="Showcase this vehicle for event enquiries. Requires public visibility."
             />
           </div>
         </div>

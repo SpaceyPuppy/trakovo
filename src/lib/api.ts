@@ -45,6 +45,8 @@ function dbVehicleToVehicle(row: Row, media: Row[]): Vehicle {
     is_available: Boolean(row.is_available),
     public_bookings_enabled: row.public_bookings_enabled === undefined ? true : Boolean(row.public_bookings_enabled),
     vendor_bookings_enabled: row.vendor_bookings_enabled === undefined ? true : Boolean(row.vendor_bookings_enabled),
+    feature_on_homepage: Boolean(row.feature_on_homepage),
+    show_on_special_occasions: Boolean(row.show_on_special_occasions),
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   }
@@ -70,7 +72,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
 }
 
 export async function getVehicle(slug: string): Promise<Vehicle> {
-  const vehicles = await vehiclesWithMedia('slug = ?', [slug])
+  const vehicles = await vehiclesWithMedia('slug = ? AND is_available = 1 AND public_bookings_enabled = 1', [slug])
   if (vehicles.length === 0) throw new Error('Vehicle not found')
   return vehicles[0]
 }

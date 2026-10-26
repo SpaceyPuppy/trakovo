@@ -15,6 +15,7 @@ export class ApiError extends Error {
 }
 
 type RouteContext<P> = { params: P }
+type AsyncRouteContext<P> = { params: Promise<P> }
 type AdminHandler<P> = (
   request: Request,
   context: RouteContext<P>,
@@ -39,14 +40,14 @@ function errorResponse(error: unknown, requestId: string): NextResponse {
 /** Authenticate, time and consistently format failures for an admin route. */
 export function withAdminApi<P = Record<string, string>>(
   handler: AdminHandler<P>
-): (request: Request, context: RouteContext<P>) => Promise<Response> {
+): (request: Request, context: AsyncRouteContext<P>) => Promise<Response> {
   return async (request, context) => {
     const requestId = request.headers.get('x-request-id')?.slice(0, 100) || crypto.randomUUID()
     const startedAt = performance.now()
     try {
       const session = await getAdminSession()
       if (!session) throw new ApiError('Unauthorised', 401, 'UNAUTHORISED')
-      const response = await handler(request, context, session)
+      const response = await handler(request, { params: await context.params }, session)
       response.headers.set('x-request-id', requestId)
       return response
     } catch (error) {
@@ -60,11 +61,33 @@ export function withAdminApi<P = Record<string, string>>(
   }
 }
 
-export async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
+export async function readJsonObject(request: Request, maxBytes?: number): Promise<Record<string, unknown>> {
   let value: unknown
   try {
-    value = await request.json()
-  } catch {
+    if (maxBytes !== undefined) {
+      const reader = request.body?.getReader()
+      const chunks: Uint8Array[] = []
+      let length = 0
+      if (reader) {
+        try {
+          while (true) {
+            const { done, value: chunk } = await reader.read()
+            if (done) break
+            length += chunk.byteLength
+            if (length > maxBytes) {
+              await reader.cancel()
+              throw new ApiError('Request body is too long', 413, 'BODY_TOO_LARGE')
+            }
+            chunks.push(chunk)
+          }
+        } finally { reader.releaseLock() }
+      }
+      value = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    } else {
+      value = await request.json()
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error
     throw new ApiError('Request body must be valid JSON', 400, 'INVALID_JSON')
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
