@@ -8,7 +8,23 @@ does not install it or confirm host patching. The VPS migration has not occurred
 
 ## Current pending version: v1.19.0
 
-## v1.19.0 — (unreleased)
+## v1.19.0 — released 26 October 2026 (production deployment pending)
+
+[GitHub release](https://github.com/SpaceyPuppy/trakovo/releases/tag/v1.19.0) published
+after the Linux PR checks, release build and container publication succeeded. The
+downloaded full cPanel package was verified: v1.19.0, BUILD_ID and required SQL/docs
+present, 1,340 entries, zero unsafe environment/build-cache entries, and no occurrences
+of the six checked private credential values. Seventeen focused tests, TypeScript,
+lint and the production build passed; the full dependency audit reported zero known
+vulnerabilities. Lint retains existing/style warnings.
+
+Full cPanel asset: `trakovo-v1.19.0.zip` (4,623,584 bytes).
+SHA-256: `8fdde90f5a8f6d84c1fdee2e14d4656c3b3b0f9cd6e1cb795823bf03f999d756`.
+No next-bundle asset was published. The Docker deployment bundle/image is a separate
+existing deployment option; this owner-managed cPanel installation uses the full asset.
+Publication does not complete any credential rotation, host patch, SQL or installation
+item below. The packaged guide predates this publication record; its installation
+instructions remain applicable.
 
 Combined Special Occasions, vehicle showcase and security release.
 **Install the full `trakovo-v1.19.0.zip` through cPanel File Manager. Do not upload it
