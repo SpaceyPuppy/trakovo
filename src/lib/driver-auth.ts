@@ -5,7 +5,7 @@ import { createSignedToken, verifySignedToken } from './signed-token'
 // the Node.js runtime (API routes) and the Edge Runtime (middleware).
 // Password helpers (hashPassword / verifyPassword) live in src/lib/password.ts
 
-const SECRET = process.env.DRIVER_JWT_SECRET ?? 'driver-dev-secret'
+const SECRET = process.env.DRIVER_JWT_SECRET ?? (process.env.NODE_ENV === 'production' ? '' : 'driver-dev-secret')
 const COOKIE = 'apex_driver_session'
 
 export interface DriverSession {

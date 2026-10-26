@@ -2,7 +2,7 @@ import { cookies, headers } from 'next/headers'
 import type { AdminSession } from '@/types'
 import { createSignedToken, verifySignedToken } from './signed-token'
 
-const SECRET = process.env.ADMIN_JWT_SECRET ?? 'dev-secret'
+const SECRET = process.env.ADMIN_JWT_SECRET ?? (process.env.NODE_ENV === 'production' ? '' : 'dev-secret')
 const COOKIE = 'apex_admin_session'
 
 // Use Web APIs only (TextEncoder, crypto.subtle, atob/btoa) so this file works

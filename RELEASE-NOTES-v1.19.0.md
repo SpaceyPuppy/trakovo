@@ -21,6 +21,9 @@ Follow PENDING-DEPLOY.md before replacing the running application.
 
 ## Security and platform
 
+- Remove tracked private environment files while retaining local copies. Historical
+  credentials remain in public Git history: review and rotate any matching live values
+  before deployment. Production portal signing rejects missing/development secrets.
 - Upgrade to Next.js 16.4.3, React 19.3.1 and sharp 0.35.5; update affected runtime and
   transitive dependencies. Migrate existing request parameters and cookie APIs as required
   by Next.js 16, preserving portal authentication.

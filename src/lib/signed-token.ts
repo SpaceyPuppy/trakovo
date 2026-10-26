@@ -31,6 +31,10 @@ function fromBase64Url(value: string): Uint8Array {
 }
 
 function getSigningKey(secret: string): Promise<CryptoKey> {
+  if (!secret || (process.env.NODE_ENV === 'production' &&
+      ['dev-secret', 'vendor-dev-secret', 'driver-dev-secret'].includes(secret))) {
+    throw new Error('A private portal signing secret must be configured')
+  }
   let key = keyCache.get(secret)
   if (!key) {
     key = crypto.subtle.importKey(

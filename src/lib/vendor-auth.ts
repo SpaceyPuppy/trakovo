@@ -5,7 +5,7 @@ import { createSignedToken, verifySignedToken } from './signed-token'
 // the Node.js runtime (API routes) and the Edge Runtime (middleware).
 // Password helpers (hashPassword / verifyPassword) live in src/lib/password.ts
 
-const SECRET = process.env.VENDOR_JWT_SECRET ?? 'vendor-dev-secret'
+const SECRET = process.env.VENDOR_JWT_SECRET ?? (process.env.NODE_ENV === 'production' ? '' : 'vendor-dev-secret')
 const COOKIE = 'apex_vendor_session'
 
 export interface VendorSession {

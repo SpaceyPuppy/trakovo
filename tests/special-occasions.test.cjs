@@ -189,3 +189,30 @@ test('all three portals read/write asynchronous cookies; tokens reject tampering
   assert.equal(await admin.verifyToken(`${payload}.${signature[0] === 'A' ? 'B' : 'A'}${signature.slice(1)}`), null)
   assert.equal(await admin.verifyToken(await admin.createToken('expired', -1000)), null)
 })
+
+test('production signing fails closed for missing or known development secrets', async () => {
+  const previousMode = process.env.NODE_ENV
+  const previousSecrets = ['ADMIN_JWT_SECRET', 'VENDOR_JWT_SECRET', 'DRIVER_JWT_SECRET'].map(key => [key, process.env[key]])
+  process.env.NODE_ENV = 'production'
+  for (const [key] of previousSecrets) delete process.env[key]
+  try {
+    const codec = loadSource('src/lib/signed-token.ts')
+    const admin = loadSource('src/lib/auth.ts', { 'next/headers': {}, './signed-token': codec })
+    const vendor = loadSource('src/lib/vendor-auth.ts', { 'next/headers': {}, './signed-token': codec })
+    const driver = loadSource('src/lib/driver-auth.ts', { 'next/headers': {}, './signed-token': codec })
+    await assert.rejects(admin.createToken('admin'), /private portal signing secret/)
+    await assert.rejects(vendor.createVendorToken('id', 'Vendor'), /private portal signing secret/)
+    await assert.rejects(driver.createDriverToken('id', 'Driver'), /private portal signing secret/)
+    for (const secret of ['dev-secret', 'vendor-dev-secret', 'driver-dev-secret']) {
+      await assert.rejects(codec.createSignedToken({ username: 'admin' }, secret, 1000), /private portal signing secret/)
+    }
+    assert.equal(await admin.verifyToken('fake.signature'), null)
+  } finally {
+    if (previousMode === undefined) delete process.env.NODE_ENV
+    else process.env.NODE_ENV = previousMode
+    for (const [key, value] of previousSecrets) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  }
+})

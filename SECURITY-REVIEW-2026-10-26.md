@@ -5,6 +5,26 @@ to its cPanel / CloudLinux / Passenger deployment. This is not a server penetrat
 test. Production versions, host package revisions and compromise status have not been
 verified. A clean dependency audit does not establish that a server is uncompromised.
 
+## Additional finding: credentials in public Git history
+
+The public repository tracks `.env.local` with populated DB password, master admin
+password, admin/vendor JWT secrets, Microsoft OAuth client secret and maintenance
+password fields. A legacy `.env` is also tracked. Values were inspected only through
+redacted classification and are not reproduced here. Their production applicability
+has not been verified. Current tracking is removed and private files are ignored while
+local copies are retained. **This does not remove historical copies or revoke a key.**
+
+Treat historical credentials as exposed. The owner/provider must rotate/revoke any
+matching credentials in every live service that used them, update private deployment
+configuration, invalidate affected sessions and inspect relevant access logs. Check
+SMTP and other keys as well; restrict the public Mapbox token to intended domains.
+History rewriting is not performed: it would require coordinated, separately authorised
+destructive Git changes and would still not replace credential rotation.
+
+Production portal signing now fails closed for missing secrets and the known development
+fallback values. Configure all three existing JWT secret variables before installation.
+These are existing variables, not new environment requirements.
+
 ## Host actions — required independently of the Trakovo package
 
 Ask the hosting provider for a written inventory and confirmation of the following.

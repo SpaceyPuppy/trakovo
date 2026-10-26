@@ -21,6 +21,19 @@ package-lock.json, installed dependencies and patched Node.js runtime.
 
 ### 1. Host preparation — provider/owner
 
+- [ ] **Credential exposure review and rotation:** the public Git history contains
+      `.env.local` with populated credential fields (and a legacy `.env`). They are
+      removed from current version control while local copies are preserved, but the
+      historical values remain public. Treat them as exposed: rotate every value that
+      is/was used on production or another live system, including DB password, master
+      admin password, admin/vendor JWT secrets, Microsoft OAuth client secret and
+      maintenance password. Review SMTP credentials and other keys too. Update the
+      private cPanel configuration and relevant provider services together. Rotating
+      JWT secrets signs out existing sessions. Check the domain restrictions on the
+      public Mapbox token. Do not paste historical values into tickets or commits.
+- [ ] Ensure **all three** JWT secret variables are set to strong private values.
+      Production now rejects missing or known development fallback signing secrets;
+      correct this configuration before restarting the new build.
 - [ ] Ask the provider to complete and evidence the actions in
       [SECURITY-REVIEW-2026-10-26.md](SECURITY-REVIEW-2026-10-26.md): PHP CVE-2026-109618
       / 109619 across cPanel internal PHP and all installed PHP variants, the
