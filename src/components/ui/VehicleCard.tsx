@@ -53,7 +53,7 @@ export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
             )}
           </div>
           <span className="bg-ink text-white text-[13px] font-semibold px-4 py-2 rounded-[6px] group-hover:bg-slate transition-colors">
-            Book Now
+            {vehicle.enquiry_only ? 'Enquire' : 'Book Now'}
           </span>
         </div>
       </div>

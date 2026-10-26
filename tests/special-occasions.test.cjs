@@ -19,7 +19,9 @@ function loadSource(relativePath, mocks = {}) {
 const api = loadSource('src/lib/api-route.ts', { './auth': { getAdminSession: async () => ({ username: 'admin' }) } })
 const occasions = loadSource('src/lib/special-occasions.ts')
 const showcase = loadSource('src/lib/vehicle-showcase.ts')
-const vehicle = (id, options = {}) => ({ id, name: id, slug: id, is_available: true, public_bookings_enabled: true, feature_on_homepage: true, show_on_special_occasions: true, media: [], meta: {}, ...options })
+const collections = loadSource('src/lib/fleet-collections.ts')
+const utils = loadSource('src/lib/utils.ts')
+const vehicle = (id, options = {}) => ({ id, name: id, slug: id, is_available: true, public_bookings_enabled: true, feature_on_homepage: true, show_on_special_occasions: true, enquiry_only: false, fleet_categories: [], media: [], meta: {}, ...options })
 const link = ({ children, ...props }) => React.createElement('a', props, children)
 const request = body => new Request('http://localhost/api/enquiry/special-occasions', { method: 'POST', body: JSON.stringify(body) })
 const valid = { name: 'Jane', email: 'jane@example.com', occasion: 'weddings', event_date: '2027-02-20', passengers: '4', message: 'Classic car, please', vehicle_id: 'classic' }
@@ -33,7 +35,7 @@ test('showcase selections are opt-in, obey both visibility switches, and filter 
 test('direct public vehicle lookups enforce visibility while Admin can still load inactive records', async () => {
   const { getVehicle, adminGetVehicle } = loadSource('src/lib/api.ts', {
     './db': { query: async sql => {
-      if (/FROM VehicleMedia/.test(sql)) return []
+      if (/FROM VehicleMedia|FROM FleetCategory/.test(sql)) return []
       if (/slug =/.test(sql)) {
         assert.match(sql, /is_available = 1 AND public_bookings_enabled = 1/)
         return []
@@ -46,7 +48,7 @@ test('direct public vehicle lookups enforce visibility while Admin can still loa
   assert.equal((await adminGetVehicle('inactive')).is_available, false)
 })
 
-test('homepage and event page render eligible showcase vehicles only; event page handles an empty selection', async () => {
+test('homepage has three category links and event page renders eligible showcases, including an empty selection', async () => {
   const vehicles = [vehicle('Wheelchair', { is_available: false }), vehicle('Classic')]
   const common = {
     'next/link': { default: link }, '@/components/ui/NavWrapper': { default: () => null }, '@/components/ui/Footer': { default: () => null },
@@ -55,9 +57,13 @@ test('homepage and event page render eligible showcase vehicles only; event page
   const home = loadSource('src/app/page.tsx', {
     ...common, '@/components/ui/VehicleCard': { default: ({ vehicle }) => React.createElement('p', null, vehicle.name) },
     './ServicesPanel': { default: () => null }, '@/lib/db': { queryOne: async () => null }, '@/lib/taxi-booking': { getTaxiBookingConfig: async () => ({}) },
+    '@/lib/fleet-collections': collections, '@/lib/utils': utils,
   })
   const homeHtml = renderToStaticMarkup(await home.default())
-  assert.match(homeHtml, /Classic/)
+  for (const group of collections.FLEET_COLLECTIONS) {
+    assert.ok(homeHtml.includes(group.label))
+    assert.ok(homeHtml.includes(`/vehicles?priority=${group.id}`))
+  }
   assert.doesNotMatch(homeHtml, /Wheelchair/)
   const page = loadSource('src/app/special-occasions/page.tsx', {
     ...common, '@/lib/special-occasions': occasions, '@/lib/utils': { getVehicleImage: () => null },
@@ -79,7 +85,7 @@ test('event enquiries reject invalid, oversized and no-longer-visible selections
   const route = loadSource('src/app/api/enquiry/special-occasions/route.ts', {
     '@/lib/api-route': api, '@/lib/special-occasions': occasions,
     '@/lib/db': { queryOne: async (sql, params) => {
-      assert.match(sql, /is_available = 1 AND public_bookings_enabled = 1 AND show_on_special_occasions = 1/)
+      assert.match(sql, /is_available = 1 AND public_bookings_enabled = 1 AND \(show_on_special_occasions = 1 OR enquiry_only = 1\)/)
       assert.deepEqual(params, ['classic'])
       return available ? { name: 'Classic Saloon' } : null
     } },
@@ -124,23 +130,29 @@ test('enquiries are persisted in the existing inbox, HTML is escaped, and mail f
   assert.equal(writes.length, 2)
 })
 
-test('vehicle create and update persist both showcase switches with matching SQL parameters', async () => {
+test('vehicle create and update persist showcase/enquiry switches and category assignments with matching SQL parameters', async () => {
   const writes = []
   const transaction = {
     queryOne: async sql => /SELECT \*/.test(sql) ? { id: 'id', is_available: 1 } : /SELECT id FROM Vehicle WHERE id/.test(sql) ? { id: 'id' } : null,
-    query: async () => [], execute: async (sql, params) => { assert.equal((sql.match(/\?/g) || []).length, params.length); writes.push({ sql, params }) },
+    query: async sql => /FROM FleetCategory/.test(sql) ? [{ id: 'bus' }] : [], execute: async (sql, params) => { assert.equal((sql.match(/\?/g) || []).length, params.length); writes.push({ sql, params }) },
   }
   const admin = loadSource('src/lib/vehicle-admin.ts', {
     './api-route': api, './db': { withTransaction: callback => callback(transaction), newId: () => 'id', generatePublicId: async () => 'VHC-123' }, './utils': { slugify: () => 'classic' },
   })
-  const input = admin.parseVehicleInput({ name: 'Classic', feature_on_homepage: true, show_on_special_occasions: true }, false)
+  const input = admin.parseVehicleInput({ name: 'Classic', feature_on_homepage: true, show_on_special_occasions: true, enquiry_only: true, category_ids: ['bus', 'bus'] }, false)
   await admin.createVehicle(input)
   await admin.updateVehicle('id', input)
   for (const write of writes.filter(write => /INSERT INTO Vehicle \(|UPDATE Vehicle SET/.test(write.sql))) {
     assert.match(write.sql, /feature_on_homepage/)
     assert.match(write.sql, /show_on_special_occasions/)
+    assert.match(write.sql, /enquiry_only/)
   }
   assert.equal(admin.parseVehicleInput({ name: 'New' }, false).featureOnHomepage, false)
+  assert.equal(admin.parseVehicleInput({ name: 'New' }, false).enquiryOnly, false)
+  assert.deepEqual(input.categoryIds, ['bus'])
+  assert.equal(writes.filter(write => /INSERT INTO VehicleFleetCategory/.test(write.sql)).length, 2)
+  await assert.rejects(admin.updateVehicle('id', { ...input, categoryIds: ['removed', 'bus'] }), /fleet category has changed/)
+  assert.throws(() => admin.parseVehicleInput({ name: 'Bad', category_ids: 'bus' }, false), /fleet categories/)
 })
 
 test('admin route wrapper authenticates and resolves asynchronous route parameters', async () => {
@@ -152,6 +164,192 @@ test('admin route wrapper authenticates and resolves asynchronous route paramete
   const DENIED = deniedApi.withAdminApi(async () => { entered = true; return Response.json({}) })
   assert.equal((await DENIED(new Request('http://localhost/api/admin/test'), { params: Promise.resolve({}) })).status, 401)
   assert.equal(entered, false)
+})
+
+test('public cards say Enquire for enquiry-only vehicles while retaining their vehicle detail links', () => {
+  const selected = vehicle('Classic', { enquiry_only: true, price: 100, chauffeur_price: 200 })
+  const common = { 'next/link': { default: link }, '@/lib/utils': utils, 'next/navigation': { useSearchParams: () => new URLSearchParams() } }
+  for (const file of ['src/components/ui/VehicleCard.tsx', 'src/app/book/MobileVehicleList.tsx', 'src/app/book/hire/MobileVehicleList.tsx']) {
+    const component = loadSource(file, common).default
+    const html = renderToStaticMarkup(React.createElement(component, { vehicle: selected, vehicles: [selected] }))
+    assert.match(html, /Enquire/)
+    assert.doesNotMatch(html, /Book Now|Book →/)
+    assert.match(html, /href="\/(vehicles|book(?:\/hire)?)\/Classic"/)
+  }
+})
+
+test('enquiry-only panel renders the shared form with preferred vehicle selected without mounting booking hooks or calendars', () => {
+  const form = loadSource('src/app/special-occasions/OccasionEnquiryForm.tsx', { '@/lib/special-occasions': occasions })
+  const panel = loadSource('src/components/booking/VehicleEnquiryPanel.tsx', { '@/app/special-occasions/OccasionEnquiryForm': form })
+  const unexpected = () => { throw new Error('Standard booking panel must not mount') }
+  const booking = loadSource('src/components/booking/BookingPanel.tsx', {
+    'next/navigation': { useRouter: unexpected }, 'next/link': { default: link },
+    './Calendar': { default: unexpected }, './HireAgreementModal': { default: unexpected }, './VehicleEnquiryPanel': panel,
+    '@/types': {}, '@/lib/utils': utils,
+  })
+  const html = renderToStaticMarkup(React.createElement(booking.default, { vehicle: vehicle('Classic', { enquiry_only: true }), availability: [], hireAgreementClauses: [] }))
+  assert.match(html, /Send Event Enquiry/)
+  assert.match(html, /<option value="Classic" selected="">Classic<\/option>/)
+  assert.doesNotMatch(html, /Book This Vehicle|Request.*Booking|calendar/i)
+})
+
+test('vehicle routes do not load booking availability for enquiry-only vehicles', async () => {
+  const selected = vehicle('Classic', { enquiry_only: true, chauffeur_price: 100 })
+  const common = {
+    'next/link': { default: link }, 'next/navigation': { notFound: () => { throw new Error('Not found') } },
+    '@/lib/api': { getVehicle: async () => selected, getAvailability: () => { throw new Error('Availability must not be queried') } },
+    '@/lib/db': { queryOne: async () => null }, '@/lib/hire-agreement-defaults': { parseHireAgreement: () => [] },
+    '@/lib/site': { getSiteName: async () => 'Test', getLogoUrl: async () => '' }, '@/lib/utils': utils,
+    '@/components/ui/NavWrapper': { default: () => null }, '@/components/ui/Footer': { default: () => null },
+    '@/components/booking/BookingPanel': { default: () => null },
+  }
+  const content = { default: ({ vehicle }) => React.createElement('p', null, `Details for ${vehicle.id}`) }
+  for (const file of ['src/app/vehicles/[slug]/page.tsx', 'src/app/book/hire/[slug]/page.tsx']) {
+    const page = loadSource(file, { ...common, './VehiclePageContent': content, '@/app/vehicles/[slug]/VehiclePageContent': content })
+    const html = renderToStaticMarkup(await page.default({ params: Promise.resolve({ slug: 'Classic' }) }))
+    assert.match(html, /Details for Classic/)
+  }
+})
+
+test('enquiry-only vehicles can be preselected on the event page without being added to its showcase', async () => {
+  const vehicles = [vehicle('Unshowcased', { enquiry_only: true, show_on_special_occasions: false }), vehicle('Hidden', { enquiry_only: true, public_bookings_enabled: false })]
+  assert.deepEqual(showcase.occasionEnquiryVehicles(vehicles).map(item => item.id), ['Unshowcased'])
+  const form = loadSource('src/app/special-occasions/OccasionEnquiryForm.tsx', { '@/lib/special-occasions': occasions })
+  const page = loadSource('src/app/special-occasions/page.tsx', {
+    'next/link': { default: link }, '@/components/ui/NavWrapper': { default: () => null }, '@/components/ui/Footer': { default: () => null },
+    '@/lib/api': { getVehicles: async () => vehicles }, '@/lib/vehicle-showcase': showcase, '@/lib/special-occasions': occasions,
+    '@/lib/utils': utils, './OccasionEnquiryForm': form,
+  })
+  const html = renderToStaticMarkup(await page.default({ searchParams: Promise.resolve({ vehicle: 'Unshowcased' }) }))
+  assert.match(html, /<option value="Unshowcased" selected="">/)
+  assert.doesNotMatch(html, /Selected vehicles|Hidden/)
+})
+
+test('locked vehicle validation blocks every public booking variant for enquiry-only vehicles but preserves staff/vendor access', async () => {
+  const validation = loadSource('src/lib/booking-availability.ts')
+  const selected = { id: 'classic', name: 'Classic', enquiry_only: 1, is_available: 1, public_bookings_enabled: 1, vendor_bookings_enabled: 1, hire_modes: 'both' }
+  const transaction = { queryOne: async sql => /FROM Vehicle\s/.test(sql) ? selected : /FROM VendorVehicle/.test(sql) ? { is_enabled: 1 } : null }
+  const base = { vehicleId: 'classic', startDate: '2027-02-20', endDate: '2027-02-20', checkConflicts: false }
+  for (const hireType of ['chauffeured', 'dry-hire']) for (const isEnquiry of [false, true]) {
+    await assert.rejects(validation.lockAndValidateBookingVehicle(transaction, { ...base, channel: 'public', hireType, isEnquiry }), error => error.code === 'VEHICLE_ENQUIRY_ONLY' && error.status === 409)
+  }
+  for (const channel of ['admin', 'vendor']) assert.equal((await validation.lockAndValidateBookingVehicle(transaction, { ...base, channel, vendorId: 'vendor', hireType: 'chauffeured', isEnquiry: false })).vehicle.id, 'classic')
+  selected.enquiry_only = 0
+  assert.equal((await validation.lockAndValidateBookingVehicle(transaction, { ...base, channel: 'public', hireType: 'chauffeured', isEnquiry: false })).vehicle.id, 'classic')
+})
+
+test('homepage priorities retain the full fleet, order matches stably, and use category assignments rather than names', () => {
+  const vehicles = [vehicle('Normal', { show_on_special_occasions: false, meta: { hire_modes: 'both' } }), vehicle('Occasion', { enquiry_only: true }), vehicle('Not a bus despite its name', { show_on_special_occasions: false }), vehicle('Group transport', { fleet_categories: [{ id: 'bus', name: 'Bus', homepage_group: 'buses' }] })]
+  assert.deepEqual(collections.prioritiseFleet(vehicles, 'buses').map(item => item.id), ['Group transport', 'Normal', 'Occasion', 'Not a bus despite its name'])
+  assert.equal(collections.prioritiseFleet(vehicles, 'chauffeured')[0].id, 'Normal')
+  assert.equal(collections.prioritiseFleet(vehicles, 'special-occasions')[0].id, 'Occasion')
+  assert.deepEqual(collections.prioritiseFleet(vehicles, 'invalid'), vehicles)
+  assert.equal(vehicles[0].id, 'Normal')
+})
+
+test('public booking endpoint rejects stale enquiry-only submissions before writes or notifications', async () => {
+  const validation = loadSource('src/lib/booking-availability.ts')
+  const unexpected = () => { throw new Error('Enquiry-only vehicle must not create a booking or send notifications') }
+  const transaction = { queryOne: async () => ({ id: 'classic', enquiry_only: 1, is_available: 1, public_bookings_enabled: 1 }), execute: unexpected }
+  const route = loadSource('src/app/api/booking/route.ts', {
+    '@/lib/db': { withTransaction: callback => callback(transaction), generatePublicId: unexpected, newId: unexpected },
+    '@/lib/booking-availability': validation, '@/lib/email': { sendBookingNotification: unexpected },
+    '@/lib/email-sequences': { sendBookingReceived: unexpected }, '@/lib/calendar': { syncBookingToCalendar: unexpected },
+    '@/lib/push': { sendPushNotification: unexpected }, '@/lib/utils': utils,
+  })
+  for (const is_enquiry of [false, true]) {
+    const response = await route.POST(new Request('http://localhost/api/booking', { method: 'POST', body: JSON.stringify({
+      product_id: 'classic', start_date: '2027-02-20', end_date: '2027-02-20', contact_name: 'Jane', contact_email: 'jane@example.com', contact_phone: '0400000000', hire_type: 'chauffeured', is_enquiry,
+    }) }))
+    assert.equal(response.status, 409)
+    assert.match((await response.json()).error, /available on enquiry/)
+  }
+})
+
+test('availability alternatives exclude enquiry-only and public-hidden vehicles in both query branches', async () => {
+  for (const blocked of [false, true]) {
+    let selected = false
+    const route = loadSource('src/app/api/vehicles/available/route.ts', { '@/lib/db': { query: async sql => {
+      if (/FROM Vehicle WHERE/.test(sql)) {
+        selected = true
+        assert.match(sql, /is_available = 1 AND public_bookings_enabled = 1 AND enquiry_only = 0/)
+        assert.equal(/id NOT IN/.test(sql), blocked)
+      }
+      return []
+    } } })
+    const response = await route.GET({ nextUrl: new URL(`http://localhost/api/vehicles/available?start=2027-02-20&end=2027-02-20${blocked ? '&exclude=classic' : ''}`) })
+    assert.equal(response.status, 200)
+    assert.equal(selected, true)
+  }
+})
+
+test('fleet categories validate protected filters, save names/groups, reject duplicates, and delete without deleting vehicles', async () => {
+  const writes = []
+  let duplicate = false
+  const transaction = { queryOne: async sql => /name =/.test(sql) ? duplicate ? { id: 'other' } : null : { id: 'bus' }, execute: async (sql, params) => writes.push({ sql, params }) }
+  const categories = loadSource('src/lib/fleet-categories.ts', { './api-route': api, './db': {
+    newId: () => 'new', withTransaction: callback => callback(transaction), query: async () => [],
+    execute: async (sql, params) => { writes.push({ sql, params }); return { affectedRows: 1 } },
+  } })
+  for (const name of ['Chauffeur Only', 'Self-Drive Available', 'All Vehicles', ' ']) assert.throws(() => categories.parseFleetCategory({ name }), api.ApiError)
+  assert.throws(() => categories.parseFleetCategory({ name: 'Bus', homepage_group: 'invalid' }), /homepage group/)
+  const input = categories.parseFleetCategory({ name: ' Bus ', homepage_group: 'buses' })
+  assert.deepEqual(await categories.saveFleetCategory(input), { id: 'new', name: 'Bus', homepage_group: 'buses' })
+  assert.equal((await categories.saveFleetCategory({ ...input, name: 'Minibus' }, 'bus')).name, 'Minibus')
+  duplicate = true
+  await assert.rejects(categories.saveFleetCategory(input), /already exists/)
+  await categories.deleteFleetCategory('bus')
+  assert.equal(writes.at(-1).sql, 'DELETE FROM FleetCategory WHERE id = ?')
+  assert.deepEqual(writes.at(-1).params, ['bus'])
+  assert.ok(writes.every(write => !/DELETE FROM Vehicle\b/.test(write.sql)))
+})
+
+test('category administration endpoints reject unauthenticated mutations', async () => {
+  const denied = loadSource('src/lib/api-route.ts', { './auth': { getAdminSession: async () => null } })
+  const unexpected = () => { throw new Error('Unauthorised category operation') }
+  const mocks = { '@/lib/api-route': denied, '@/lib/fleet-categories': { getFleetCategories: unexpected, parseFleetCategory: unexpected, saveFleetCategory: unexpected, deleteFleetCategory: unexpected } }
+  const root = loadSource('src/app/api/admin/vehicle-categories/route.ts', mocks)
+  const item = loadSource('src/app/api/admin/vehicle-categories/[id]/route.ts', mocks)
+  for (const [method, handler] of [['GET', root.GET], ['POST', root.POST], ['PUT', item.PUT], ['DELETE', item.DELETE]]) {
+    assert.equal((await handler(new Request('http://localhost/api/admin/vehicle-categories/bus', { method }), { params: Promise.resolve({ id: 'bus' }) })).status, 401)
+  }
+})
+
+test('desktop occasions expand on mouse entry, and wide touch links require one tap to open then another to navigate', () => {
+  let cursor = 0
+  const hooks = []
+  const react = { ...React,
+    useState(initial) { const index = cursor++; if (!(index in hooks)) hooks[index] = initial; return [hooks[index], value => { hooks[index] = typeof value === 'function' ? value(hooks[index]) : value }] },
+    useRef(initial) { const index = cursor++; if (!(index in hooks)) hooks[index] = { current: initial }; return hooks[index] },
+    useEffect() {},
+  }
+  const Nav = loadSource('src/components/ui/Nav.tsx', { react, 'next/link': { default: link }, 'next/navigation': { usePathname: () => '/' }, '@/lib/utils': utils, '@/lib/special-occasions': occasions }).default
+  function render() { cursor = 0; return Nav({}) }
+  function find(element, predicate) {
+    if (!element || typeof element !== 'object') return null
+    if (predicate(element)) return element
+    for (const child of React.Children.toArray(element.props?.children)) { const match = find(child, predicate); if (match) return match }
+    return null
+  }
+  const title = tree => find(tree, node => node.props?.['aria-controls'] === 'occasions-links' && node.props?.href)
+  let tree = render()
+  const menu = find(tree, node => typeof node.props?.onPointerEnter === 'function')
+  menu.props.onPointerEnter({ pointerType: 'mouse' })
+  assert.equal(title(render()).props['aria-expanded'], true)
+  hooks.length = 0
+  tree = render()
+  let prevented = 0
+  title(tree).props.onPointerDown({ pointerType: 'touch' })
+  title(tree).props.onClick({ detail: 1, preventDefault() { prevented++ } })
+  assert.equal(prevented, 1)
+  tree = render()
+  assert.equal(title(tree).props['aria-expanded'], true)
+  title(tree).props.onClick({ detail: 1, preventDefault() { prevented++ } })
+  assert.equal(prevented, 1)
+  tree = render()
+  assert.equal(title(tree).props['aria-expanded'], false)
+  title(tree).props.onClick({ detail: 0, preventDefault() { prevented++ } })
+  assert.equal(prevented, 1, 'keyboard activation still follows the title link')
 })
 
 test('all three portals read/write asynchronous cookies; tokens reject tampering and the wrong portal', async () => {

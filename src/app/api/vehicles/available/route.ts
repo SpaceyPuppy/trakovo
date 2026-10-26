@@ -42,12 +42,12 @@ export async function GET(req: NextRequest) {
   let vehicles: { id: string; slug: string; name: string; price: number; chauffeur_price: number; hire_modes: string }[]
   if (blockedIds.length > 0) {
     vehicles = await query(
-      'SELECT id, slug, name, price, chauffeur_price, hire_modes FROM Vehicle WHERE is_available = 1 AND id NOT IN (?) ORDER BY created_at DESC LIMIT 4',
+      'SELECT id, slug, name, price, chauffeur_price, hire_modes FROM Vehicle WHERE is_available = 1 AND public_bookings_enabled = 1 AND enquiry_only = 0 AND id NOT IN (?) ORDER BY created_at DESC LIMIT 4',
       [blockedIds]
     )
   } else {
     vehicles = await query(
-      'SELECT id, slug, name, price, chauffeur_price, hire_modes FROM Vehicle WHERE is_available = 1 ORDER BY created_at DESC LIMIT 4'
+      'SELECT id, slug, name, price, chauffeur_price, hire_modes FROM Vehicle WHERE is_available = 1 AND public_bookings_enabled = 1 AND enquiry_only = 0 ORDER BY created_at DESC LIMIT 4'
     )
   }
 

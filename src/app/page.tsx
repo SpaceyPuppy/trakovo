@@ -1,10 +1,10 @@
 import Link from 'next/link'
 import NavWrapper from '@/components/ui/NavWrapper'
 import Footer from '@/components/ui/Footer'
-import VehicleCard from '@/components/ui/VehicleCard'
 import ServicesPanel from './ServicesPanel'
 import { getVehicles } from '@/lib/api'
-import { showcaseVehicles } from '@/lib/vehicle-showcase'
+import { FLEET_COLLECTIONS, matchesFleetCollection } from '@/lib/fleet-collections'
+import { getVehicleImage } from '@/lib/utils'
 import { queryOne } from '@/lib/db'
 import { getTaxiBookingConfig } from '@/lib/taxi-booking'
 import type { Vehicle } from '@/types'
@@ -18,8 +18,6 @@ export default async function HomePage() {
 
   const heroRow = await queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'hero_image_path' LIMIT 1").catch(() => null)
   const hasHero = !!heroRow?.value
-
-  const preview = showcaseVehicles(vehicles, 'feature_on_homepage', 3)
 
   return (
     <>
@@ -82,15 +80,33 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Fleet preview */}
-      {preview.length > 0 && (
+      {/* Fleet categories */}
         <section className="max-w-[1160px] mx-auto px-4 sm:px-6 md:px-10 py-10 md:py-16">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-accent mb-3 flex items-center gap-2">
             <span className="w-4 h-[2px] bg-accent inline-block" />Our Fleet
           </p>
           <h2 className="font-display font-bold text-[clamp(26px,3.5vw,38px)] tracking-tight mb-10">Vehicles for every occasion</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {preview.map(v => <VehicleCard key={v.id} vehicle={v} />)}
+            {FLEET_COLLECTIONS.map(collection => {
+              const matching = vehicles.filter(vehicle => vehicle.is_available && vehicle.public_bookings_enabled && matchesFleetCollection(vehicle, collection.id) && getVehicleImage(vehicle))
+              const representative = matching.find(vehicle => vehicle.feature_on_homepage) ?? matching[0]
+              const image = representative && getVehicleImage(representative)
+              return <Link key={collection.id} href={`/vehicles?priority=${collection.id}`} className="group rounded-xl overflow-hidden border border-border bg-white shadow-card hover:shadow-card-lg hover:-translate-y-1 transition-all duration-200">
+                <div className="relative h-[200px] bg-gradient-to-br from-slate to-ink flex items-center justify-center overflow-hidden">
+                  {image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : <svg aria-hidden="true" width="72" height="72" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/70">
+                    {collection.symbol === 'bus' ? <><rect x="9" y="7" width="30" height="31" rx="5" /><path d="M9 23h30M24 7v16M15 38v4m18-4v4M14 30h4m12 0h4" /></> : collection.symbol === 'car' ? <><path d="m8 26 5-13h22l5 13v10H8zM8 25h32M14 36v5m20-5v5M13 30h5m12 0h5" /></> : <><path d="m24 6 5.5 11 12.5 2-9 9 2 13-11-6-11 6 2-13-9-9 12.5-2z" /></>}
+                  </svg>}
+                </div>
+                <div className="p-6">
+                  <h3 className="font-display font-bold text-[21px] mb-3">{collection.label}</h3>
+                  <p className="text-[14px] text-ink-3 leading-relaxed mb-5">{collection.description}</p>
+                  <span className="text-[13px] font-semibold text-accent">Explore the fleet →</span>
+                </div>
+              </Link>
+            })}
           </div>
           <div className="text-center mt-8">
             <Link href="/vehicles" className="bg-accent text-white font-semibold text-[14px] px-7 py-3.5 rounded-[6px] hover:bg-accent-dark transition-colors inline-flex items-center gap-2">
@@ -98,7 +114,6 @@ export default async function HomePage() {
             </Link>
           </div>
         </section>
-      )}
 
       <Footer />
     </>

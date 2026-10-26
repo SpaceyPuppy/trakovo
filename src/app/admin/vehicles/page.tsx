@@ -20,10 +20,13 @@ export default async function AdminVehiclesPage() {
           <h1 className="font-display font-bold text-[26px] tracking-tight">Vehicles</h1>
           <p className="text-[14px] text-ink-3 mt-0.5">{vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} in fleet</p>
         </div>
+        <div className="flex flex-wrap gap-3">
+        <Link href="/admin/vehicles/categories" className="border border-border bg-white text-ink text-[13.5px] font-semibold px-5 py-2.5 rounded-[6px]">Fleet Categories</Link>
         <Link href="/admin/vehicles/new"
           className="bg-accent text-white font-semibold text-[13.5px] px-5 py-2.5 rounded-[6px] hover:bg-accent-dark transition-colors flex items-center gap-2">
           + Add Vehicle
         </Link>
+        </div>
       </div>
 
       {vehicles.length === 0 ? (
@@ -53,7 +56,7 @@ export default async function AdminVehiclesPage() {
                         </div>
                         <div>
                           <p className="font-semibold text-ink">{v.name}</p>
-                          {v.category && <p className="text-[12px] text-ink-4">{v.category.name}</p>}
+                          {v.fleet_categories.length > 0 && <p className="text-[12px] text-ink-4">{v.fleet_categories.map(category => category.name).join(', ')}</p>}
                         </div>
                       </div>
                     </td>

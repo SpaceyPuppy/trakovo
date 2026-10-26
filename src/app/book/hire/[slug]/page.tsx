@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import BookingPanel from '@/components/booking/BookingPanel'
+import VehiclePageContent from '@/app/vehicles/[slug]/VehiclePageContent'
 import { queryOne } from '@/lib/db'
 import { getVehicle, getAvailability } from '@/lib/api'
 import { getLogoUrl, getSiteName } from '@/lib/site'
@@ -27,7 +28,7 @@ export default async function HireVehiclePage(props: Props) {
 
   try {
     vehicle = await getVehicle(params.slug)
-    availability = await getAvailability(vehicle.id).catch(() => [])
+    availability = vehicle.enquiry_only ? [] : await getAvailability(vehicle.id).catch(() => [])
   } catch { notFound() }
 
   let hireAgreementClauses
@@ -64,6 +65,9 @@ export default async function HireVehiclePage(props: Props) {
         <div className="w-[38px] flex-shrink-0" />
       </header>
 
+      {vehicle.enquiry_only ? <main className="w-full max-w-[1160px] mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10">
+        <VehiclePageContent vehicle={vehicle} availability={[]} hireAgreementClauses={hireAgreementClauses} />
+      </main> : <>
       {/* Vehicle image */}
       <div className="w-full aspect-[16/9] bg-slate relative overflow-hidden flex items-center justify-center flex-shrink-0">
         {img ? (
@@ -118,6 +122,7 @@ export default async function HireVehiclePage(props: Props) {
       <div className="px-4 pt-5 pb-10 flex-1 bg-bg">
         <BookingPanel vehicle={vehicle} availability={availability} vehicleBasePath="/book/hire" hireAgreementClauses={hireAgreementClauses} />
       </div>
+      </>}
     </div>
   )
 }

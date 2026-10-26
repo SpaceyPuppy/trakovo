@@ -25,7 +25,7 @@ export default async function VehicleDetailPage(props: Props) {
   let vehicle, availability
   try {
     vehicle = await getVehicle(params.slug)
-    availability = await getAvailability(vehicle.id).catch(() => [])
+    availability = vehicle.enquiry_only ? [] : await getAvailability(vehicle.id).catch(() => [])
   } catch { notFound() }
 
   const agreementRow = await queryOne<{ value: string }>("SELECT value FROM Setting WHERE `key` = 'hire_agreement' LIMIT 1").catch(() => null)

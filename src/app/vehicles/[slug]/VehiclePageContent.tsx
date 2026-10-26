@@ -20,7 +20,7 @@ export default function VehiclePageContent({ vehicle, availability, hireAgreemen
   )
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-10 items-start">
+    <div className={cn('grid grid-cols-1 gap-8 lg:gap-10 items-start', vehicle.enquiry_only ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,420px)]' : 'lg:grid-cols-[1fr_420px]')}>
       {/* Left column */}
       <div>
         {/* Hero image */}
@@ -48,6 +48,7 @@ export default function VehiclePageContent({ vehicle, availability, hireAgreemen
           <p className="text-[11px] font-semibold text-accent uppercase tracking-[0.1em] mb-2">{vehicle.category.name}</p>
         )}
         <h1 className="font-display font-extrabold text-[clamp(24px,3vw,34px)] tracking-tight mb-4">{vehicle.name}</h1>
+        {vehicle.fleet_categories.length > 0 && <div className="flex flex-wrap gap-2 mb-4">{vehicle.fleet_categories.map(category => <span key={category.id} className="rounded-full bg-bg border border-border px-3 py-1 text-[12px] text-ink-3">{category.name}</span>)}</div>}
         {vehicle.description && (
           <p className="text-[15px] text-ink-2 leading-[1.75] font-light mb-7">{vehicle.description}</p>
         )}
@@ -68,7 +69,7 @@ export default function VehiclePageContent({ vehicle, availability, hireAgreemen
         </div>
 
         {/* Pricing tiles — clickable buttons for dual-mode vehicles */}
-        <div className="flex gap-4 flex-wrap">
+        {vehicle.enquiry_only ? <p className="rounded-lg border border-border bg-white p-4 text-[14px] text-ink-3">Available on enquiry. Pricing and arrangements are confirmed with our team.</p> : <div className="flex gap-4 flex-wrap">
           {isDual ? (
             <>
               <button
@@ -125,7 +126,7 @@ export default function VehiclePageContent({ vehicle, availability, hireAgreemen
               <p className="text-[12px] text-white/40 mt-0.5">per day incl. driver</p>
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Booking panel */}

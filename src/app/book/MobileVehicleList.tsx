@@ -97,7 +97,7 @@ function MobileVehicleCard({ vehicle }: { vehicle: Vehicle }) {
             <span className="font-display font-extrabold text-[17px]">{formatCurrency(fromPrice)}</span>
             <span className="text-[11px] text-ink-4">/day</span>
           </div>
-          <span className="text-[12px] font-semibold text-accent">Book →</span>
+          <span className="text-[12px] font-semibold text-accent">{vehicle.enquiry_only ? 'Enquire →' : 'Book →'}</span>
         </div>
       </div>
     </Link>
