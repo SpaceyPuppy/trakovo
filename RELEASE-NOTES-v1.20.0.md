@@ -19,6 +19,14 @@ Escape close the dropdown; the separate desktop disclosure button supports keybo
 
 ## Installation
 
+**Database compatibility issue under investigation (26 October 2026):** the category
+migration can fail with MySQL #1071, "max key length is 1000 bytes", when creating
+VehicleFleetCategory. Its utf8mb4 composite primary key can require 1,528 bytes.
+Do not deploy against a partially applied schema or rerun the whole migration.
+Check the engines and definitions of Vehicle and FleetCategory before choosing the
+repair; do not drop existing tables or import init.sql. A missing assignment table can
+make both public and admin vehicle lists appear empty. The OTA ZIP does not repair SQL.
+
 **OTA update available from a fully installed v1.19.0 baseline. Apply SQL first.**
 Download `next-bundle-v1.20.0.zip` and use Admin -> Settings -> Updates -> Manual Deploy,
 or Pull & Deploy if the server can reach GitHub. SHA-256:

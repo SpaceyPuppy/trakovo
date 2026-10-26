@@ -10,9 +10,13 @@ The earlier installation checklist is archived in docs/archive/PENDING-DEPLOY-v1
 its completed SQL and framework installation steps must not be repeated.
 
 Owner subsequently reported a manual v1.20.0 update with both vehicle lists empty.
-Whether the new SQL has been applied is not yet confirmed. Check the database count,
-new column and category tables before assuming a filesystem permission issue. Production
-v1.20.0 is not recorded as fully verified until those checks and fleet visibility pass.
+Owner's phpMyAdmin screenshot subsequently confirmed MySQL #1071 when creating
+VehicleFleetCategory: the composite utf8mb4 key can require 1,528 bytes, exceeding the
+reported 1,000-byte limit. This is a migration compatibility defect. Check Vehicle and
+FleetCategory engines/definitions before choosing the repair; the read-only results
+have been requested. Do not drop existing tables or rerun the whole migration.
+The enquiry_only column and Bus seed status still need confirmation. Production
+v1.20.0 is not fully verified until schema checks and fleet visibility pass.
 
 ## Current pending version: v1.20.0
 
