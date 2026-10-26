@@ -22,8 +22,8 @@ export async function POST(request: Request) {
     const vehicleId = optionalString(body.vehicle_id, 'Vehicle', 191)
     let vehicleName = 'Please suggest options'
     if (vehicleId) {
-      const vehicle = await queryOne<{ name: string }>('SELECT name FROM Vehicle WHERE id = ? AND is_available = 1 AND public_bookings_enabled = 1 AND show_on_special_occasions = 1', [vehicleId])
-      if (!vehicle) throw new ApiError('That vehicle is no longer showcased. Please select another option.')
+      const vehicle = await queryOne<{ name: string }>('SELECT name FROM Vehicle WHERE id = ? AND is_available = 1 AND public_bookings_enabled = 1 AND (show_on_special_occasions = 1 OR enquiry_only = 1)', [vehicleId])
+      if (!vehicle) throw new ApiError('That vehicle is no longer available for event enquiries. Please select another option.')
       vehicleName = vehicle.name
     }
     const message = [

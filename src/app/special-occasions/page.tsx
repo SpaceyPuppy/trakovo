@@ -4,7 +4,7 @@ import NavWrapper from '@/components/ui/NavWrapper'
 import Footer from '@/components/ui/Footer'
 import { getVehicles } from '@/lib/api'
 import { OCCASIONS } from '@/lib/special-occasions'
-import { showcaseVehicles } from '@/lib/vehicle-showcase'
+import { occasionEnquiryVehicles, showcaseVehicles } from '@/lib/vehicle-showcase'
 import { getVehicleImage } from '@/lib/utils'
 import OccasionEnquiryForm from './OccasionEnquiryForm'
 
@@ -18,8 +18,10 @@ export default async function SpecialOccasionsPage({ searchParams }: {
   searchParams: Promise<{ vehicle?: string }>
 }) {
   const requestedVehicle = (await searchParams).vehicle
-  const vehicles = showcaseVehicles(await getVehicles().catch(() => []), 'show_on_special_occasions')
-  const selectedVehicle = vehicles.find(vehicle => vehicle.id === requestedVehicle)
+  const publicVehicles = await getVehicles().catch(() => [])
+  const vehicles = showcaseVehicles(publicVehicles, 'show_on_special_occasions')
+  const enquiryVehicles = occasionEnquiryVehicles(publicVehicles)
+  const selectedVehicle = enquiryVehicles.find(vehicle => vehicle.id === requestedVehicle)
 
   return <>
     <NavWrapper />
@@ -86,7 +88,7 @@ export default async function SpecialOccasionsPage({ searchParams }: {
             <p className="text-[15px] text-ink-3 leading-[1.8] mb-6">Share your date, locations, passenger numbers and any vehicle preferences. We'll discuss suitable options and prepare a personalised quote.</p>
             <p className="text-[14px] text-ink-3 leading-[1.8]">Your enquiry helps us explore the right arrangements. A booking is confirmed only once the vehicle, itinerary and pricing have been agreed with our team.</p>
           </div>
-          <OccasionEnquiryForm key={selectedVehicle?.id ?? 'any-vehicle'} vehicles={vehicles.map(vehicle => ({ id: vehicle.id, name: vehicle.name }))} initialVehicleId={selectedVehicle?.id ?? ''} />
+          <OccasionEnquiryForm key={selectedVehicle?.id ?? 'any-vehicle'} vehicles={enquiryVehicles.map(vehicle => ({ id: vehicle.id, name: vehicle.name }))} initialVehicleId={selectedVehicle?.id ?? ''} />
         </div>
       </section>
     </main>

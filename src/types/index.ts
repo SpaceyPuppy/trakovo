@@ -20,6 +20,12 @@ export interface VehicleMedia {
   content_type: string
 }
 
+export interface FleetCategory {
+  id: string
+  name: string
+  homepage_group: '' | 'buses' | 'chauffeured' | 'special-occasions'
+}
+
 export interface Vehicle {
   id: string
   public_id: string
@@ -48,6 +54,8 @@ export interface Vehicle {
   vendor_bookings_enabled: boolean
   feature_on_homepage: boolean
   show_on_special_occasions: boolean
+  enquiry_only: boolean
+  fleet_categories: FleetCategory[]
   created_at: string
   updated_at: string
 }
@@ -159,6 +167,8 @@ export interface VehicleFormData {
   vendor_bookings_enabled: boolean
   feature_on_homepage: boolean
   show_on_special_occasions: boolean
+  enquiry_only: boolean
+  category_ids: string[]
   images: string[]
 }
 

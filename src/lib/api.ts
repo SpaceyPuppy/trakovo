@@ -5,14 +5,14 @@
 
 import { query, queryOne } from './db'
 import { mapBookingRow, type BookingDatabaseRow } from './booking-mapper'
-import type { Vehicle, AvailabilityRange, BookingResponse } from '@/types'
+import type { Vehicle, AvailabilityRange, BookingResponse, FleetCategory } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
 
-function dbVehicleToVehicle(row: Row, media: Row[]): Vehicle {
+function dbVehicleToVehicle(row: Row, media: Row[], categories: FleetCategory[]): Vehicle {
   return {
     id: row.id,
     public_id: row.public_id,
@@ -47,6 +47,8 @@ function dbVehicleToVehicle(row: Row, media: Row[]): Vehicle {
     vendor_bookings_enabled: row.vendor_bookings_enabled === undefined ? true : Boolean(row.vendor_bookings_enabled),
     feature_on_homepage: Boolean(row.feature_on_homepage),
     show_on_special_occasions: Boolean(row.show_on_special_occasions),
+    enquiry_only: Boolean(row.enquiry_only),
+    fleet_categories: categories,
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   }
@@ -62,7 +64,18 @@ async function vehiclesWithMedia(where: string, params: unknown[]): Promise<Vehi
     if (!mediaByVehicle[m.vehicle_id]) mediaByVehicle[m.vehicle_id] = []
     mediaByVehicle[m.vehicle_id].push(m)
   }
-  return vehicles.map((v) => dbVehicleToVehicle(v, mediaByVehicle[v.id] ?? []))
+  const categories = await query<FleetCategory & { vehicle_id: string }>(
+    `SELECT c.id, c.name, c.homepage_group, vc.vehicle_id FROM FleetCategory c
+     JOIN VehicleFleetCategory vc ON vc.category_id = c.id
+     WHERE vc.vehicle_id IN (?) ORDER BY c.name`, [ids]
+  )
+  const categoriesByVehicle = new Map<string, FleetCategory[]>()
+  for (const { vehicle_id, ...category } of categories) {
+    const items = categoriesByVehicle.get(vehicle_id) ?? []
+    items.push(category)
+    categoriesByVehicle.set(vehicle_id, items)
+  }
+  return vehicles.map((v) => dbVehicleToVehicle(v, mediaByVehicle[v.id] ?? [], categoriesByVehicle.get(v.id) ?? []))
 }
 
 // ─── Public: Vehicles ─────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Calendar from './Calendar'
 import HireAgreementModal from './HireAgreementModal'
+import VehicleEnquiryPanel from './VehicleEnquiryPanel'
 import type { Clause } from '@/lib/hire-agreement-defaults'
 import type { Vehicle, AvailabilityRange, BookingFormState, TripLeg } from '@/types'
 import { freshBookingState } from '@/types'
@@ -72,7 +73,12 @@ function buildTripDetails(form: BookingFormState): string | undefined {
   return JSON.stringify({ legs, passengerCount: form.passengerCount, tripPurpose: form.tripPurpose })
 }
 
-export default function BookingPanel({ vehicle, availability, vehicleBasePath = '/vehicles', hireAgreementClauses, externalHireType }: Props) {
+export default function BookingPanel(props: Props) {
+  if (props.vehicle.enquiry_only) return <VehicleEnquiryPanel vehicle={props.vehicle} />
+  return <StandardBookingPanel {...props} />
+}
+
+function StandardBookingPanel({ vehicle, availability, vehicleBasePath = '/vehicles', hireAgreementClauses, externalHireType }: Props) {
   const router = useRouter()
   const [form, setForm] = useState<BookingFormState>(() => {
     const s = freshBookingState()

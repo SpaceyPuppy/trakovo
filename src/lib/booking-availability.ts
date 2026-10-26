@@ -10,6 +10,7 @@ export type BookingValidationCode =
   | 'VEHICLE_NOT_FOUND'
   | 'VEHICLE_UNAVAILABLE'
   | 'VEHICLE_ACCESS_DENIED'
+  | 'VEHICLE_ENQUIRY_ONLY'
   | 'HIRE_MODE_UNAVAILABLE'
   | 'BOOKING_CONFLICT'
   | 'BLOCKOUT_CONFLICT'
@@ -62,6 +63,7 @@ interface LockedVehicleRow extends LockedBookingVehicle {
   is_available: number
   public_bookings_enabled: number
   vendor_bookings_enabled: number
+  enquiry_only: number
 }
 
 export function normaliseBookingCurrency(value: unknown): string {
@@ -119,7 +121,7 @@ export async function lockAndValidateBookingVehicle(
   const dateRange = validateBookingDateRange(input.startDate, input.endDate)
   const vehicle = await transaction.queryOne<LockedVehicleRow>(
     `SELECT id, name, currency, price, chauffeur_price, day_rates, hire_modes, is_available,
-            public_bookings_enabled, vendor_bookings_enabled
+            public_bookings_enabled, vendor_bookings_enabled, enquiry_only
      FROM Vehicle
      WHERE id = ?
      LIMIT 1
@@ -140,6 +142,13 @@ export async function lockAndValidateBookingVehicle(
         'VEHICLE_ACCESS_DENIED',
         'Vehicle is not available for public booking',
         403
+      )
+    }
+    if (Boolean(vehicle.enquiry_only)) {
+      throw new BookingValidationError(
+        'VEHICLE_ENQUIRY_ONLY',
+        'This vehicle is available on enquiry. Please use its event enquiry form.',
+        409
       )
     }
   } else if (input.channel === 'vendor') {

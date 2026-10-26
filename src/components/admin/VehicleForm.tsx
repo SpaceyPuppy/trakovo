@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { VehicleFormData, DayRate } from '@/types'
+import Link from 'next/link'
+import type { VehicleFormData, DayRate, FleetCategory } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
   vehicleId?: string
   publicIdDisplay?: string   // shown read-only in edit mode
   mode: 'create' | 'edit'
+  categories?: FleetCategory[]
 }
 
 const empty: VehicleFormData = {
@@ -17,9 +19,11 @@ const empty: VehicleFormData = {
   hire_modes: 'chauffeured_only', passengers: '', transmission: 'Automatic', fuel: 'Petrol', licence_category: '',
   is_available: true, public_bookings_enabled: true, vendor_bookings_enabled: true, images: [],
   feature_on_homepage: false, show_on_special_occasions: false,
+  enquiry_only: false,
+  category_ids: [],
 }
 
-export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode }: Props) {
+export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode, categories = [] }: Props) {
   const router = useRouter()
   const [form, setForm] = useState<VehicleFormData>({ ...empty, ...initial })
   const [saving, setSaving] = useState(false)
@@ -68,6 +72,8 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
       vendor_bookings_enabled: form.vendor_bookings_enabled,
       feature_on_homepage: form.feature_on_homepage,
       show_on_special_occasions: form.show_on_special_occasions,
+      enquiry_only: form.enquiry_only,
+      category_ids: form.category_ids,
       images: form.images,
       // only send custom public_id if user explicitly edited it
       ...(mode === 'create' && publicIdDirty ? { public_id: publicId } : {}),
@@ -152,6 +158,15 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
         </Field>
         <Field label="Description">
           <textarea className={cn(inp, 'h-24 resize-none')} value={form.description} onChange={e => up({ description: e.target.value })} placeholder="Describe the vehicle for customers…" />
+        </Field>
+        <Field label="Fleet Categories">
+          <div className="flex flex-wrap gap-3">
+            {categories.map(category => <label key={category.id} className="flex items-center gap-2 text-[13px]">
+              <input type="checkbox" checked={form.category_ids.includes(category.id)} onChange={event => up({ category_ids: event.target.checked ? [...form.category_ids, category.id] : form.category_ids.filter(id => id !== category.id) })} />
+              {category.name}
+            </label>)}
+          </div>
+          <Link href="/admin/vehicles/categories" className="text-[12px] text-accent underline">Manage fleet categories</Link>
         </Field>
       </Card>
 
@@ -361,14 +376,20 @@ export default function VehicleForm({ initial, vehicleId, publicIdDisplay, mode 
             <Toggle
               on={form.feature_on_homepage}
               onToggle={() => up({ feature_on_homepage: !form.feature_on_homepage })}
-              label="Feature on homepage"
-              sub="Include in the homepage preview (up to three vehicles, newest first). Requires public visibility."
+              label="Prefer for homepage category photo"
+              sub="Prefer this vehicle's photo on its matching homepage category tile. Requires public visibility."
             />
             <Toggle
               on={form.show_on_special_occasions}
               onToggle={() => up({ show_on_special_occasions: !form.show_on_special_occasions })}
               label="Show on Special Occasions"
               sub="Showcase this vehicle for event enquiries. Requires public visibility."
+            />
+            <Toggle
+              on={form.enquiry_only}
+              onToggle={() => up({ enquiry_only: !form.enquiry_only })}
+              label="Enquiry Only"
+              sub="Replace public booking calendars with the event enquiry form. The vehicle stays visible in your public fleet."
             />
           </div>
         </div>
@@ -424,10 +445,10 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Toggle({ on, onToggle, label, sub }: { on: boolean; onToggle: () => void; label: string; sub?: string }) {
   return (
     <label className="flex items-start gap-3 cursor-pointer">
-      <div onClick={onToggle}
-        className={cn('w-10 h-6 rounded-full transition-colors relative flex-shrink-0 mt-0.5', on ? 'bg-success' : 'bg-border-2')}>
-        <span className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', on ? 'left-[18px]' : 'left-0.5')} />
-      </div>
+      <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onToggle}
+        className={cn('w-10 h-6 rounded-full transition-colors relative flex-shrink-0 mt-0.5 focus-visible:outline-accent', on ? 'bg-success' : 'bg-border-2')}>
+        <span aria-hidden="true" className={cn('absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all', on ? 'left-[18px]' : 'left-0.5')} />
+      </button>
       <div>
         <p className="text-[14px] font-medium leading-snug">{label}</p>
         {sub && <p className="text-[12px] text-ink-4 mt-0.5">{sub}</p>}

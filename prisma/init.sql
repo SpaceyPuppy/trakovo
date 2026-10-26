@@ -21,6 +21,7 @@ CREATE TABLE `Vehicle` (
     `vendor_bookings_enabled` TINYINT(1) NOT NULL DEFAULT 1,
     `feature_on_homepage` BOOLEAN NOT NULL DEFAULT false,
     `show_on_special_occasions` BOOLEAN NOT NULL DEFAULT false,
+    `enquiry_only` BOOLEAN NOT NULL DEFAULT false,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,
 
@@ -28,6 +29,24 @@ CREATE TABLE `Vehicle` (
     UNIQUE INDEX `Vehicle_slug_key`(`slug`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `FleetCategory` (
+  `id` VARCHAR(191) NOT NULL,
+  `name` VARCHAR(80) NOT NULL,
+  `homepage_group` VARCHAR(32) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `FleetCategory_name_key` (`name`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE `VehicleFleetCategory` (
+  `vehicle_id` VARCHAR(191) NOT NULL,
+  `category_id` VARCHAR(191) NOT NULL,
+  PRIMARY KEY (`vehicle_id`, `category_id`),
+  CONSTRAINT `VehicleFleetCategory_vehicle_fkey` FOREIGN KEY (`vehicle_id`) REFERENCES `Vehicle` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `VehicleFleetCategory_category_fkey` FOREIGN KEY (`category_id`) REFERENCES `FleetCategory` (`id`) ON DELETE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+INSERT INTO `FleetCategory` (`id`, `name`, `homepage_group`) VALUES ('bus', 'Bus', 'buses');
 
 -- CreateTable
 CREATE TABLE `VehicleMedia` (

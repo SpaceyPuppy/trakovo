@@ -12,6 +12,8 @@ interface VehicleInput {
   vendorBookingsEnabled: boolean
   featureOnHomepage: boolean
   showOnSpecialOccasions: boolean
+  enquiryOnly: boolean
+  categoryIds: string[]
   images: string[]
   dayRates: Array<Record<string, unknown>>
   chauffeurPrice: number
@@ -76,6 +78,9 @@ export function parseVehicleInput(body: Record<string, unknown>, allowPublicId: 
   const images = rawImages.map((image, index) =>
     requireString(image, `images[${index}]`, { maxLength: 191 })
   )
+  const rawCategoryIds = body.category_ids ?? []
+  if (!Array.isArray(rawCategoryIds) || rawCategoryIds.length > 50) throw new ApiError('Select no more than 50 fleet categories')
+  const categoryIds = [...new Set(rawCategoryIds.map(id => requireString(id, 'Category', { maxLength: 191 })))].sort()
 
   const hireModes = meta.hire_modes ?? 'chauffeured_only'
   if (hireModes !== 'chauffeured_only' && hireModes !== 'both') {
@@ -100,6 +105,8 @@ export function parseVehicleInput(body: Record<string, unknown>, allowPublicId: 
     vendorBookingsEnabled: bool(body.vendor_bookings_enabled, true),
     featureOnHomepage: bool(body.feature_on_homepage, false),
     showOnSpecialOccasions: bool(body.show_on_special_occasions, false),
+    enquiryOnly: bool(body.enquiry_only, false),
+    categoryIds,
     images,
     dayRates: validateDayRates(meta.day_rates),
     chauffeurPrice: cents(meta.chauffeur_price ?? 0, 'chauffeur_price'),
@@ -138,6 +145,18 @@ async function loadVehicle(transaction: DbTransaction, id: string) {
   return { ...vehicle, is_available: Boolean(vehicle.is_available), media }
 }
 
+async function replaceCategories(transaction: DbTransaction, vehicleId: string, categoryIds: string[]) {
+  if (categoryIds.length) {
+    const found = await transaction.query<{ id: string }>('SELECT id FROM FleetCategory WHERE id IN (?) ORDER BY id FOR UPDATE', [categoryIds])
+    if (found.length !== categoryIds.length) throw new ApiError('A fleet category has changed. Refresh and select your categories again.')
+  }
+  await transaction.execute('DELETE FROM VehicleFleetCategory WHERE vehicle_id = ?', [vehicleId])
+  if (categoryIds.length) await transaction.execute(
+    `INSERT INTO VehicleFleetCategory (vehicle_id, category_id) VALUES ${categoryIds.map(() => '(?, ?)').join(', ')}`,
+    categoryIds.flatMap(id => [vehicleId, id])
+  )
+}
+
 export async function createVehicle(input: VehicleInput) {
   return withTransaction(async (transaction) => {
     const publicId = input.publicId ?? await generatePublicId('VHC', transaction)
@@ -156,8 +175,8 @@ export async function createVehicle(input: VehicleInput) {
          price_poa, chauffeur_price_poa, day_rates, currency, hire_modes,
          passengers, transmission, fuel, licence_category, is_available,
          public_bookings_enabled, vendor_bookings_enabled, feature_on_homepage,
-         show_on_special_occasions, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AUD', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         show_on_special_occasions, enquiry_only, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AUD', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         id, publicId, slug, input.name, input.description, input.price, input.chauffeurPrice,
         input.pricePoa ? 1 : 0, input.chauffeurPricePoa ? 1 : 0,
@@ -166,9 +185,11 @@ export async function createVehicle(input: VehicleInput) {
         input.licenceCategory, input.isAvailable ? 1 : 0,
         input.publicBookingsEnabled ? 1 : 0, input.vendorBookingsEnabled ? 1 : 0,
         input.featureOnHomepage ? 1 : 0, input.showOnSpecialOccasions ? 1 : 0,
+        input.enquiryOnly ? 1 : 0,
       ]
     )
     await insertMedia(transaction, id, input.images)
+    await replaceCategories(transaction, id, input.categoryIds)
     return loadVehicle(transaction, id)
   })
 }
@@ -184,7 +205,7 @@ export async function updateVehicle(id: string, input: VehicleInput) {
          chauffeur_price_poa = ?, day_rates = ?, hire_modes = ?, passengers = ?,
          transmission = ?, fuel = ?, licence_category = ?, is_available = ?,
          public_bookings_enabled = ?, vendor_bookings_enabled = ?, feature_on_homepage = ?,
-         show_on_special_occasions = ?, updated_at = NOW()
+         show_on_special_occasions = ?, enquiry_only = ?, updated_at = NOW()
        WHERE id = ?`,
       [
         input.name, input.description, input.price, input.chauffeurPrice,
@@ -193,11 +214,13 @@ export async function updateVehicle(id: string, input: VehicleInput) {
         input.hireModes, input.passengers, input.transmission, input.fuel,
         input.licenceCategory, input.isAvailable ? 1 : 0,
         input.publicBookingsEnabled ? 1 : 0, input.vendorBookingsEnabled ? 1 : 0,
-        input.featureOnHomepage ? 1 : 0, input.showOnSpecialOccasions ? 1 : 0, id,
+        input.featureOnHomepage ? 1 : 0, input.showOnSpecialOccasions ? 1 : 0,
+        input.enquiryOnly ? 1 : 0, id,
       ]
     )
     await transaction.execute('DELETE FROM VehicleMedia WHERE vehicle_id = ?', [id])
     await insertMedia(transaction, id, input.images)
+    await replaceCategories(transaction, id, input.categoryIds)
     return loadVehicle(transaction, id)
   })
 }

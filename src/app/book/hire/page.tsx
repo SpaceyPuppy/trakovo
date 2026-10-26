@@ -47,7 +47,7 @@ export default async function HirePage() {
       <main className="flex-1 px-4 pt-6 pb-8">
         <div className="mb-6">
           <h1 className="font-display font-extrabold text-[24px] tracking-tight mb-1">Our Fleet</h1>
-          <p className="text-[13.5px] text-ink-3">Select a vehicle to check availability and book.</p>
+          <p className="text-[13.5px] text-ink-3">Select a vehicle to book or enquire about your occasion.</p>
         </div>
 
         {vehicles.length === 0 ? (
