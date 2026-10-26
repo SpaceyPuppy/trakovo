@@ -44,7 +44,8 @@ npm run dev
 ```bash
 npm run build
 powershell -ExecutionPolicy Bypass -File "make-zip.ps1"
-# v1.20.0: install trakovo-v1.20.0.zip through cPanel using PENDING-DEPLOY.md
+# v1.20.0 from v1.19.0: apply pending SQL, then upload next-bundle-v1.20.0.zip in Admin
+# Full cPanel package remains available for fresh/manual installations.
 ```
 
 Before deploying a build that changes the database, follow the version-specific SQL and

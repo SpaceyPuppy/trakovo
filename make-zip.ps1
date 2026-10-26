@@ -41,6 +41,20 @@ function Copy-CpanelBuild([string]$destination) {
         ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $destination -Recurse }
 }
 
+function New-CpanelArchive([string]$sourceDirectory, [string]$archivePath) {
+    # .NET Framework on Windows otherwise emits backslashes in ZIP entry names.
+    $sourceRoot = (Resolve-Path -LiteralPath $sourceDirectory).Path.TrimEnd('\', '/')
+    $archive = [System.IO.Compression.ZipFile]::Open($archivePath, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        Get-ChildItem -LiteralPath $sourceRoot -Force -Recurse -File | ForEach-Object {
+            $relativeName = $_.FullName.Substring($sourceRoot.Length).TrimStart('\', '/').Replace('\', '/')
+            [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $archive, $_.FullName, $relativeName, [System.IO.Compression.CompressionLevel]::Optimal
+            )
+        }
+    } finally { $archive.Dispose() }
+}
+
 function Assert-CpanelArchive([string]$archivePath) {
     $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
     try {
@@ -93,12 +107,7 @@ $releaseNextDir = Join-Path $tmpRelease ".next"
 Copy-CpanelBuild $releaseNextDir
 
 $releaseZipPath = Join-Path (Get-Location) $releaseZip
-[System.IO.Compression.ZipFile]::CreateFromDirectory(
-    (Resolve-Path -LiteralPath $tmpRelease).Path,
-    $releaseZipPath,
-    [System.IO.Compression.CompressionLevel]::Optimal,
-    $false
-)
+New-CpanelArchive $tmpRelease $releaseZipPath
 Assert-CpanelArchive $releaseZipPath
 Remove-PackagingPath $tmpRelease
 Write-Host "  Created $releaseZip  ($([Math]::Round((Get-Item $releaseZip).Length / 1MB, 1)) MB)"
@@ -118,12 +127,7 @@ $bundleNextDir = Join-Path $tmpBundle ".next"
 Copy-CpanelBuild $bundleNextDir
 Copy-Item -LiteralPath "package.json" -Destination (Join-Path $tmpBundle "package.json")
 $bundleZipPath = Join-Path (Get-Location) $bundleZip
-[System.IO.Compression.ZipFile]::CreateFromDirectory(
-    (Resolve-Path -LiteralPath $tmpBundle).Path,
-    $bundleZipPath,
-    [System.IO.Compression.CompressionLevel]::Optimal,
-    $false
-)
+New-CpanelArchive $tmpBundle $bundleZipPath
 Assert-CpanelArchive $bundleZipPath
 Remove-PackagingPath $tmpBundle
 Write-Host "  Created $bundleZip  ($([Math]::Round((Get-Item $bundleZip).Length / 1MB, 1)) MB)"

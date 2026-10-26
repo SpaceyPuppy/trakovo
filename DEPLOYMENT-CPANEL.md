@@ -27,6 +27,30 @@ is produced for this release.
 An OTA bundle contains only `.next/` and `package.json`. It does not install packages,
 copy public assets, apply SQL, change cPanel environment variables, or back up uploads.
 
+### Release delivery policy
+
+Publish a `next-bundle-vX.X.X.zip` OTA asset by default for every compatible release,
+alongside the full package. Keep `deployment.requires_full_install` false for those
+releases. Record the minimum installed version and manual SQL prerequisites in the
+manifest and release notes; older installed updaters do not enforce those new metadata
+fields or apply SQL, so the owner must check them before clicking Deploy.
+
+Use full-install-only mode when dependencies, Node requirements, startup/root files or
+public assets require replacement that an OTA swap cannot perform. Explain the host/file
+steps for that exception. A database change alone does not require full-package delivery:
+apply its SQL manually first, then install the compatible OTA bundle.
+
+v1.20.0 has an OTA asset for the fully upgraded v1.19.0 baseline. The two SQL files
+0003 and 0004 are separate downloads on that release. Apply only absent schema changes
+before OTA. Existing full/Docker assets and the v1.20.0 tag are unchanged. The OTA reuses
+the exact Linux build from the full package, with compatible deployment metadata.
+
+For an existing release that needs an OTA asset added, use
+`node tools/create-ota-from-release.cjs baseline.zip release.zip output.zip`.
+It compares dependencies, lockfiles (ignoring root version labels), engines, scripts,
+startup/root configuration and public assets; incompatible inputs are rejected before
+writing. It preserves the published compiled bytes and emits portable ZIP paths.
+
 ## Prerequisites
 
 - cPanel with **Setup Node.js App**, MySQL, and phpMyAdmin.
