@@ -2,7 +2,30 @@
 
 ## Current pending version: v1.20.2
 
-## v1.20.2 — (unreleased)
+## v1.20.2 — released 27 October 2026 (owner installation pending)
+
+[GitHub release](https://github.com/SpaceyPuppy/trakovo/releases/tag/v1.20.2) is published
+from merge commit aef262a7b92c6a68ed73a89da745988f1ed9adf1 after PR #21 and both required
+checks passed. Downloaded published assets were independently verified:
+
+- OTA: next-bundle-v1.20.2.zip, 4,130,821 bytes, 1,035 entries.
+  SHA-256: `691bcba11d1127e32550f28f1de09f633eaddd165183304d34c67cff63165b30`.
+- Full: trakovo-v1.20.2.zip, 4,720,663 bytes.
+  SHA-256: `18bd77670dc109c18f2c79d42689230f1c5a8c0c649c54f8783a50e3f6a3967c`.
+- Both contain BUILD_ID 8IMMR7Iwctp6CwfIfjM9q with identical compiled build bytes.
+  Existing updater archive validation passed. ZIP contents/paths and the six-value
+  private credential scan passed. The published full package was compared with the
+  v1.19.0 baseline: dependencies/locks apart from version labels, runtime, root/startup
+  files and public assets are unchanged. OTA compatibility is verified.
+
+CI passed all 60 regression tests, real MariaDB category checks, dependency audit,
+lint (no errors; 15 existing warnings), type checks, production build and packaging.
+An isolated browser preview confirmed the mobile/desktop account menu, sign-out and
+protected-page redirect, restored vehicle badges, combined enquiry inbox and persisted
+mark-read status. No more computer-use checks were run after the owner's usage request.
+Live Microsoft consent, inbox receipt and production calendar sync remain owner checks.
+Publication does not install this update on production. Packaged notes predate this
+publication record; their installation and configuration instructions still apply.
 
 ### Scope
 
