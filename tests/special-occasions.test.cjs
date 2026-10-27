@@ -124,6 +124,7 @@ test('enquiries are persisted in the existing inbox, HTML is escaped, and mail f
   assert.equal(writes[0][1][5], enquiry.message)
   assert.match(sent[0][2], /&lt;img/)
   assert.doesNotMatch(sent[0][2], /<img|<b>Jane/)
+  assert.deepEqual(sent[0][3], { replyTo: enquiry.email })
   mailFails = true
   const originalError = console.error
   console.error = () => {}

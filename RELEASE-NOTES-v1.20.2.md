@@ -30,6 +30,14 @@ Connection errors include safe diagnostic codes. TLS verification stays enabled,
 the existing OTA archive validation, permission handling and backup remain in place.
 This follows GitHub's [release asset download protocol](https://docs.github.com/en/rest/releases/assets?apiVersion=2022-11-28).
 
+Public contact, Special Occasions, corporate and booking-enquiry admin emails now set
+the enquirer's email as Reply-To in Microsoft Graph and SMTP, retaining the authorised
+sender. Corporate enquiries are saved through the shared website inbox before email;
+mail failure leaves them available to staff. Admin -> Enquiries now displays website
+and booking enquiries together, including historical corporate records. Existing
+records are read in place; no migration or duplication is needed. Mark-read updates
+check the server response and target the correct record source.
+
 ## Installation and Microsoft checks
 
 Install **next-bundle-v1.20.2.zip** through Admin -> Settings -> Updates -> Manual Deploy
@@ -51,6 +59,10 @@ Complete consent as required by the tenant, then select the intended calendar an
 a test email. Verify an affected booking's calendar sync before relying on it. See
 [Microsoft's authorization-code documentation](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
 and [Graph authorization troubleshooting](https://learn.microsoft.com/en-us/graph/resolve-auth-errors).
+
+Submit one of each public enquiry type, verify its details in Admin -> Enquiries and
+check that Reply in the received notification targets the enquirer. Historical
+corporate enquiries should also appear. No automatic replay of old notifications occurs.
 
 The owner reports `TypeError: fetch failed` for Microsoft refresh and OTA checks. This
 does not identify the underlying host/network cause. If the callback still fails,

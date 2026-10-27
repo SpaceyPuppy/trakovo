@@ -7,7 +7,7 @@ import { getMicrosoftAccessToken, microsoftGraphRequest } from './microsoft-toke
 
 // ─── Microsoft Graph API helpers ─────────────────────────────────────────────
 
-async function sendViaGraph(token: string, to: string, subject: string, html: string): Promise<void> {
+async function sendViaGraph(token: string, to: string, subject: string, html: string, replyTo?: string): Promise<void> {
   const res = await microsoftGraphRequest('https://graph.microsoft.com/v1.0/me/sendMail', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -16,6 +16,7 @@ async function sendViaGraph(token: string, to: string, subject: string, html: st
         subject,
         body: { contentType: 'HTML', content: html },
         toRecipients: [{ emailAddress: { address: to } }],
+        ...(replyTo ? { replyTo: [{ emailAddress: { address: replyTo } }] } : {}),
       },
       saveToSentItems: true,
     }),
@@ -27,11 +28,13 @@ async function sendViaGraph(token: string, to: string, subject: string, html: st
 
 // ─── Send helper ─────────────────────────────────────────────────────────────
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+export async function sendEmail(to: string, subject: string, html: string, options: { replyTo?: string } = {}): Promise<void> {
+  const replyTo = options.replyTo?.trim()
+  if (replyTo && (replyTo.length > 254 || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(replyTo))) throw new Error('Invalid Reply-To address')
   // Try Microsoft 365 first
   const msToken = await getMicrosoftAccessToken()
   if (msToken) {
-    await sendViaGraph(msToken, to, subject, html)
+    await sendViaGraph(msToken, to, subject, html, replyTo)
     return
   }
 
@@ -50,6 +53,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     to,
     subject,
     html,
+    ...(replyTo ? { replyTo } : {}),
   })
 }
 
@@ -76,7 +80,7 @@ export async function sendBookingNotification(
   const subject = `New Booking Request ${booking.public_id} — ${vehicleName}`
 
   try {
-    await sendEmail(setting.value.trim(), subject, html)
+    await sendEmail(setting.value.trim(), subject, html, { replyTo: booking.contact_email })
   } catch (err) {
     console.error('[email] Notification not sent for', booking.public_id, err)
   }

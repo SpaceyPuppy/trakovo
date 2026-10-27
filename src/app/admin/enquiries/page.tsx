@@ -1,11 +1,13 @@
 import { query } from '@/lib/db'
 import EnquiriesClient from './EnquiriesClient'
 import type { Metadata } from 'next'
+import { getWebsiteEnquiries } from '@/lib/website-enquiries'
 
 export const metadata: Metadata = { title: 'Enquiries' }
 export const revalidate = 0
 
 export default async function EnquiriesPage() {
+  const websiteEnquiries = await getWebsiteEnquiries()
   const enquiries = await query<{
     id: string
     public_id: string
@@ -34,5 +36,5 @@ export default async function EnquiriesPage() {
     created_at: e.created_at instanceof Date ? e.created_at.toISOString() : String(e.created_at),
   }))
 
-  return <EnquiriesClient enquiries={serialised} />
+  return <EnquiriesClient enquiries={serialised} websiteEnquiries={websiteEnquiries} />
 }

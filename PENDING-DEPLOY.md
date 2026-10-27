@@ -25,6 +25,12 @@
   15-second deadline/2 MiB limit; assets have a 120-second deadline per hop/128 MiB
   limit and at most five allowlisted HTTPS redirects. Repository credentials go only
   to api.github.com. Safe network/HTTP codes replace Fetch failed/provider bodies.
+- Public contact, Special Occasions, corporate and booking-enquiry admin notifications
+  set Reply-To to the validated enquirer's email in both Microsoft Graph and SMTP.
+  The authorised mailbox remains the sender. New corporate enquiries use the existing
+  ContactEnquiry inbox with all event details retained; email failure does not erase them.
+  The main Admin Enquiries screen shows website and booking enquiries, including old
+  CorporateEnquiry records where that legacy table exists. Mark-read failures stay visible.
 
 ### Production state and prerequisites
 
@@ -109,6 +115,12 @@ and MS_CLIENT_SECRET must be correct and available to Passenger. Node remains pa
       refreshed protected page requires authentication. Failed sign-out offers a retry.
 - [ ] Admin and affected vendor can see their bookings after a fresh login. No booking
       or availability/blockout data has been changed by this release.
+- [ ] Submit a contact enquiry, a Special Occasions enquiry (including a preferred
+      vehicle), a corporate enquiry and a booking waitlist enquiry. Each appears on
+      Admin -> Enquiries with its details, and its admin email's Reply action targets
+      the enquirer's email, while From remains the authorised mailbox. Confirm actual
+      delivery after reconnecting Microsoft. Check historical corporate records and
+      mark-read persistence. A mail failure must leave the saved enquiry in the inbox.
 - [ ] Fleet and /book cards show green Self-Drive for hire_modes=both, otherwise Chauffeur
       Only. Chauffeur Only remains absent from the built-in category filters. Verify
       Enquiry Only still opens the occasion form with no calendar, and category mappings

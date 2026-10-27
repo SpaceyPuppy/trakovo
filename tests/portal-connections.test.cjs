@@ -386,3 +386,114 @@ test('mobile avatar opens the same account actions as desktop and sign-out handl
     else { assert.deepEqual(navigations, []); assert.match(renderToStaticMarkup(state.render(component, props)), /Unable to sign out/) }
   }
 })
+
+test('enquiry Reply-To is delivered through both Graph and SMTP without changing the sender or accepting header injection', async t => {
+  for (const [key, value] of Object.entries({ SMTP_HOST: 'smtp.example.com', SMTP_USER: 'admin@example.com', SMTP_PASS: 'test-only', SMTP_FROM: 'Admin <admin@example.com>' })) {
+    const previous = process.env[key]; process.env[key] = value
+    t.after(() => previous === undefined ? delete process.env[key] : process.env[key] = previous)
+  }
+  for (const graph of [true, false]) {
+    const sends = []
+    const email = load('src/lib/email.ts', {
+      nodemailer: { default: { createTransport: () => ({ sendMail: async message => sends.push(message) }) } },
+      './db': { queryOne: async (_sql, params) => ({ value: params[0] === 'notification_email' ? 'admin@example.com' : '1' }) },
+      './site': { getSiteName: async () => 'Test' },
+      './email-templates': { getTemplate: async () => '', buildTemplateContext: async () => ({ vars: {}, conditions: {} }), renderTemplate: () => '<p>Booking enquiry</p>' },
+      './microsoft-token': {
+        getMicrosoftAccessToken: async () => graph ? 'token' : null,
+        microsoftGraphRequest: async (_url, options) => { sends.push(JSON.parse(options.body).message); return response(202, {}) },
+      },
+    })
+    await email.sendEmail('admin@example.com', 'Enquiry', '<p>Request</p>', { replyTo: 'customer@example.com' })
+    if (graph) {
+      assert.deepEqual(sends[0].replyTo, [{ emailAddress: { address: 'customer@example.com' } }])
+      assert.equal(sends[0].from, undefined)
+    } else {
+      assert.equal(sends[0].replyTo, 'customer@example.com')
+      assert.equal(sends[0].from, 'Admin <admin@example.com>')
+    }
+    await assert.rejects(email.sendEmail('admin@example.com', 'Invalid', '', { replyTo: 'customer@example.com\r\nBcc:other@example.com' }), /Invalid Reply-To/)
+    assert.equal(sends.length, 1)
+    await email.sendBookingNotification({ public_id: 'BKG-ENQ', contact_email: 'booking-customer@example.com', is_enquiry: true }, 'Bus')
+    assert.deepEqual(sends[1].replyTo, graph ? [{ emailAddress: { address: 'booking-customer@example.com' } }] : 'booking-customer@example.com')
+  }
+})
+
+test('contact, corporate and occasion forms save to the visible inbox before sending with customer Reply-To, even when mail fails', async t => {
+  const api = load('src/lib/api-route.ts', { './auth': {} })
+  const stored = []
+  const sent = []
+  let mailFails = false
+  let saveFails = false
+  const original = console.error
+  console.error = () => {}
+  t.after(() => { console.error = original })
+  const inbox = load('src/lib/contact-enquiry.ts', {
+    './db': {
+      newId: () => `id-${stored.length}`, generatePublicId: async () => `CNT-${stored.length}`,
+      execute: async (sql, values) => { assert.match(sql, /INSERT INTO ContactEnquiry/); if (saveFails) throw new Error('database offline'); stored.push(values) },
+      queryOne: async () => ({ value: 'admin@example.com' }),
+    }, './site': { getSiteName: async () => 'Test' },
+    './email': { sendEmail: async (...args) => { assert.ok(stored.length > sent.length); if (mailFails) throw new Error('offline'); sent.push(args) } },
+  })
+  const common = { '@/lib/api-route': api, '@/lib/contact-enquiry': inbox }
+  const routes = [
+    load('src/app/api/contact/route.ts', common),
+    load('src/app/api/enquiry/corporate/route.ts', common),
+    load('src/app/api/enquiry/special-occasions/route.ts', { ...common, '@/lib/db': {}, '@/lib/special-occasions': load('src/lib/special-occasions.ts') }),
+  ]
+  const body = { name: '<b>Customer</b>', email: 'customer@example.com', message: '<script>test</script>', organisation: 'Example', event_type: 'Conference', guests: '12', occasion: 'weddings' }
+  const request = data => new Request('http://localhost/api/enquiry', { method: 'POST', body: JSON.stringify(data) })
+  for (const route of routes) assert.ok((await route.POST(request(body))).ok)
+  assert.equal(stored.length, 3)
+  assert.match(stored[1][5], /Corporate Enquiry\nOrganisation: Example\nEvent type: Conference\nGuests \/ passengers: 12/)
+  assert.match(stored[2][5], /Special Occasions/)
+  for (const mail of sent) { assert.deepEqual(mail[3], { replyTo: body.email }); assert.doesNotMatch(mail[2], /<script>|<b>Customer/); assert.match(mail[2], /Admin → Enquiries/) }
+  assert.equal((await routes[1].POST(request({ ...body, email: 'bad\r\nheader' }))).status, 400)
+  mailFails = true
+  assert.ok((await routes[1].POST(request(body))).ok)
+  assert.equal(stored.length, 4)
+  saveFails = true
+  assert.equal((await routes[1].POST(request(body))).status, 500)
+  assert.equal(stored.length, 4)
+})
+
+test('Admin Enquiries includes current website, historical corporate and booking enquiries, and only skips an absent legacy table', async () => {
+  const row = { id: 'same-id', public_id: 'CNT-1', name: 'Website Customer', email: 'customer@example.com', phone: '', message: 'Special Occasions — Wedding', status: 'new', created_at: new Date('2026-10-26T00:00:00Z') }
+  let failure = null
+  const website = load('src/lib/website-enquiries.ts', { './db': { query: async sql => {
+    if (sql.includes('CorporateEnquiry')) { if (failure) throw Object.assign(new Error('legacy table'), { code: failure }); return [{ ...row, public_id: 'CRQ-1', name: 'Historical Corporate Customer', organisation: 'Example', created_at: '2026-10-27T00:00:00Z' }] }
+    return [row]
+  } } })
+  const enquiries = await website.getWebsiteEnquiries()
+  assert.equal(enquiries.length, 2)
+  assert.equal(enquiries[0].source, 'corporate')
+  assert.equal(enquiries[1].created_at, '2026-10-26T00:00:00.000Z')
+  assert.match(enquiries[0].message, /Organisation: Example/)
+  const contacts = load('src/app/admin/enquiries/contact/ContactEnquiriesClient.tsx', { 'next/link': { default: link } }).default
+  const screen = load('src/app/admin/enquiries/EnquiriesClient.tsx', { 'next/link': { default: link }, './contact/ContactEnquiriesClient': { default: contacts } }).default
+  const markup = renderToStaticMarkup(React.createElement(screen, { websiteEnquiries: enquiries, enquiries: [{ ...row, public_id: 'BKG-1', enquiry_status: 'new', contact_name: 'Booking Customer', contact_email: row.email, total_days: 1 }] }))
+  for (const text of ['Website Customer', 'Historical Corporate Customer', 'Booking Customer', 'Website enquiries (2)', 'Booking enquiries (1)', 'Special Occasions', 'Corporate']) assert.ok(markup.includes(text), text)
+  failure = 'ER_NO_SUCH_TABLE'
+  assert.equal((await website.getWebsiteEnquiries()).length, 1)
+  failure = 'ER_ACCESS_DENIED_ERROR'
+  await assert.rejects(website.getWebsiteEnquiries())
+})
+
+test('mark-read authenticates and updates only the selected fixed enquiry table', async () => {
+  let authenticated = false
+  const writes = []
+  const route = load('src/app/api/admin/enquiries/contact/[id]/route.ts', {
+    '@/lib/auth': { getAdminSession: async () => authenticated ? {} : null }, '@/lib/db': { execute: async (...args) => writes.push(args) },
+  })
+  const request = body => new Request('http://localhost/api/admin/enquiries/contact/id', { method: 'PATCH', body: JSON.stringify(body) })
+  const context = { params: Promise.resolve({ id: 'id' }) }
+  assert.equal((await route.PATCH(request({ status: 'read' }), context)).status, 401)
+  authenticated = true
+  assert.equal((await route.PATCH(request({ status: 'read', source: 'corporate' }), context)).status, 200)
+  assert.match(writes[0][0], /^UPDATE CorporateEnquiry /)
+  assert.equal((await route.PATCH(request({ status: 'read' }), context)).status, 200)
+  assert.match(writes[1][0], /^UPDATE ContactEnquiry /)
+  assert.equal((await route.PATCH(request({ status: 'read', source: 'CorporateEnquiry; DROP TABLE Booking' }), context)).status, 400)
+  assert.equal(writes.length, 2)
+})
