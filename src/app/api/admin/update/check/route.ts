@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { getAdminSession } from '@/lib/auth'
 import fs from 'fs'
 import path from 'path'
+import { getLatestGitHubRelease, GitHubTransportError } from '@/lib/github-http'
 
-const GITHUB_REPO = 'SpaceyPuppy/trakovo'
+export const runtime = 'nodejs'
 const BUNDLE_ASSET_PREFIX = 'next-bundle-'
 
 export async function GET() {
@@ -24,24 +25,7 @@ export async function GET() {
   } catch { /* ignore */ }
 
   try {
-    const headers: Record<string, string> = {
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    }
-    if (process.env.GITHUB_TOKEN) {
-      headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`
-    }
-
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { headers })
-    if (!res.ok) {
-      const body = await res.text()
-      return NextResponse.json(
-        { error: `GitHub API returned ${res.status}: ${body}` },
-        { status: 502 }
-      )
-    }
-
-    const release = await res.json()
+    const release = await getLatestGitHubRelease()
     const tag: string = release.tag_name ?? ''         // e.g. "v1.3.1"
     const latestVersion = tag.replace(/^v/, '')        // e.g. "1.3.1"
     const releaseName: string = release.name ?? tag
@@ -66,7 +50,7 @@ export async function GET() {
         : null,
     })
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Failed to check for updates'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    const msg = err instanceof GitHubTransportError ? err.message : 'Failed to check for updates. Try Manual Deploy.'
+    return NextResponse.json({ error: msg }, { status: 502 })
   }
 }

@@ -1,14 +1,10 @@
 import { getSettings, upsertSettings } from './settings'
+import { microsoftRequest } from './microsoft-http'
+import { MICROSOFT_SCOPE, parseMicrosoftTokens } from './microsoft-oauth'
+import { microsoftDiagnosticCode, microsoftProviderCode } from './microsoft-errors'
 
 const TOKEN_KEYS = ['ms_access_token', 'ms_token_expiry', 'ms_refresh_token'] as const
 const REFRESH_BUFFER_MS = 5 * 60 * 1000
-const GRAPH_SCOPE = 'Mail.Send User.Read Calendars.ReadWrite offline_access'
-
-interface TokenResponse {
-  access_token: string
-  expires_in: number
-  refresh_token?: string
-}
 
 let refreshInFlight: Promise<string | null> | null = null
 
@@ -25,7 +21,7 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
   if (!clientId || !clientSecret) return null
 
   try {
-    const response = await fetch(
+    const response = await microsoftRequest(
       `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`,
       {
         method: 'POST',
@@ -35,17 +31,20 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
           client_id: clientId,
           client_secret: clientSecret,
           refresh_token: refreshToken,
-          scope: GRAPH_SCOPE,
+          scope: MICROSOFT_SCOPE,
         }),
       }
     )
     if (!response.ok) {
-      console.error('[microsoft-token] Refresh failed with status', response.status)
+      console.error('[microsoft-token] Refresh rejected', { status: response.status, code: microsoftProviderCode(await response.json().catch(() => null)) })
       return null
     }
 
-    const token = await response.json() as TokenResponse
-    if (!token.access_token || !Number.isFinite(token.expires_in)) return null
+    const token = parseMicrosoftTokens(await response.json(), refreshToken)
+    if (!token) return null
+    // Do not restore a connection that was disconnected/replaced during the request.
+    const current = await getSettings(TOKEN_KEYS)
+    if (current.ms_refresh_token !== refreshToken || !current.ms_access_token) return null
 
     const updates: Array<readonly [string, string]> = [
       ['ms_access_token', token.access_token],
@@ -55,19 +54,19 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
     await upsertSettings(updates)
     return token.access_token
   } catch (error) {
-    console.error('[microsoft-token] Refresh request failed', error)
+    console.error('[microsoft-token] Refresh request failed', { code: microsoftDiagnosticCode(error) })
     return null
   }
 }
 
 /** Return a usable Graph token while coalescing concurrent refresh requests. */
-export async function getMicrosoftAccessToken(): Promise<string | null> {
+export async function getMicrosoftAccessToken(options: { forceRefresh?: boolean } = {}): Promise<string | null> {
   const settings = await getSettings(TOKEN_KEYS)
   const accessToken = settings.ms_access_token
   const refreshToken = settings.ms_refresh_token
   if (!accessToken || !refreshToken) return null
 
-  if (Date.now() < parseExpiry(settings.ms_token_expiry) - REFRESH_BUFFER_MS) {
+  if (!options.forceRefresh && Date.now() < parseExpiry(settings.ms_token_expiry) - REFRESH_BUFFER_MS) {
     return accessToken
   }
 
@@ -77,4 +76,13 @@ export async function getMicrosoftAccessToken(): Promise<string | null> {
     })
   }
   return refreshInFlight
+}
+
+/** Retry only a rejected authentication attempt, never an ambiguous mail/event timeout. */
+export async function microsoftGraphRequest(url: string, options: Parameters<typeof microsoftRequest>[1], token: string) {
+  const send = (accessToken: string) => microsoftRequest(url, { ...options, headers: { ...options?.headers, Authorization: `Bearer ${accessToken}` } })
+  const response = await send(token)
+  if (response.status !== 401) return response
+  const refreshed = await getMicrosoftAccessToken({ forceRefresh: true })
+  return refreshed ? send(refreshed) : response
 }

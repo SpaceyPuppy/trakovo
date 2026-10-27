@@ -124,6 +124,7 @@ test('enquiries are persisted in the existing inbox, HTML is escaped, and mail f
   assert.equal(writes[0][1][5], enquiry.message)
   assert.match(sent[0][2], /&lt;img/)
   assert.doesNotMatch(sent[0][2], /<img|<b>Jane/)
+  assert.deepEqual(sent[0][3], { replyTo: enquiry.email })
   mailFails = true
   const originalError = console.error
   console.error = () => {}
@@ -372,7 +373,7 @@ test('website and booking-app fleet links use the same Admin category assignment
       assignments = { selfdrive: 'chosen', chauffeured: 'chosen' }
       const html = renderToStaticMarkup(await page({ searchParams: Promise.resolve(params) }))
       assert.match(html, /Included/)
-      assert.doesNotMatch(html, /Excluded|Chauffeur Only/)
+      assert.doesNotMatch(html, /Excluded|<button[^>]*>Chauffeur Only/)
       assignments = { selfdrive: '', chauffeured: 'deleted' }
       const empty = renderToStaticMarkup(await page({ searchParams: Promise.resolve(params) }))
       assert.match(empty, /No vehicles found/)
@@ -420,15 +421,15 @@ test('service category endpoint requires Admin authentication and bounds its JSO
   assert.equal(saved, false)
 })
 
-test('public vehicle lists retain only the green Self-Drive badge and omit Chauffeur filters and badges', () => {
+test('public vehicle lists show green Self-Drive or Chauffeur Only badges according to hire settings', () => {
   const common = { 'next/link': { default: link }, '@/lib/utils': utils, '@/lib/service-buttons': serviceButtons }
   for (const file of ['src/components/ui/VehicleCard.tsx', 'src/app/book/MobileVehicleList.tsx', 'src/app/book/hire/MobileVehicleList.tsx']) {
     const component = loadSource(file, common).default
     for (const mode of ['both', 'chauffeured_only', undefined]) {
       const selected = vehicle('Car', { price: 100, chauffeur_price: 200, meta: { hire_modes: mode } })
       const html = renderToStaticMarkup(React.createElement(component, { vehicle: selected, vehicles: [selected] }))
-      assert.doesNotMatch(html, /Chauffeur/)
-      assert.equal(html.includes('bg-emerald-700 text-white'), mode === 'both')
+      assert.equal(html.includes('Chauffeur Only'), mode !== 'both')
+      assert.equal(html.includes('bg-emerald-700'), mode === 'both')
     }
   }
 })

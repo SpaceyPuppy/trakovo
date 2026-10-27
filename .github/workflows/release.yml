@@ -27,7 +27,7 @@ jobs:
       - name: Verify and build release
         run: |
           node --test tests/taxi-booking.test.cjs
-          node --test tests/special-occasions.test.cjs tests/update-safety.test.cjs
+          node --test tests/special-occasions.test.cjs tests/update-safety.test.cjs tests/portal-connections.test.cjs
           npm audit --omit=dev --audit-level=moderate
           npm run lint
           npm run typecheck

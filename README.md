@@ -44,7 +44,7 @@ npm run dev
 ```bash
 npm run build
 powershell -ExecutionPolicy Bypass -File "make-zip.ps1"
-# v1.20.1 from repaired v1.20.0: upload next-bundle-v1.20.1.zip in Admin
+# v1.20.2 from the repaired v1.20.x platform: upload next-bundle-v1.20.2.zip in Admin
 # Full cPanel package remains available for fresh/manual installations.
 ```
 

@@ -1,6 +1,8 @@
 'use client'
 import Link from 'next/link'
 import { useState } from 'react'
+import ContactEnquiriesClient from './contact/ContactEnquiriesClient'
+import type { WebsiteEnquiry } from '@/lib/website-enquiries'
 
 interface Enquiry {
   id: string
@@ -32,7 +34,7 @@ const STATUS_COLORS: Record<string, string> = {
   lost:      'bg-red-50 text-red-600 border-red-200',
 }
 
-export default function EnquiriesClient({ enquiries }: { enquiries: Enquiry[] }) {
+export default function EnquiriesClient({ enquiries, websiteEnquiries }: { enquiries: Enquiry[]; websiteEnquiries: WebsiteEnquiry[] }) {
   const [tab, setTab] = useState<string>('all')
 
   const counts = Object.fromEntries(
@@ -41,20 +43,20 @@ export default function EnquiriesClient({ enquiries }: { enquiries: Enquiry[] })
   const filtered = tab === 'all' ? enquiries : enquiries.filter(e => e.enquiry_status === tab)
 
   return (
-    <div className="px-10 py-10">
+    <div className="px-4 py-6 sm:px-10 sm:py-10">
       <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="font-display font-bold text-[26px] tracking-tight">Enquiries</h1>
-          <p className="text-[14px] text-ink-3 mt-0.5">Waitlist enquiries submitted when requested dates were unavailable.</p>
+          <p className="text-[14px] text-ink-3 mt-0.5">Contact, Special Occasions, corporate and booking enquiries.</p>
         </div>
-        <a href="/admin/enquiries/contact"
-          className="border border-border text-ink-3 font-medium text-[13px] px-4 py-2 rounded-[6px] hover:border-ink-3 hover:text-ink transition-colors whitespace-nowrap">
-          Contact Enquiries →
-        </a>
       </div>
 
+      <ContactEnquiriesClient enquiries={websiteEnquiries} embedded />
+      <h2 className="font-display font-bold text-[20px] mt-10 mb-1">Booking enquiries ({enquiries.length})</h2>
+      <p className="text-[13px] text-ink-3 mb-4">Requests submitted when booking dates were unavailable.</p>
+
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-bg border border-border rounded-lg p-1 w-fit">
+      <div className="flex flex-wrap gap-1 mb-5 bg-bg border border-border rounded-lg p-1 w-fit">
         {TABS.map(t => (
           <button
             key={t.key}
@@ -74,7 +76,7 @@ export default function EnquiriesClient({ enquiries }: { enquiries: Enquiry[] })
         ))}
       </div>
 
-      <div className="bg-white border border-border rounded-xl overflow-hidden">
+      <div className="bg-white border border-border rounded-xl overflow-x-auto">
         {filtered.length === 0 ? (
           <div className="px-6 py-12 text-center text-[13.5px] text-ink-4">No enquiries in this category.</div>
         ) : (

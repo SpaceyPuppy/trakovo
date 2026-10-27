@@ -1,138 +1,134 @@
 # Pending Production Deployment
 
-## Current pending version: v1.20.1
+## Current pending version: v1.20.2
 
-## v1.20.1 — released 27 October 2026 (owner installation pending)
+## v1.20.2 — (unreleased)
 
-[GitHub release](https://github.com/SpaceyPuppy/trakovo/releases/tag/v1.20.1) published
-after PR #19 passed both required jobs and merged. Release and container workflows passed.
-Downloaded published assets were independently checked:
+### Scope
 
-- OTA: next-bundle-v1.20.1.zip, 4,114,006 bytes, 1,035 entries.
-  SHA-256: `f6781f75f1c88e19e5883b748e6d358d91014c423e741fb9da0950ad5efba354`.
-- Full: trakovo-v1.20.1.zip, 4,692,428 bytes.
-  SHA-256: `e478245f8fb4cc93c1fa58ebe8806a79906a65a33201096ff2cc0b5f05c76c2c`.
-- Both contain the same compiled build (BUILD_ID RH1hcUHQAUogjHyFCv9SX). The existing
-  updater accepted the OTA; ZIP paths/content checks and the six-value private
-  credential scan passed. The published Linux package was compared with v1.19.0:
-  dependencies/locks (apart from root version labels), engines, scripts, startup/root
-  configuration and public assets are unchanged. The compatible OTA is verified.
-- The category repair SQL is a separate asset on both v1.20.0 and v1.20.1. Its SHA-256
-  is `7c29c2bd2eaab1805a438e55a81d6722a7b1c9c25d5d6a5880c6af08ad457ddf`.
-  Original v1.20.0 ZIPs, tag and checksums are unchanged.
+- Mobile Admin avatar opens the shared account menu with Settings, Profile, View site
+  and Sign out. Hamburger navigation is separate. Escape/outside clicks close the
+  account menu; logout errors remain visible and successful logout refreshes auth state.
+- Restore Chauffeur Only badges for public vehicles without self-drive. Keep the green
+  Self-Drive badge and v1.20.1 category/button assignments. No built-in chauffeur filter.
+- Microsoft OAuth, refresh, Graph mail/calendar and calendar lookup use native Node
+  HTTPS with a 15-second request deadline, 2 MiB response limit, verified TLS and a
+  Microsoft host allowlist. No fetch/undici WASM dependency in these paths.
+- Callback validates configuration, ten-minute admin-bound state and token payloads;
+  uses the exact originally registered redirect URI; persists the complete connection
+  together; returns to Connections with safe errors. It clears the selected calendar
+  when the connected mailbox changes. Codes/tokens/provider descriptions are not logged.
+- Calendar-list access failures now show an actionable error and Needs attention.
+  Disconnect failures are not falsely reported as success. Graph requests retry once
+  after HTTP 401/refresh, and do not replay ambiguous mail/event transport failures.
+- GitHub OTA metadata and asset downloads also use native HTTPS. Metadata has a
+  15-second deadline/2 MiB limit; assets have a 120-second deadline per hop/128 MiB
+  limit and at most five allowlisted HTTPS redirects. Repository credentials go only
+  to api.github.com. Safe network/HTTP codes replace Fetch failed/provider bodies.
+- Public contact, Special Occasions, corporate and booking-enquiry admin notifications
+  set Reply-To to the validated enquirer's email in both Microsoft Graph and SMTP.
+  The authorised mailbox remains the sender. New corporate enquiries use the existing
+  ContactEnquiry inbox with all event details retained; email failure does not erase them.
+  The main Admin Enquiries screen shows website and booking enquiries, including old
+  CorporateEnquiry records where that legacy table exists. Mark-read failures stay visible.
 
-Publication has not changed the production application. Packaged deployment notes
-predate this publication record; the installation/configuration instructions still apply.
+### Production state and prerequisites
 
-Validation: 35 focused tests, TypeScript, Windows/Linux production builds and packaging
-checks passed. Dependency audit found zero known vulnerabilities. Lint reports no errors
-and 15 existing warnings. CI's real MariaDB check reproduced #1071 with a MyISAM default,
-then verified the repair, preserved data/assignments, repeat execution, both cascading
-foreign keys and the fresh schema's explicit engines. Local browser verification uses
-disposable in-memory fixtures; real production delivery remains an owner check.
-Browser checks confirmed desktop/mobile button order, the green badge and no Chauffeur
-filter, an Admin category change after saving, and the resulting vehicle selections on
-both website and /book. Temporary preview tabs/server were closed after verification.
+Owner reports v1.20.1 installed, bookings present in the database and visible after a
+fresh login. The earlier affected vendor still needs to confirm a fresh session. The
+new report is mobile Admin logout unavailable and Microsoft connection failing, with
+no emails/calendar sync and an HTTP 500 at the code callback. The owner supplied
+`[microsoft-token] Refresh request failed [TypeError: fetch failed]` and reports the
+same failure checking OTA updates. This identifies the shared fetch path, but not its
+underlying DNS/TLS/parser/host cause. Native transport and callback handling address
+these paths; live host connectivity and recovery remain owner verification steps.
 
-The four main service buttons across desktop/mobile website layouts and the booking
-app now read Self-Drive Buses, Chauffeured Hire, Special Occasions, Taxi, in that order.
-The first two display only vehicles in their assigned categories. Configure each under
-Admin -> Vehicles -> Fleet Categories -> Service buttons. The other buttons open their
-dedicated pages, retaining the existing taxi online/phone booking setting.
+The earlier FleetCategory InnoDB conversion and missing assignment table/Bus seed
+repair succeeded according to the owner. Do not repeat that completed repair. Retain
+all v1.20 SQL prerequisites, including Vehicle.enquiry_only; inspect the schema before
+applying anything on another installation. Earlier release evidence and read-only
+checks are archived in docs/archive/PENDING-DEPLOY-v1.20.1.md.
 
-The built-in Chauffeur Only filter/badge is removed. Self-Drive Available remains a
-filter and vehicles with self-drive enabled retain a green Self-Drive badge. Existing
-hire modes and prices still control available booking options.
+No new schema/dependency/cron/environment variables are required. Additional temporary
+OAuth state fields use the existing Setting table. Existing MS_CLIENT_ID, MS_TENANT_ID
+and MS_CLIENT_SECRET must be correct and available to Passenger. Node remains patched
+24.22.1+ in the 24.x line. Root/startup and public files are unchanged: OTA is intended.
 
-### Production state and database prerequisites
+### Install — owner performed
 
-The owner manually installed v1.20.0 and reported both vehicle lists empty. Screenshots
-confirmed Vehicle was InnoDB, FleetCategory was MyISAM, and VehicleFleetCategory was
-absent after #1071 (composite index exceeded MyISAM's 1,000-byte limit). The owner then
-confirmed all three repair statements succeeded: convert FleetCategory to InnoDB,
-create VehicleFleetCategory as InnoDB/DYNAMIC with both cascading foreign keys, and
-add Bus only if absent. **That repair is complete; do not repeat it on this server.**
-Fleet visibility and real enquiry delivery still need explicit post-deployment checks.
+1. Back up the database, current .next and package.json. Confirm the patched runtime,
+   installed dependencies and completed v1.20 category/schema prerequisites.
+2. Download next-bundle-v1.20.2.zip from the GitHub release and verify its published
+   checksum. Use Admin -> Settings -> Updates -> Manual Deploy for this installation
+   while the old GitHub checker is failing. After installation, check the new native
+   GitHub path using Check for updates; a connectivity failure now includes a safe code.
+3. The OTA swaps the build/manifest, sets permissions and restarts Passenger. No NPM
+   installation or server build is required for this update. Publication is not deployment.
+4. Confirm v1.20.2, sign in afresh and perform the checks below. Restore previous .next
+   and matching package.json for rollback; existing one-click rollback restores only
+   the build. Retain additive schema repairs and host security patches.
 
-The latest repair screenshots did not independently confirm Vehicle.enquiry_only.
-Before OTA, run these read-only checks in phpMyAdmin. Expect that column to exist and
-all three tables to use InnoDB; the column should be non-nullable tinyint(1), default 0.
-If the column is absent, apply only 0003 before updating. This is an existing v1.20
-prerequisite, not a new v1.20.1 schema change.
+### Microsoft configuration and recovery
 
-```sql
-SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT
-FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = 'ckbservi_trakovo'
-  AND TABLE_NAME = 'Vehicle' AND COLUMN_NAME = 'enquiry_only';
+- [ ] In cPanel -> Setup Node.js App -> Environment variables, confirm MS_CLIENT_ID,
+      MS_TENANT_ID and MS_CLIENT_SECRET. Use the secret VALUE, not its ID; check expiry.
+      If changing an environment value, save and restart the application. Do not create
+      a secrets file in the public website or share these values in screenshots/logs.
+- [ ] General -> Site URL: https://ckb.services. In Microsoft Entra app registration,
+      configure the Web redirect URI exactly as:
+      https://ckb.services/api/admin/settings/ms-callback
+      No query string, added trailing slash or SPA redirect type.
+- [ ] Existing delegated scopes: Mail.Send, User.Read, Calendars.ReadWrite, offline_access.
+      Complete tenant consent as required. Do not expand permissions to troubleshoot a
+      network/storage failure. Official references:
+      https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow
+      https://learn.microsoft.com/en-us/graph/resolve-auth-errors
+- [ ] After OTA, open Settings -> Connections and choose Connect/Reconnect with Microsoft
+      to start a fresh ten-minute sign-in flow. Do not reuse the failed callback URL/code.
+      Confirm the mailbox, choose the intended calendar and save it. Changing accounts
+      clears the old mailbox's calendar selection; reconnecting the same mailbox preserves it.
+- [ ] Open the Microsoft panel and verify calendar loading succeeds. A stored connection
+      alone is not proof of current access; failures display Needs attention and an alert.
+- [ ] Send a test email and confirm actual inbox receipt. Confirm notification_email and
+      booking email toggles if test mail works but booking notifications do not.
+- [ ] Verify a booking calendar create/update against the intended Outlook calendar.
+      Existing missed notifications/events are not bulk-replayed by this patch. Review
+      affected bookings after the connection is proven; avoid duplicate customer emails.
+- [ ] If a callback still errors, collect only the stage and diagnostic/provider code
+      from application logs. Never share code/state/token values, complete callback URLs
+      or client secrets. If no callback log appears, ask the provider to inspect Passenger,
+      web-server and ModSecurity handling of /api/admin/settings/ms-callback. Confirm
+      outbound HTTPS/DNS/TLS to login.microsoftonline.com and graph.microsoft.com; do not
+      bypass certificate verification or disable host protections as a workaround.
+- [ ] Check for updates succeeds after installation. If not, use its diagnostic code
+      to ask the host about outbound HTTPS/DNS/TLS to api.github.com and GitHub release
+      asset hosts (especially release-assets.githubusercontent.com). HTTP_401/403/404
+      can require a valid GITHUB_TOKEN with repository read access, or indicate API
+      rate limits/missing release; they are not evidence of a DNS or certificate fault.
+      Manual Deploy remains available. Never share tokens or signed asset URLs.
 
-SELECT TABLE_NAME, ENGINE
-FROM information_schema.TABLES
-WHERE TABLE_SCHEMA = 'ckbservi_trakovo'
-  AND TABLE_NAME IN ('Vehicle', 'FleetCategory', 'VehicleFleetCategory');
-```
+### Portal and public verification
 
-- No new schema, environment variables, dependencies or cron jobs are required for
-  v1.20.1 on this repaired v1.20.0 installation. Button assignments use existing Setting.
-- For another cPanel installation missing the v1.20 schema, inspect the actual database
-  first. Apply 0003 only if Vehicle.enquiry_only is absent. Use
-  database/migrations/0005-v1.20.0-category-engine-repair.sql for absent/partially created
-  category tables after confirming Vehicle is InnoDB and id uses utf8mb4_unicode_ci.
-  Do not rerun 0004 on cPanel; it is preserved unchanged because container deployments
-  track applied migration checksums. Never import init.sql over existing production.
-- The repair script explicitly selects InnoDB for new category tables, preserves
-  existing categories/assignments, and does not replace a pre-existing Bus category.
-  Fresh-install Vehicle/category definitions now explicitly use InnoDB too.
-- The script does not retrofit missing foreign keys onto an existing nonstandard
-  VehicleFleetCategory table. Inspect such a table separately before proceeding.
-- Previous publication evidence and installation context are archived in
-  docs/archive/PENDING-DEPLOY-v1.20.0.md. Its repair-waiting notes are historical.
+- [ ] On mobile, left hamburger opens navigation and right avatar opens Account options.
+      Settings/Profile/View site/Sign out are accessible. Check outside tap and Escape;
+      desktop retains the same account menu. A successful sign-out reaches Login and a
+      refreshed protected page requires authentication. Failed sign-out offers a retry.
+- [ ] Admin and affected vendor can see their bookings after a fresh login. No booking
+      or availability/blockout data has been changed by this release.
+- [ ] Submit a contact enquiry, a Special Occasions enquiry (including a preferred
+      vehicle), a corporate enquiry and a booking waitlist enquiry. Each appears on
+      Admin -> Enquiries with its details, and its admin email's Reply action targets
+      the enquirer's email, while From remains the authorised mailbox. Confirm actual
+      delivery after reconnecting Microsoft. Check historical corporate records and
+      mark-read persistence. A mail failure must leave the saved enquiry in the inbox.
+- [ ] Fleet and /book cards show green Self-Drive for hire_modes=both, otherwise Chauffeur
+      Only. Chauffeur Only remains absent from the built-in category filters. Verify
+      Enquiry Only still opens the occasion form with no calendar, and category mappings
+      retain their v1.20.1 assignments.
 
-### OTA installation — owner performed
+### Remaining host/security follow-up
 
-1. Back up the database, current .next and package.json. Confirm the existing v1.19.0+
-   Node 24.22.1+ (24.x) runtime/dependencies and the completed v1.20 category repair.
-2. Download next-bundle-v1.20.1.zip from the GitHub release and verify its published
-   SHA-256. Use Admin -> Settings -> Updates -> Manual Deploy if Fetch failed persists;
-   otherwise use Pull & Deploy. Upload only the next-bundle ZIP to the OTA page.
-3. The updater swaps the compiled build and package.json, fixes build permissions and
-   restarts Passenger. No NPM installation or server build is needed for this update.
-4. Confirm the application reports v1.20.1 and perform the checks below. Publication
-   does not install anything on production. The earlier GitHub Fetch failed connection
-   issue remains unverified; publishing an asset does not establish connectivity.
-
-### Configure and verify
-
-- [ ] Admin/public fleet lists show the existing vehicles and uploaded images.
-- [ ] Under Admin -> Vehicles -> Fleet Categories, assign the Self-Drive Buses button
-      to Bus (or any custom category) and Chauffeured Hire to the desired category.
-      If absent, add Chauffeured Vehicles and assign its vehicles first. Before the
-      first save, existing Bus/Chauffeured Vehicles categories or their homepage groups
-      supply defaults; no category means no vehicles. Save both button choices.
-- [ ] Refresh desktop and mobile homepages: order is Self-Drive Buses, Chauffeured Hire,
-      Special Occasions, Taxi. Verify both image-hero and ordinary layouts if used.
-- [ ] Check /book has the same four services/order. Its first two lists and website
-      fleet links show the chosen categories. A cleared/deleted assignment produces
-      an empty result, with the remaining fleet accessible through All Vehicles.
-- [ ] Reassign a button to another category, save, reopen Admin and refresh both public
-      destinations to confirm persistence. Both buttons may use the same category.
-- [ ] Chauffeur Only is absent from built-in filters and vehicle badges. Only vehicles
-      configured for self-drive show the green Self-Drive badge. Hire prices/options
-      remain appropriate; Enquiry Only still opens the event form without a calendar.
-- [ ] Special Occasions opens the event page; Taxi retains the phone dialog or online
-      flow according to its existing setting. Check one real event enquiry reaches
-      Admin -> Enquiries -> Contact Enquiries and notification email.
-
-### Rollback and remaining host work
-
-Restore the previous .next and matching package.json; the existing one-click rollback
-restores only the build. Retain the additive SQL/category engine repair. Keep saved
-button settings for a later retry. A full-package backup is needed for older platform
-rollbacks involving dependencies or startup files.
-
-Existing host/security follow-up remains separate: Mapbox rotation/restriction and
-any other reused credentials, coordinated historical secret cleanup, and provider
-confirmation of applicable PHP/cPanel/CloudLinux/Passenger patches and restarts in
-SECURITY-REVIEW-2026-10-26.md. Owner reported production DB_PASSWORD and ADMIN_JWT_SECRET
-were different from historical files; Microsoft secret differed, and vendor JWT,
-admin/maintenance passwords and VAPID keys were changed. No secrets are recorded here.
+Retain the outstanding Mapbox rotation/restriction, coordinated historical secret cleanup
+and provider confirmation of PHP/cPanel/CloudLinux/Passenger patches/restarts from the
+previous deployment guide and SECURITY-REVIEW-2026-10-26.md. Do not infer full host
+security or live Microsoft delivery from a compiled release or fixture tests alone.

@@ -3,12 +3,7 @@ import { useState } from 'react'
 import AdminSidebar from './AdminSidebar'
 import AdminTopBar from './AdminTopBar'
 import PortalIcon from '@/components/ui/PortalIcon'
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-  return name.slice(0, 2).toUpperCase()
-}
+import AdminAccountMenu from './AdminAccountMenu'
 
 export default function AdminShell({
   adminName,
@@ -23,7 +18,6 @@ export default function AdminShell({
 }) {
   const [expanded, setExpanded] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const initials = getInitials(username)
 
   return (
     <div className="flex flex-col h-screen bg-bg overflow-hidden print:block print:h-auto print:bg-white print:overflow-visible">
@@ -63,14 +57,7 @@ export default function AdminShell({
               {adminName}
             </span>
 
-            {/* Right: avatar (taps to open sidebar on mobile; full dropdown would be a separate later enhancement) */}
-            <button
-              onClick={() => setMobileOpen(true)}
-              aria-label="Open menu"
-              className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-white text-[10.5px] font-bold select-none"
-            >
-              {initials}
-            </button>
+            <AdminAccountMenu username={username} compact onOpen={() => setMobileOpen(false)} />
 
           </header>
 

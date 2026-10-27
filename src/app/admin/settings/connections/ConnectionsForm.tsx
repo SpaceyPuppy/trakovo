@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import PushCard from './PushCard'
+import { microsoftConnectionMessage } from '@/lib/microsoft-errors'
 
 interface Props {
   smtpConfigured: boolean
@@ -21,11 +22,12 @@ interface Props {
 }
 
 type TileId = 'ms' | 'smtp' | 'push' | 'crazytel'
-type TileStatus = 'connected' | 'configured' | 'not_set'
+type TileStatus = 'connected' | 'configured' | 'not_set' | 'attention'
 
 const inp = 'w-full border border-border rounded-[6px] px-3 py-2.5 text-[13.5px] text-ink bg-white outline-none focus:border-ink focus:ring-2 focus:ring-ink/5 transition-all'
 
 function StatusBadge({ status }: { status: TileStatus }) {
+  if (status === 'attention') return <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Needs attention</span>
   if (status === 'connected' || status === 'configured') {
     return <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success bg-success-bg border border-success/20 px-1.5 py-0.5 rounded-full">
       <span className="w-1.5 h-1.5 rounded-full bg-success" />
@@ -70,9 +72,10 @@ function SectionHeader({ title, description }: { title: string; description?: st
 
 type MsCalendar = { id: string; name: string }
 
-function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: initEmail, msCalendarId: initCalendarId, msCalendarName: initCalendarName }: {
+function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: initEmail, msCalendarId: initCalendarId, msCalendarName: initCalendarName, onStatusChange }: {
   msConfigured: boolean; msConnected: boolean; msConnectedEmail: string
   msCalendarId: string; msCalendarName: string
+  onStatusChange: (status: TileStatus) => void
 }) {
   const [connected, setConnected] = useState(initConnected)
   const [email, setEmail] = useState(initEmail)
@@ -83,6 +86,7 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
   const [calendarId, setCalendarId] = useState(initCalendarId)
   const [calendarName, setCalendarName] = useState(initCalendarName)
   const [calendarSaving, setCalendarSaving] = useState(false)
+  const [connectionError, setConnectionError] = useState('')
 
   function flash(text: string, type: 'success' | 'error') {
     setMsg({ text, type })
@@ -91,17 +95,24 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
 
   useEffect(() => {
     if (!connected) return
+    let active = true
     fetch('/api/admin/settings/ms-calendars')
-      .then(r => r.json())
-      .then(d => { if (d.calendars?.length) setCalendars(d.calendars) })
-      .catch(() => null)
-  }, [connected])
+      .then(async response => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error ?? 'Microsoft calendar access failed. Reconnect Microsoft.')
+        if (active) { setCalendars(data.calendars ?? []); setConnectionError(''); onStatusChange('connected') }
+      })
+      .catch(error => { if (active) { setConnectionError(error instanceof Error ? error.message : 'Microsoft connection check failed'); onStatusChange('attention') } })
+    return () => { active = false }
+  }, [connected, onStatusChange])
 
   async function handleDisconnect() {
     setSaving(true)
     try {
-      await fetch('/api/admin/settings/ms-disconnect', { method: 'DELETE' })
+      const response = await fetch('/api/admin/settings/ms-disconnect', { method: 'DELETE' })
+      if (!response.ok) throw new Error('Disconnect failed')
       setConnected(false); setEmail(''); setCalendars([])
+      setConnectionError(''); onStatusChange('not_set')
       flash('Microsoft 365 disconnected', 'success')
     } catch { flash('Disconnect failed', 'error') }
     finally { setSaving(false) }
@@ -113,7 +124,7 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
     try {
       const res = await fetch('/api/admin/settings/test-email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: testEmail }),
+        body: JSON.stringify({ to: testEmail, provider: 'microsoft' }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error ?? 'Send failed')
@@ -145,16 +156,17 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
     <div className="bg-white border border-border rounded-xl overflow-hidden">
       <SectionHeader title="Microsoft 365" description="Email and Calendar sync via Outlook OAuth." />
       <div className="px-5 py-4 space-y-4">
+        {connectionError && <p role="alert" className="text-[13px] rounded-[6px] px-3 py-2 text-red-700 bg-red-50 border border-red-200">{connectionError}</p>}
         {msg && <p className={`text-[13px] rounded-[6px] px-3 py-2 ${msg.type === 'success' ? 'text-success bg-success-bg border border-success/30' : 'text-red-600 bg-red-50 border border-red-200'}`}>{msg.text}</p>}
         {!msConfigured ? (
           <div className="bg-yellow-50 border border-yellow-200 rounded-[6px] px-4 py-3 text-[13px] text-yellow-700">
-            Add <code className="font-mono text-[12px]">MS_CLIENT_ID</code>, <code className="font-mono text-[12px]">MS_CLIENT_SECRET</code>, and <code className="font-mono text-[12px]">MS_TENANT_ID</code> to your <code className="font-mono text-[12px]">.env.local</code> to enable this.
+            Set MS_CLIENT_ID, MS_CLIENT_SECRET and MS_TENANT_ID in cPanel → Setup Node.js App → Environment variables, save and restart the application.
           </div>
         ) : connected ? (
           <div className="space-y-4">
             <div className="bg-success-bg border border-success/30 rounded-[6px] px-4 py-3 flex items-center justify-between gap-4">
               <div>
-                <p className="text-[13px] text-success font-semibold">Connected</p>
+                <p className="text-[13px] text-success font-semibold">{connectionError ? 'Connection needs attention' : 'Microsoft account linked'}</p>
                 <p className="text-[12px] text-ink-3 mt-0.5">Sending as: <span className="font-medium text-ink">{email}</span></p>
               </div>
               <button onClick={handleDisconnect} disabled={saving}
@@ -162,6 +174,7 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
                 {saving ? 'Disconnecting…' : 'Disconnect'}
               </button>
             </div>
+            <a href="/api/admin/settings/ms-auth" className="inline-block text-[13px] font-semibold text-accent hover:underline">Reconnect with Microsoft</a>
 
             {/* Calendar picker */}
             <div className="border-t border-border pt-4">
@@ -193,7 +206,7 @@ function MsPanel({ msConfigured, msConnected: initConnected, msConnectedEmail: i
 
             <div className="border-t border-border pt-4">
               <p className="text-[11px] font-bold text-ink-4 uppercase tracking-wider mb-2">Test email</p>
-              <p className="text-[12px] text-ink-4 mb-2">Microsoft 365 is active. Outgoing emails use your Outlook account — SMTP is ignored while connected.</p>
+              <p className="text-[12px] text-ink-4 mb-2">Microsoft 365 is the primary email provider. Use Send Test Email to verify delivery; SMTP is used when a Microsoft token is unavailable.</p>
               <div className="flex items-center gap-3">
                 <input className={cn(inp, 'flex-1')} type="email" value={testEmail}
                   onChange={e => setTestEmail(e.target.value)} placeholder="test@email.com" />
@@ -591,6 +604,7 @@ function ConnectionsFormInner({
 }: Props) {
   const searchParams = useSearchParams()
   const [selected, setSelected] = useState<TileId | null>(null)
+  const [msStatus, setMsStatus] = useState<TileStatus>(msConnected ? 'configured' : 'not_set')
 
   // Auto-open the relevant panel on OAuth callback
   useEffect(() => {
@@ -602,7 +616,7 @@ function ConnectionsFormInner({
       id: 'ms',
       label: 'Microsoft 365',
       description: 'Email & Calendar via Outlook OAuth',
-      status: !msConfigured ? 'not_set' : msConnected ? 'connected' : 'not_set',
+      status: !msConfigured ? 'not_set' : msStatus,
       icon: (
         <svg width="24" height="24" viewBox="0 0 23 23" fill="none">
           <rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/>
@@ -656,12 +670,12 @@ function ConnectionsFormInner({
       {/* OAuth callback banners */}
       {searchParams.get('ms') === 'connected' && (
         <p className="text-[13px] text-success bg-success-bg border border-success/30 rounded-[6px] px-3 py-2">
-          Microsoft 365 connected successfully — emails will now be sent from your Outlook account.
+          Microsoft 365 connected successfully. Send a test email and verify the selected calendar before relying on delivery.
         </p>
       )}
       {searchParams.get('error') && (
         <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[6px] px-3 py-2">
-          Connection failed ({searchParams.get('error')}). Please try again.
+          {microsoftConnectionMessage(searchParams.get('error'))}
         </p>
       )}
 
@@ -674,7 +688,7 @@ function ConnectionsFormInner({
 
       {/* Detail panel */}
       {selected === 'ms' && (
-        <MsPanel msConfigured={msConfigured} msConnected={msConnected} msConnectedEmail={msConnectedEmail} msCalendarId={msCalendarId} msCalendarName={msCalendarName} />
+        <MsPanel msConfigured={msConfigured} msConnected={msConnected} msConnectedEmail={msConnectedEmail} msCalendarId={msCalendarId} msCalendarName={msCalendarName} onStatusChange={setMsStatus} />
       )}
       {selected === 'smtp' && (
         <SmtpPanel smtpConfigured={smtpConfigured} smtpVars={smtpVars} msConnected={msConnected} />

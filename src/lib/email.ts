@@ -3,12 +3,12 @@ import { queryOne } from './db'
 import { getSiteName } from './site'
 import type { BookingCreationResponse, BookingResponse } from '@/types'
 import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
-import { getMicrosoftAccessToken } from './microsoft-token'
+import { getMicrosoftAccessToken, microsoftGraphRequest } from './microsoft-token'
 
 // ─── Microsoft Graph API helpers ─────────────────────────────────────────────
 
-async function sendViaGraph(token: string, to: string, subject: string, html: string): Promise<void> {
-  const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
+async function sendViaGraph(token: string, to: string, subject: string, html: string, replyTo?: string): Promise<void> {
+  const res = await microsoftGraphRequest('https://graph.microsoft.com/v1.0/me/sendMail', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -16,23 +16,25 @@ async function sendViaGraph(token: string, to: string, subject: string, html: st
         subject,
         body: { contentType: 'HTML', content: html },
         toRecipients: [{ emailAddress: { address: to } }],
+        ...(replyTo ? { replyTo: [{ emailAddress: { address: replyTo } }] } : {}),
       },
       saveToSentItems: true,
     }),
-  })
+  }, token)
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Graph API error ${res.status}: ${err}`)
+    throw new Error(`Microsoft mail request failed (HTTP ${res.status}). Check the Microsoft connection and Mail.Send consent in Admin settings.`)
   }
 }
 
 // ─── Send helper ─────────────────────────────────────────────────────────────
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+export async function sendEmail(to: string, subject: string, html: string, options: { replyTo?: string } = {}): Promise<void> {
+  const replyTo = options.replyTo?.trim()
+  if (replyTo && (replyTo.length > 254 || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(replyTo))) throw new Error('Invalid Reply-To address')
   // Try Microsoft 365 first
   const msToken = await getMicrosoftAccessToken()
   if (msToken) {
-    await sendViaGraph(msToken, to, subject, html)
+    await sendViaGraph(msToken, to, subject, html, replyTo)
     return
   }
 
@@ -51,6 +53,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
     to,
     subject,
     html,
+    ...(replyTo ? { replyTo } : {}),
   })
 }
 
@@ -77,7 +80,7 @@ export async function sendBookingNotification(
   const subject = `New Booking Request ${booking.public_id} — ${vehicleName}`
 
   try {
-    await sendEmail(setting.value.trim(), subject, html)
+    await sendEmail(setting.value.trim(), subject, html, { replyTo: booking.contact_email })
   } catch (err) {
     console.error('[email] Notification not sent for', booking.public_id, err)
   }
@@ -96,12 +99,16 @@ export async function sendCustomerQuote(
   await sendEmail(booking.contact_email, subject, html)
 }
 
-export async function sendTestEmail(to: string): Promise<void> {
+export async function sendTestEmail(to: string, provider?: 'microsoft'): Promise<void> {
   const siteName = await getSiteName()
   const subject = `Test Email — ${siteName} Admin`
   const html = `<p>This is a test email from <strong>${siteName}</strong>. Email notifications are working correctly.</p>`
 
-  await sendEmail(to, subject, html)
+  if (provider === 'microsoft') {
+    const token = await getMicrosoftAccessToken()
+    if (!token) throw new Error('Microsoft access is not available. Check the client secret and reconnect Microsoft in Connections.')
+    await sendViaGraph(token, to, subject, html)
+  } else await sendEmail(to, subject, html)
 }
 
 export async function sendBulkVendorBookingSummary(

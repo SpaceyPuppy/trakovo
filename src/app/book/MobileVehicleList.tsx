@@ -75,7 +75,7 @@ function MobileVehicleCard({ vehicle }: { vehicle: Vehicle }) {
       <div className="flex-1 px-4 py-3.5 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="font-display font-bold text-[15px] tracking-tight leading-tight">{vehicle.name}</h3>
-          {vehicle.meta.hire_modes === 'both' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 bg-emerald-700 text-white">Self-Drive</span>}
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 text-white ${vehicle.meta.hire_modes === 'both' ? 'bg-emerald-700' : 'bg-accent'}`}>{vehicle.meta.hire_modes === 'both' ? 'Self-Drive' : 'Chauffeur Only'}</span>
         </div>
 
         {/* Specs */}

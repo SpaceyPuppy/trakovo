@@ -39,7 +39,7 @@ jobs:
           node-version: '24.22.1'
           cache: npm
       - run: npm ci
-      - run: node --test tests/taxi-booking.test.cjs tests/special-occasions.test.cjs tests/update-safety.test.cjs
+      - run: node --test tests/taxi-booking.test.cjs tests/special-occasions.test.cjs tests/update-safety.test.cjs tests/portal-connections.test.cjs
       - run: npm audit --audit-level=moderate
       - run: npm run lint
       - run: npm run typecheck

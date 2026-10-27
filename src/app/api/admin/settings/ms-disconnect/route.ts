@@ -7,8 +7,8 @@ export async function DELETE() {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
   await execute(
-    'DELETE FROM Setting WHERE `key` IN (?, ?, ?, ?, ?)',
-    ['ms_access_token', 'ms_refresh_token', 'ms_token_expiry', 'ms_connected_email', 'ms_oauth_state']
+    'DELETE FROM Setting WHERE `key` IN (?, ?, ?, ?, ?, ?, ?, ?)',
+    ['ms_access_token', 'ms_refresh_token', 'ms_token_expiry', 'ms_connected_email', 'ms_oauth_state', 'ms_oauth_redirect_uri', 'ms_oauth_created_at', 'ms_oauth_admin']
   )
 
   return NextResponse.json({ ok: true })

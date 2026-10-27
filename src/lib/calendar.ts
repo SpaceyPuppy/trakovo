@@ -1,6 +1,7 @@
 import { queryOne, execute } from './db'
 import { getSiteName } from './site'
-import { getMicrosoftAccessToken } from './microsoft-token'
+import { getMicrosoftAccessToken, microsoftGraphRequest } from './microsoft-token'
+import { microsoftDiagnosticCode } from './microsoft-errors'
 
 // MS Graph category colours
 const MS_STATUS_CATEGORY: Record<string, string> = {
@@ -82,13 +83,13 @@ export async function syncBookingToCalendar(bookingId: string): Promise<void> {
     }
 
     if (booking.ms_event_id) {
-      const res = await fetch(
-        `https://graph.microsoft.com/v1.0/me/events/${booking.ms_event_id}`,
+      const res = await microsoftGraphRequest(
+        `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(booking.ms_event_id)}`,
         {
           method: 'PATCH',
           headers: { Authorization: `Bearer ${msToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(msEvent),
-        }
+        }, msToken
       )
       if (!res.ok) {
         if (res.status === 404) {
@@ -98,36 +99,36 @@ export async function syncBookingToCalendar(bookingId: string): Promise<void> {
             'SELECT ms_event_id FROM Booking WHERE id = ? LIMIT 1', [bookingId]
           )
           if (fresh && !fresh.ms_event_id) {
-            const createRes = await fetch(createUrl, {
+            const createRes = await microsoftGraphRequest(createUrl, {
               method: 'POST',
               headers: { Authorization: `Bearer ${msToken}`, 'Content-Type': 'application/json' },
               body: JSON.stringify(msEvent),
-            })
+            }, msToken)
             if (createRes.ok) {
-              const created = await createRes.json()
+              const created = await createRes.json<{ id: string }>()
+              if (!created.id) throw new Error('Microsoft calendar response did not contain an event ID')
               await execute('UPDATE Booking SET ms_event_id = ? WHERE id = ?', [created.id, bookingId])
-            }
+            } else throw new Error(`Microsoft calendar create failed (HTTP ${createRes.status})`)
           }
         } else {
-          const err = await res.text()
-          throw new Error(`MS Calendar update failed ${res.status}: ${err}`)
+          throw new Error(`Microsoft calendar update failed (HTTP ${res.status})`)
         }
       }
     } else {
-      const res = await fetch(createUrl, {
+      const res = await microsoftGraphRequest(createUrl, {
         method: 'POST',
         headers: { Authorization: `Bearer ${msToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(msEvent),
-      })
+      }, msToken)
       if (!res.ok) {
-        const err = await res.text()
-        throw new Error(`MS Calendar create failed ${res.status}: ${err}`)
+        throw new Error(`Microsoft calendar create failed (HTTP ${res.status})`)
       }
-      const created = await res.json()
+      const created = await res.json<{ id: string }>()
+      if (!created.id) throw new Error('Microsoft calendar response did not contain an event ID')
       await execute('UPDATE Booking SET ms_event_id = ? WHERE id = ?', [created.id, bookingId])
     }
   } catch (err) {
-    console.error('[calendar] MS 365 Calendar sync failed:', err)
+    console.error('[calendar] MS 365 Calendar sync failed', { code: microsoftDiagnosticCode(err), message: err instanceof Error && /^Microsoft calendar /.test(err.message) ? err.message : 'Microsoft request failed' })
   }
 }
 
@@ -142,15 +143,14 @@ export async function deleteCalendarEvent(bookingId: string): Promise<void> {
   if (!msToken) return
 
   try {
-    const res = await fetch(
-      `https://graph.microsoft.com/v1.0/me/events/${booking.ms_event_id}`,
-      { method: 'DELETE', headers: { Authorization: `Bearer ${msToken}` } }
+    const res = await microsoftGraphRequest(
+      `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(booking.ms_event_id)}`,
+      { method: 'DELETE' }, msToken
     )
     if (!res.ok && res.status !== 404) {
-      const err = await res.text()
-      throw new Error(`MS Calendar delete failed ${res.status}: ${err}`)
+      throw new Error(`Microsoft calendar delete failed (HTTP ${res.status})`)
     }
   } catch (err) {
-    console.error('[calendar] MS 365 Calendar delete failed:', err)
+    console.error('[calendar] MS 365 Calendar delete failed', { code: microsoftDiagnosticCode(err), message: err instanceof Error && /^Microsoft calendar /.test(err.message) ? err.message : 'Microsoft request failed' })
   }
 }
