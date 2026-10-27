@@ -7,9 +7,10 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
   try {
-    const { to } = await req.json()
-    if (!to) return NextResponse.json({ error: 'Email address required' }, { status: 400 })
-    await sendTestEmail(to as string)
+    const { to, provider } = await req.json()
+    if (typeof to !== 'string' || !to.trim()) return NextResponse.json({ error: 'Email address required' }, { status: 400 })
+    if (provider !== undefined && provider !== 'microsoft') return NextResponse.json({ error: 'Invalid test email provider' }, { status: 400 })
+    await sendTestEmail(to.trim(), provider)
     return NextResponse.json({ ok: true })
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 })

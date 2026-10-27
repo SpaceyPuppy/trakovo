@@ -3,12 +3,12 @@ import { queryOne } from './db'
 import { getSiteName } from './site'
 import type { BookingCreationResponse, BookingResponse } from '@/types'
 import { getTemplate, renderTemplate, buildTemplateContext } from './email-templates'
-import { getMicrosoftAccessToken } from './microsoft-token'
+import { getMicrosoftAccessToken, microsoftGraphRequest } from './microsoft-token'
 
 // ─── Microsoft Graph API helpers ─────────────────────────────────────────────
 
 async function sendViaGraph(token: string, to: string, subject: string, html: string): Promise<void> {
-  const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
+  const res = await microsoftGraphRequest('https://graph.microsoft.com/v1.0/me/sendMail', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -19,10 +19,9 @@ async function sendViaGraph(token: string, to: string, subject: string, html: st
       },
       saveToSentItems: true,
     }),
-  })
+  }, token)
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Graph API error ${res.status}: ${err}`)
+    throw new Error(`Microsoft mail request failed (HTTP ${res.status}). Check the Microsoft connection and Mail.Send consent in Admin settings.`)
   }
 }
 
@@ -96,12 +95,16 @@ export async function sendCustomerQuote(
   await sendEmail(booking.contact_email, subject, html)
 }
 
-export async function sendTestEmail(to: string): Promise<void> {
+export async function sendTestEmail(to: string, provider?: 'microsoft'): Promise<void> {
   const siteName = await getSiteName()
   const subject = `Test Email — ${siteName} Admin`
   const html = `<p>This is a test email from <strong>${siteName}</strong>. Email notifications are working correctly.</p>`
 
-  await sendEmail(to, subject, html)
+  if (provider === 'microsoft') {
+    const token = await getMicrosoftAccessToken()
+    if (!token) throw new Error('Microsoft access is not available. Check the client secret and reconnect Microsoft in Connections.')
+    await sendViaGraph(token, to, subject, html)
+  } else await sendEmail(to, subject, html)
 }
 
 export async function sendBulkVendorBookingSummary(

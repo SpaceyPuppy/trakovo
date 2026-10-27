@@ -4,8 +4,9 @@ import { applyUpdate } from '@/lib/next-update'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import { downloadGitHubAsset } from '@/lib/github-http'
 
-const GITHUB_REPO = 'SpaceyPuppy/trakovo'
+export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession()
@@ -14,37 +15,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Container deployments must be upgraded from the VPS.' }, { status: 409 })
   }
 
-  const { assetId, assetName } = await req.json()
-  if (!assetId || !assetName) {
-    return NextResponse.json({ error: 'Missing assetId or assetName' }, { status: 400 })
+  const body = await req.json().catch(() => null)
+  const assetId = body?.assetId
+  const assetName = body?.assetName
+  if (!Number.isSafeInteger(assetId) || assetId <= 0 || typeof assetName !== 'string' || !/^next-bundle-v[0-9]+\.[0-9]+\.[0-9]+\.zip$/.test(assetName)) {
+    return NextResponse.json({ error: 'Select a valid next-bundle release asset' }, { status: 400 })
   }
 
   const zipPath = path.join(os.tmpdir(), `trakovo-pull-${Date.now()}.zip`)
 
   try {
-    const headers: Record<string, string> = {
-      'Accept': 'application/octet-stream',
-      'X-GitHub-Api-Version': '2022-11-28',
-    }
-    if (process.env.GITHUB_TOKEN) {
-      headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`
-    }
-
-    // Download via GitHub API (works for both public and private repos)
-    const res = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/releases/assets/${assetId}`,
-      { headers, redirect: 'follow' }
-    )
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `GitHub returned ${res.status} downloading asset` },
-        { status: 502 }
-      )
-    }
-
-    // Stream to disk
-    const buffer = Buffer.from(await res.arrayBuffer())
+    const buffer = await downloadGitHubAsset(assetId)
     fs.writeFileSync(zipPath, buffer)
 
     const result = await applyUpdate(zipPath)

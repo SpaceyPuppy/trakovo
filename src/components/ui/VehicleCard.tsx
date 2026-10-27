@@ -21,9 +21,9 @@ export default function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
         ) : (
           <span className="text-6xl opacity-40">🚗</span>
         )}
-        {vehicle.meta.hire_modes === 'both' && <span className="absolute top-3 right-3 text-[10.5px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full bg-emerald-700 text-white">
-          Self-Drive
-        </span>}
+        <span className={`absolute top-3 right-3 text-[10.5px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full text-white ${vehicle.meta.hire_modes === 'both' ? 'bg-emerald-700' : 'bg-accent'}`}>
+          {vehicle.meta.hire_modes === 'both' ? 'Self-Drive' : 'Chauffeur Only'}
+        </span>
       </div>
 
       {/* Body */}
