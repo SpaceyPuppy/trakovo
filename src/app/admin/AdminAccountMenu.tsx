@@ -38,6 +38,8 @@ export default function AdminAccountMenu({ username, compact = false, onOpen }: 
     try {
       const response = await fetch('/api/admin/logout', { method: 'POST' })
       if (!response.ok) throw new Error('Sign out failed. Please try again.')
+      setOpen(false)
+      setSigningOut(false)
       router.replace('/admin/login')
       router.refresh()
     } catch { setError('Unable to sign out. Please try again.'); setSigningOut(false) }

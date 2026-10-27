@@ -379,7 +379,10 @@ test('mobile avatar opens the same account actions as desktop and sign-out handl
     assert.match(html, /Sign out/)
     assert.doesNotMatch(html, /Open menu/)
     await find(tree, node => node.type === 'button' && node.props?.children?.at?.(-1) === 'Sign out').props.onClick()
-    if (success) assert.deepEqual(navigations, ['/admin/login', 'refresh'])
+    if (success) {
+      assert.deepEqual(navigations, ['/admin/login', 'refresh'])
+      assert.doesNotMatch(renderToStaticMarkup(state.render(component, props)), /Account options|Signing out/)
+    }
     else { assert.deepEqual(navigations, []); assert.match(renderToStaticMarkup(state.render(component, props)), /Unable to sign out/) }
   }
 })
